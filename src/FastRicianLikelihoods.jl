@@ -1,5 +1,6 @@
 module FastRicianLikelihoods
 
+using Base: BroadcastFunction
 using ChainRulesCore: @scalar_rule
 using Distributions: Distributions
 using FastGaussQuadrature: gausslegendre

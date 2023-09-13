@@ -5,15 +5,15 @@
 #### CUDA-friendly native julia Besselix functions
 
 "Approximation of besselix(0, x) = exp(-|x|) * besseli(0, x)"
-function besselix0 end
+function besseli0x end
 
 "Approximation of besselix(1, x) = exp(-|x|) * besseli(1, x)"
-function besselix1 end
+function besseli1x end
 
 "Approximation of besselix(2, x) = exp(-|x|) * besseli(2, x)"
-function besselix2 end
+function besseli2x end
 
-@inline function besselix0(x::Real)
+@inline function besseli0x(x::Real)
     ax = abs(x)
     if ax < 3.75f0
         y = (ax / 3.75f0)^2
@@ -26,7 +26,7 @@ function besselix2 end
     return y
 end
 
-@inline function besselix1(x::Real)
+@inline function besseli1x(x::Real)
     ax = abs(x)
     if ax < 3.75f0
         y = (ax / 3.75f0)^2
@@ -39,7 +39,7 @@ end
     return x < 0 ? -y : y
 end
 
-@inline function besselix2(x::Real)
+@inline function besseli2x(x::Real)
     ax = abs(x)
     if ax < 3.75f0
         y = (ax / 3.75f0)^2
@@ -54,33 +54,33 @@ end
 
 #### Derived special functions
 
-@inline besseli1i0m1(x::Real) = besselix1(x) / besselix0(x) - 1
-@inline besseli2i0(x::Real) = besselix2(x) / besselix0(x)
+@inline besseli1i0m1(x::Real) = besseli1x(x) / besseli0x(x) - 1
+@inline besseli2i0(x::Real) = besseli2x(x) / besseli0x(x)
 
 # log(besselix(0, x)) loses accuracy near zero since besselix(0, x) -> 1 as x -> 0; replace with Taylor series
 @inline logbesseli0_taylor(x::Real) = (x² = abs2(x); return x² * evalpoly(x², (0.25f0, -0.015625f0, 0.0017361111f0, -0.00022379558f0, 3.092448f-5, -4.45519f-6)))
-@inline logbesseli0(x::Real) = abs(x) < 1 ? logbesseli0_taylor(x) : log(besselix0(x)) + abs(x) # since log(besselix(0, x)) = log(I0(x)) - |x|
-@inline logbesselix0(x::Real) = abs(x) < 1 ? logbesseli0_taylor(x) - abs(x) : log(besselix0(x)) # since log(besselix(0, x)) = log(I0(x)) - |x|
+@inline logbesseli0(x::Real) = abs(x) < 1 ? logbesseli0_taylor(x) : log(besseli0x(x)) + abs(x) # since log(besselix(0, x)) = log(I0(x)) - |x|
+@inline logbesseli0x(x::Real) = abs(x) < 1 ? logbesseli0_taylor(x) - abs(x) : log(besseli0x(x)) # since log(besselix(0, x)) = log(I0(x)) - |x|
 
-@inline logbesseli1(x::Real) = logbesselix1(x) + abs(x) # since log(besselix(1, x)) = log(I1(x)) - |x|
-@inline logbesselix1(x::Real) = log(besselix1(x)) # since log(besselix(1, x)) = log(I1(x)) - |x|
+@inline logbesseli1(x::Real) = logbesseli1x(x) + abs(x) # since log(besselix(1, x)) = log(I1(x)) - |x|
+@inline logbesseli1x(x::Real) = log(besseli1x(x)) # since log(besselix(1, x)) = log(I1(x)) - |x|
 
-@inline logbesseli2(x::Real) = logbesselix2(x) + abs(x) # since log(besselix(2, x)) = log(I2(x)) - |x|
-@inline logbesselix2(x::Real) = log(besselix2(x)) # since log(besselix(2, x)) = log(I2(x)) - |x|
+@inline logbesseli2(x::Real) = logbesseli2x(x) + abs(x) # since log(besselix(2, x)) = log(I2(x)) - |x|
+@inline logbesseli2x(x::Real) = log(besseli2x(x)) # since log(besselix(2, x)) = log(I2(x)) - |x|
 
-@inline laguerre½(x::Real) = ifelse(x < 0, one(x), exp(x)) * ((1 - x) * besselix0(-x/2) - x * besselix1(-x/2)) # besselix(ν, ±x/2) = Iν(±x/2) * exp(-|±x/2|) = Iν(-x/2) * exp(∓x/2)
-@inline ∂x_laguerre½(x::Real) = ifelse(x < 0, one(x), exp(x)) * (besselix1(x/2) - besselix0(x/2)) / 2
+@inline laguerre½(x::Real) = ifelse(x < 0, one(x), exp(x)) * ((1 - x) * besseli0x(-x/2) - x * besseli1x(-x/2)) # besselix(ν, ±x/2) = Iν(±x/2) * exp(-|±x/2|) = Iν(-x/2) * exp(∓x/2)
+@inline ∂x_laguerre½(x::Real) = ifelse(x < 0, one(x), exp(x)) * (besseli1x(x/2) - besseli0x(x/2)) / 2
 @scalar_rule laguerre½(x::Real) ∂x_laguerre½(x)
 @define_unary_dual_scalar_rule laguerre½ (laguerre½, ∂x_laguerre½)
 
 #### ChainRules and ForwardDiff
 
-@inline ∂x_besselix0(x::Real, Ω::Real) = besselix1(x) - sign(x) * Ω
-@inline f_∂xbesselix0(x::Real) = (Ω = besselix0(x); return (Ω, ∂x_besselix0(x, Ω)))
-@scalar_rule besselix0(x::Real) ∂x_besselix0(x, Ω)
-@define_unary_dual_scalar_rule besselix0 f_∂xbesselix0
+@inline ∂x_besseli0x(Ω::Real, x::Real) = besseli1x(x) - sign(x) * Ω
+@inline f_∂x_besseli0x(x::Real) = (Ω = besseli0x(x); return (Ω, ∂x_besseli0x(Ω, x)))
+@scalar_rule besseli0x(x::Real) ∂x_besseli0x(Ω, x)
+@define_unary_dual_scalar_rule besseli0x f_∂x_besseli0x
 
-@inline ∂x_besselix1(x::Real, Ω::Real) = (besselix0(x) + besselix2(x))/2 - sign(x) * Ω
-@inline f_∂x_besselix1(x::Real) = (Ω = besselix1(x); return (Ω, ∂x_besselix1(x, Ω)))
-@scalar_rule besselix1(x::Real) ∂x_besselix1(x, Ω)
-@define_unary_dual_scalar_rule besselix1 f_∂x_besselix1
+@inline ∂x_besseli1x(Ω::Real, x::Real) = (besseli0x(x) + besseli2x(x)) / 2 - sign(x) * Ω
+@inline f_∂x_besseli1x(x::Real) = (Ω = besseli1x(x); return (Ω, ∂x_besseli1x(Ω, x)))
+@scalar_rule besseli1x(x::Real) ∂x_besseli1x(Ω, x)
+@define_unary_dual_scalar_rule besseli1x f_∂x_besseli1x
