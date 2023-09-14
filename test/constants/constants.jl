@@ -14,7 +14,7 @@ function logbesseli0_small_constants(a=1/1e16)
     #   => P(y) = log(besseli(0, x)) / x^2 where x = √y
     P4(y) = (x = sqrt(y); log(ArbNumerics.besseli(0, x)) / y)
     N, D, E, X = ratfn_minimax(arbify(P4), (a, 1.0), 4, 0)
-    @info "logbesseli0_small_constants: x < 3.75" E=Float32(E) N=(Float32.(N)...,)
+    @info "logbesseli0_small_constants: x < 3.75" E=Float64(E) N=(Float64.(N)...,)
 end
 
 function besseli0x_small_constants()
@@ -24,7 +24,7 @@ function besseli0x_small_constants()
     #   => P(y) = besseli(0, x) where x = 3.75 * √y
     P6(y) = (x = 3.75 * sqrt(y); ArbNumerics.besseli(0, x))
     N, D, E, X = ratfn_minimax(arbify(P6), (0.0, 1.0), 6, 0)
-    @info "besseli0x_small_constants: x < 3.75" E=Float32(E) N=(Float32.(N)...,)
+    @info "besseli0x_small_constants: x < 3.75" E=Float64(E) N=(Float64.(N)...,)
 end
 
 function besseli0x_large_constants(a=1/1e16)
@@ -34,7 +34,7 @@ function besseli0x_large_constants(a=1/1e16)
     #   => P(y) = exp(-|x|) * √|x| * besseli(0, x) where x = 3.75 / y
     P8(y) = (x = 3.75 / y; exp(-x) * sqrt(x) * ArbNumerics.besseli(0, x))
     N, D, E, X = ratfn_minimax(arbify(P8), (a, 1.0), 8, 0)
-    @info "besseli0x_large_constants: x > 3.75" E=Float32(E) N=(Float32.(N)...,)
+    @info "besseli0x_large_constants: x > 3.75" E=Float64(E) N=(Float64.(N)...,)
 end
 
 function besseli1x_small_constants(a=1/1e16)
@@ -44,7 +44,7 @@ function besseli1x_small_constants(a=1/1e16)
     #   => P(y) = besseli(1, x) / |x| where x = 3.75 * √y
     P6(y) = (x = 3.75 * sqrt(y); ArbNumerics.besseli(1, x) / x)
     N, D, E, X = ratfn_minimax(arbify(P6), (a, 1.0), 6, 0)
-    @info "besseli1x_small_constants: x < 3.75" E=Float32(E) N=(Float32.(N)...,)
+    @info "besseli1x_small_constants: x < 3.75" E=Float64(E) N=(Float64.(N)...,)
 end
 
 function besseli1x_large_constants(a=1/1e16)
@@ -54,7 +54,7 @@ function besseli1x_large_constants(a=1/1e16)
     #   => P(y) = exp(-|x|) * √|x| * besseli(1, x) where x = 3.75 / y
     P8(y) = (x = 3.75 / y; exp(-x) * sqrt(x) * ArbNumerics.besseli(1, x))
     N, D, E, X = ratfn_minimax(arbify(P8), (a, 1.0), 8, 0)
-    @info "besseli1x_large_constants: x > 3.75" E=Float32(E) N=(Float32.(N)...,)
+    @info "besseli1x_large_constants: x > 3.75" E=Float64(E) N=(Float64.(N)...,)
 end
 
 function besseli2x_small_constants(a=1/1e16)
@@ -64,7 +64,7 @@ function besseli2x_small_constants(a=1/1e16)
     #   => P(y) = besseli(2, x) / |x|^2 where x = 3.75 * √y
     P6(y) = (x = 3.75 * sqrt(y); ArbNumerics.besseli(2, x) / x^2)
     N, D, E, X = ratfn_minimax(arbify(P6), (a, 1.0), 6, 0)
-    @info "besseli2x_small_constants: x < 3.75" E=Float32(E) N=(Float32.(N)...,)
+    @info "besseli2x_small_constants: x < 3.75" E=Float64(E) N=(Float64.(N)...,)
 end
 
 function besseli2x_large_constants(a=1/1e16)
@@ -74,33 +74,74 @@ function besseli2x_large_constants(a=1/1e16)
     #   => P(y) = exp(-|x|) * √|x| * besseli(2, x) where x = 3.75 / y
     P8(y) = (x = 3.75 / y; exp(-x) * sqrt(x) * ArbNumerics.besseli(2, x))
     N, D, E, X = ratfn_minimax(arbify(P8), (a, 1.0), 8, 0)
-    @info "besseli2x_large_constants: x > 3.75" E=Float32(E) N=(Float32.(N)...,)
+    @info "besseli2x_large_constants: x > 3.75" E=Float64(E) N=(Float64.(N)...,)
 end
 
-function ∇neglogpdf_rician_small_constants(a=1/1e16, b=0.25)
-    # Small z < b:
+function besseli0_constants(min=1/1e16, low=7.75, branch=50)
+    # Small x < low:
+    #   besseli(0, x) = (1 + y * P(y)) where y = x^2 / 4
+    Plow(y) = (x = 2*sqrt(y); (ArbNumerics.besseli(0, x) - 1) / y)
+    N, D, E, X = ratfn_minimax(arbify(Plow), (min, low^2 / 4), 8, 0)
+    @info "besseli0: x < $low" E=Float64(E) N=(Float64.(N)...,)
+
+    # Medium x > low:
+    #   besseli(0, x) = exp(x) * P(y) / sqrt(x) where y = 1/x
+    Pmed(y) = (x = 1/y; exp(-x) * sqrt(x) * ArbNumerics.besseli(0, x))
+    N, D, E, X = ratfn_minimax(arbify(Pmed), (min, 1/low), 4, 0)
+    @info "besseli0: x > $low" E=Float64(E) N=(Float64.(N)...,)
+
+    # Large x > branch:
+    #   besselix(0, x) = exp(-|x|) * besseli(0, x) = P(y) / sqrt(x) where y = 1/x
+    Plarge(y) = (x = 1/y; exp(-x) * sqrt(x) * ArbNumerics.besseli(0, x))
+    N, D, E, X = ratfn_minimax(arbify(Plarge), (min, 1/branch), 2, 0)
+    @info "besseli0x: x > $branch" E=Float64(E) N=(Float64.(N)...,)
+end
+
+function besseli2_constants(min=1/1e16, low=7.75, branch=500)
+    # Small x < low:
+    #   besseli(2, x) = y * P(y) where y = x^2 / 4
+    Plow(y) = (x = 2*sqrt(y); ArbNumerics.besseli(2, x) / y)
+    N, D, E, X = ratfn_minimax(arbify(Plow), (min, low^2 / 4), 13, 0)
+    @info "besseli2: x < $low" E=Float64(E) N=(Float64.(N)...,)
+
+    # Medium x > low:
+    #   besseli(2, x) = exp(x) * P(y) / sqrt(x) where y = 1/x
+    Pmed(y) = (x = 1/y; exp(-x) * sqrt(x) * ArbNumerics.besseli(2, x))
+    N, D, E, X = ratfn_minimax(arbify(Pmed), (min, 1/low), 20, 0)
+    @info "besseli2: x > $low" E=Float64(E) N=(Float64.(N)...,)
+
+    # Large x > branch:
+    #   besselix(2, x) = exp(-|x|) * besseli(2, x) = P(y) / sqrt(x) where y = 1/x
+    Plarge(y) = (x = 1/y; exp(-x) * sqrt(x) * ArbNumerics.besseli(2, x))
+    N, D, E, X = ratfn_minimax(arbify(Plarge), (min, 1/branch), 4, 0)
+    @info "besseli2x: x > $branch" E=Float64(E) N=(Float64.(N)...,)
+end
+
+function ∇neglogpdf_rician_constants(min=1/1e16, low=0.25, med=20; smalldeg=7, largedeg=11, num=12, den=6)
+    T = Float32
+    low, med, smalldeg, num, den, largedeg =
+        T == Float32 ? (0.25, 20, 3, 8, 4, 4) :
+                       (0.5, 12, 8, 12, 6, 18)
+
+    # Small z < low:
     #   logÎ₀′(z) + 1 - 1/2z = I₁(z) / I₀(z) ≈ z/2 + 𝒪(z^2)
     #                        = z * P(z^2)
     #   => P(y) = (I₁(z) / I₀(z)) / z where z = √y
-    P3(y) = (z = sqrt(y); (ArbNumerics.besseli(1, z) / ArbNumerics.besseli(0, z)) / z)
-    N, D, E, X = ratfn_minimax(arbify(P3), (a, b), 3, 0)
-    @info "∇neglogpdf_rician_small_constants: x > $b" E=Float32(E) N=(Float32.(N)...,)
-end
+    Psmall(y) = (z = sqrt(y); (ArbNumerics.besseli(1, z) / ArbNumerics.besseli(0, z)) / z)
+    N, D, E, X = ratfn_minimax(arbify(Psmall), (min, low), smalldeg, 0)
+    @info "∇neglogpdf_rician: x < $low" E=T(E) N=(T.(N)...,)
 
-function ∇neglogpdf_rician_medium_constants(a=0.25, b=10.0; n=6, d=0)
-    # Small z < b:
+    # Medium low < z < med:
     #   I₁(z) / I₀(z) ≈ z * P(z)
-    P(y) = (z = y; (ArbNumerics.besseli(1, z) / ArbNumerics.besseli(0, z)) / z)
-    N, D, E, X = ratfn_minimax(arbify(P), (a, b), n, d)
-    @info "∇neglogpdf_rician_medium_constants: x > $b" E=Float32(E) N=(Float32.(N)...,) D=(Float32.(D)...,)
-end
+    Pmed(y) = (z = y; (ArbNumerics.besseli(1, z) / ArbNumerics.besseli(0, z)) / z)
+    N, D, E, X = ratfn_minimax(arbify(Pmed), (low, med), num, den)
+    @info "∇neglogpdf_rician: $low < x < $med (degree $num / $den)" E=T(E) N=(T.(N)...,) D=(T.(D)...,)
 
-function ∇neglogpdf_rician_large_constants(a=1/1e16, b=10.0)
-    # Large z > b:
+    # Large z > med:
     #   z * logÎ₀′(z) = 1/2 + z * (I₁(z) / I₀(z) - 1) ≈ -1/8z + 𝒪(1/z^2)
     #                 = -z⁻¹ * P(z⁻¹)
     #   => P(y) = -z * (1/2 + z * (I₁(z) / I₀(z) - 1)) where z = 1 / y
-    P4(y) = (z = inv(y); -z * (0.5 + z * (ArbNumerics.besseli(1, z) / ArbNumerics.besseli(0, z) - 1)))
-    N, D, E, X = ratfn_minimax(arbify(P4), (a, 1/b), 4, 0)
-    @info "∇neglogpdf_rician_large_constants: x > $b" E=Float32(E) N=(Float32.(N)...,)
+    Plarge(y) = (z = inv(y); -z * (0.5 + z * (ArbNumerics.besseli(1, z) / ArbNumerics.besseli(0, z) - 1)))
+    N, D, E, X = ratfn_minimax(arbify(Plarge), (min, 1/med), largedeg, 0)
+    @info "∇neglogpdf_rician: x > $med" E=T(E) N=(T.(N)...,)
 end

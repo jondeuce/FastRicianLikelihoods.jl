@@ -2,85 +2,120 @@
 #### Fast + differentiable Bessel functions
 ####
 
-#### CUDA-friendly native julia Besselix functions
+# Bessels.jl provides `besseli0x` and `besseli1x`, but not `besseli2x`
+@inline besseli0(x) = Bessels.besseli0(x)
+@inline besseli0x(x) = Bessels.besseli0x(x)
 
-"Approximation of besselix(0, x) = exp(-|x|) * besseli(0, x)"
-function besseli0x end
+@inline besseli1(x) = Bessels.besseli1(x)
+@inline besseli1x(x) = Bessels.besseli1x(x)
 
-"Approximation of besselix(1, x) = exp(-|x|) * besseli(1, x)"
-function besseli1x end
+"""
+    besseli2(x::T) where {T <: Union{Float32, Float64}}
 
-"Approximation of besselix(2, x) = exp(-|x|) * besseli(2, x)"
-function besseli2x end
-
-@inline function besseli0x(x::Real)
-    ax = abs(x)
-    if ax < 3.75f0
-        y = (ax / 3.75f0)^2
-        y = exp(-ax) * evalpoly(y, (1.0f0, 3.5156212f0, 3.089966f0, 1.20663f0, 0.26623538f0, 0.035819437f0, 0.0046737944f0))
+Modified Bessel function of the first kind of order zero, ``I_2(x)``.
+"""
+function besseli2(x::T) where {T <: Union{Float32, Float64}}
+    x = abs(x)
+    if x < 7.75
+        a = x * x / 4
+        return a * evalpoly(a, besseli2_small_coefs(T))
     else
-        y = 3.75f0 / ax
-        y = evalpoly(y, (0.3989423f0, 0.013294099f0, 0.002100603f0, -0.00051136187f0, 0.005409987f0, -0.013205506f0, 0.018180212f0, -0.01168953f0, 0.002773462f0))
-        y /= sqrt(ax)
+        a = exp(x / 2)
+        s = a * evalpoly(inv(x), besseli2_med_coefs(T)) / sqrt(x)
+        return a * s
     end
-    return y
 end
 
-@inline function besseli1x(x::Real)
-    ax = abs(x)
-    if ax < 3.75f0
-        y = (ax / 3.75f0)^2
-        y = exp(-ax) * ax * evalpoly(y, (0.5f0, 0.878906f0, 0.5149879f0, 0.15085198f0, 0.026583772f0, 0.0030173112f0, 0.00032376772f0))
+"""
+    besseli2x(x::T) where {T <: Union{Float32, Float64}}
+
+Scaled modified Bessel function of the first kind of order zero, ``I_2(x)*e^{-|x|}``.
+"""
+function besseli2x(x::T) where {T <: Union{Float32, Float64}}
+    T == Float32 ? branch = 50 : branch = 500
+    x = abs(x)
+    if x < 7.75
+        a = x * x / 4
+        return a * evalpoly(a, besseli2_small_coefs(T)) * exp(-x)
+    elseif x < branch
+        return evalpoly(inv(x), besseli2_med_coefs(T)) / sqrt(x)
     else
-        y = 3.75f0 / ax
-        y = evalpoly(y, (0.39894226f0, -0.039889723f0, -0.0034435112f0, 0.00041189327f0, -0.0060203597f0, 0.014447087f0, -0.01970894f0, 0.012488588f0, -0.0029104343f0))
-        y /= sqrt(ax)
+        return evalpoly(inv(x), besseli2_large_coefs(T)) / sqrt(x)
     end
-    return x < 0 ? -y : y
 end
 
-@inline function besseli2x(x::Real)
-    ax = abs(x)
-    if ax < 3.75f0
-        y = (ax / 3.75f0)^2
-        y = exp(-ax) * ax^2 * evalpoly(y, (0.125f0, 0.14648436f0, 0.06437322f0, 0.015086209f0, 0.0022135116f0, 0.0002170313f0, 1.9755797f-5))
-    else
-        y = 3.75f0 / ax
-        y = evalpoly(y, (0.39894232f0, -0.19947755f0, 0.02343734f0, 0.0007118358f0, 0.008240167f0, -0.018552817f0, 0.0246264f0, -0.014846447f0, 0.0032440408f0))
-        y /= sqrt(ax)
-    end
-    return y
-end
+const besseli2_small_coefs(::Type{Float32}) = (
+    0.5000000380180327f0, 0.1666662618114895f0, 0.02083404267763115f0,
+    0.0013884111223694947f0, 5.80310930509866f-5, 1.623226061096556f-6,
+    3.775086797193045f-8, 3.403189301562835f-10, 1.3439158558362364f-11
+)
+const besseli2_small_coefs(::Type{Float64}) = (
+    0.49999999999999983, 0.16666666666667154, 0.020833333333312287,
+    0.0013888888889246186, 5.787037033873442e-5, 1.6534391702073172e-6,
+    3.444664327750705e-8, 5.467735445704131e-10, 6.834436191839501e-12,
+    6.906148607507894e-14, 5.733547826165566e-16, 4.1288365068666296e-18,
+    2.0258796870216445e-20, 1.958474603154919e-22
+)
+const besseli2_med_coefs(::Type{Float32}) = (
+    0.3989423335005962f0, -0.7480354669272465f0, 0.3283003548501443f0,
+    0.10303896764745404f0, 0.2639897680554983f0
+)
+const besseli2_med_coefs(::Type{Float64}) = (
+    0.3989422804014328, -0.7480167757536108, 0.32725734026661746,
+    0.12272117712518572, 0.1266192433674273, 0.1985002457586728,
+    0.9652668510022477, -22.515059045641358, 650.0016469706677,
+    -5111.504274365941, -366285.0422528223, 1.866344682244392e7,
+    -4.870990420065428e8, 8.501718935762064e9, -1.0580797337687886e11,
+    9.548560528330159e11, -6.211912811203429e12, 2.8410346605629793e13,
+    -8.670581882322688e13, 1.586062121825567e14, -1.3160619165647164e14
+)
+const besseli2_large_coefs(::Type{Float32}) =  (
+    0.398942312409439f0, -0.7480453792346994f0, 0.3310342475515811f0
+)
+const besseli2_large_coefs(::Type{Float64}) = (
+    0.3989422804014327, -0.7480167757530116, 0.3272573406917582,
+    0.12271968486936348, 0.12759241505245672
+)
 
 #### Derived special functions
 
-@inline besseli1i0m1(x::Real) = besseli1x(x) / besseli0x(x) - 1
-@inline besseli2i0(x::Real) = besseli2x(x) / besseli0x(x)
+@inline logbesseli0_small(x::T) where {T <: Union{Float32, Float64}} = (x² = abs2(x); return x² * evalpoly(x², logbesseli0_small_coefs(T))) # log(besselix(0, x)) loses accuracy near x = 0 since besselix(0, x) -> 1 as x -> 0
+@inline logbesseli0(x::T) where {T <: Union{Float32, Float64}} = abs(x) < one(T) ? logbesseli0_small(x) : log(besseli0x(x)) + abs(x) # log(besselix(0, x)) = log(I0(x)) - |x|
+@inline logbesseli0x(x::T) where {T <: Union{Float32, Float64}} = abs(x) < one(T) ? logbesseli0_small(x) - abs(x) : log(besseli0x(x))
 
-# log(besselix(0, x)) loses accuracy near x = 0 since besselix(0, x) -> 1 as x -> 0; replace with minimax polynomial approximation
-@inline logbesseli0_remez(x::Real) = (x² = abs2(x); return x² * evalpoly(x², (0.25f0, -0.015624705f0, 0.001733676f0, -0.00021666016f0, 2.2059316f-5)))
-@inline logbesseli0(x::Real) = abs(x) < 1 ? logbesseli0_remez(x) : log(besseli0x(x)) + abs(x) # log(besselix(0, x)) = log(I0(x)) - |x|
-@inline logbesseli0x(x::Real) = abs(x) < 1 ? logbesseli0_remez(x) - abs(x) : log(besseli0x(x))
+@inline logbesseli1(x::Union{Float32, Float64}) = logbesseli1x(x) + abs(x) # log(besselix(1, x)) = log(I1(x)) - |x|
+@inline logbesseli1x(x::Union{Float32, Float64}) = log(besseli1x(x))
 
-@inline logbesseli1(x::Real) = logbesseli1x(x) + abs(x) # log(besselix(1, x)) = log(I1(x)) - |x|
-@inline logbesseli1x(x::Real) = log(besseli1x(x))
+@inline logbesseli2(x::Union{Float32, Float64}) = logbesseli2x(x) + abs(x) # log(besselix(2, x)) = log(I2(x)) - |x|
+@inline logbesseli2x(x::Union{Float32, Float64}) = log(besseli2x(x))
 
-@inline logbesseli2(x::Real) = logbesseli2x(x) + abs(x) # log(besselix(2, x)) = log(I2(x)) - |x|
-@inline logbesseli2x(x::Real) = log(besseli2x(x))
+@inline besseli1i0m1(x::Union{Float32, Float64}) = besseli1x(x) / besseli0x(x) - 1
+@inline besseli2i0(x::Union{Float32, Float64}) = besseli2x(x) / besseli0x(x)
 
-@inline laguerre½(x::Real) = ifelse(x < 0, one(x), exp(x)) * ((1 - x) * besseli0x(-x/2) - x * besseli1x(-x/2)) # besselix(ν, ±x/2) = Iν(±x/2) * exp(-|±x/2|) = Iν(-x/2) * exp(∓x/2)
-@inline ∂x_laguerre½(x::Real) = ifelse(x < 0, one(x), exp(x)) * (besseli1x(x/2) - besseli0x(x/2)) / 2
-@scalar_rule laguerre½(x::Real) ∂x_laguerre½(x)
+@inline laguerre½(x::T) where {T <: Union{Float32, Float64}} = ifelse(x < zero(T), one(x), exp(x)) * ((1 - x) * besseli0x(-x/2) - x * besseli1x(-x/2)) # besselix(ν, ±x/2) = Iν(±x/2) * exp(-|±x/2|) = Iν(-x/2) * exp(∓x/2)
+@inline ∂x_laguerre½(x::T) where {T <: Union{Float32, Float64}} = ifelse(x < zero(T), one(x), exp(x)) * (besseli1x(x/2) - besseli0x(x/2)) / 2
+@scalar_rule laguerre½(x::Union{Float32, Float64}) ∂x_laguerre½(x)
 @define_unary_dual_scalar_rule laguerre½ (laguerre½, ∂x_laguerre½)
+
+const logbesseli0_small_coefs(::Type{Float32}) = (
+    0.24999999426684533f0, -0.015624705149866972f0, 0.0017336759629143878f0,
+    -0.00021666015596172704f0, 2.2059316402289948f-5
+)
+const logbesseli0_small_coefs(::Type{Float64}) = (
+    0.25, -0.015624999999997167, 0.0017361111109961576,
+    -0.0002237955710956064, 3.092446434101836e-5, -4.455118991727041e-6,
+    6.600804196191383e-7, -9.949296105322181e-8, 1.483764672332753e-8,
+    -1.968806398401359e-9, 1.6562710526172217e-10
+)
 
 #### ChainRules and ForwardDiff
 
-@inline ∂x_besseli0x(Ω::Real, x::Real) = besseli1x(x) - sign(x) * Ω
-@inline f_∂x_besseli0x(x::Real) = (Ω = besseli0x(x); return (Ω, ∂x_besseli0x(Ω, x)))
-@scalar_rule besseli0x(x::Real) ∂x_besseli0x(Ω, x)
+@inline ∂x_besseli0x(Ω::T, x::T) where {T <: Union{Float32, Float64}} = besseli1x(x) - sign(x) * Ω
+@inline f_∂x_besseli0x(x::Union{Float32, Float64}) = (Ω = besseli0x(x); return (Ω, ∂x_besseli0x(Ω, x)))
+@scalar_rule besseli0x(x::Union{Float32, Float64}) ∂x_besseli0x(Ω, x)
 @define_unary_dual_scalar_rule besseli0x f_∂x_besseli0x
 
-@inline ∂x_besseli1x(Ω::Real, x::Real) = (besseli0x(x) + besseli2x(x)) / 2 - sign(x) * Ω
-@inline f_∂x_besseli1x(x::Real) = (Ω = besseli1x(x); return (Ω, ∂x_besseli1x(Ω, x)))
-@scalar_rule besseli1x(x::Real) ∂x_besseli1x(Ω, x)
+@inline ∂x_besseli1x(Ω::T, x::T) where {T <: Union{Float32, Float64}} = (besseli0x(x) + besseli2x(x)) / 2 - sign(x) * Ω
+@inline f_∂x_besseli1x(x::Union{Float32, Float64}) = (Ω = besseli1x(x); return (Ω, ∂x_besseli1x(Ω, x)))
+@scalar_rule besseli1x(x::Union{Float32, Float64}) ∂x_besseli1x(Ω, x)
 @define_unary_dual_scalar_rule besseli1x f_∂x_besseli1x
