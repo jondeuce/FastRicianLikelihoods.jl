@@ -33,16 +33,19 @@ end
     # Could plausibly better account for the latter case, though it is tested quite robustly
     if z > 10f0
         z⁻¹ = inv(z)
-        tmp = -z⁻¹ * evalpoly(z⁻¹, (1/T(8), 1/T(8), 25/T(128), 13/T(32))) # z * (logÎ₀)′(z) = 1/2 + z * (I₁(z) / I₀(z) - 1)
+        tmp = -z⁻¹ * evalpoly(z⁻¹, T.((0.12500031f0, 0.12485776f0, 0.20534159f0, 0.16864306f0, 3.0893092f0))) # z * logÎ₀′(z) = 1/2 + z * (I₁(z) / I₀(z) - 1) ≈ -1/8z + 𝒪(1/z^2)
         ∂x = x - ν - (1/T(2) + tmp) / x
         ∂ν = ν - x + (1/T(2) - tmp) / ν
     elseif z < 0.25f0
-        r = z * evalpoly(z^2, (1/T(2), -1/T(16), 1/T(96), -11/T(6144))) # (logÎ₀)′(z) + 1 - 1/2z = I₁(z) / I₀(z)
-        tmp = 1 - z * (1 - r) # z * (logÎ₀)′(z) + 1/2 = 1 + z * (I₁(z) / I₀(z) - 1)
+        r = z * evalpoly(z^2, T.((0.5f0, -0.0624989f0, 0.010394423f0, -0.0016448505f0))) # logÎ₀′(z) + 1 - 1/2z = I₁(z) / I₀(z) ≈ z/2 + 𝒪(z^2)
+        tmp = muladd(z, r - T(1), T(1)) # z * logÎ₀′(z) + 1/2 = 1 + z * (I₁(z) / I₀(z) - 1)
         ∂x = x - ν - tmp / x
         ∂ν = ν - x * r
     else
-        r = besseli1x(z) / besseli0x(z) # I₁(z) / I₀(z), accurate for all z
+        # r = besseli1x(z) / besseli0x(z) # I₁(z) / I₀(z), accurate for all z
+        rN = T.((0.5000002f0, 0.01539818f0, 0.04205657f0, 0.0007345799f0, 0.0005190502f0, -3.124194f-5, 1.0943508f-6, -1.658656f-8, -2.1386433f-11))
+        rD = T.((1.0f0, 0.030800534f0, 0.2090958f0, 0.005356838f0, 0.006294714f0))
+        r = z * evalpoly(z, rN) / evalpoly(z, rD) # I₁(z) / I₀(z), accurate for all z
         ∂x = x - ν * r - inv(x)
         ∂ν = ν - x * r
     end
