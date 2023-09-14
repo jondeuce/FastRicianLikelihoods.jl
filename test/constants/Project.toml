@@ -1,0 +1,4 @@
+[deps]
+ArbNumerics = "7e558dbc-694d-5a72-987c-6f4ebed21442"
+FastRicianLikelihoods = "055965c9-ba11-4dd1-a5dd-741b25c2e658"
+Remez = "2e7db186-766a-50e7-8928-5c30181fb135"

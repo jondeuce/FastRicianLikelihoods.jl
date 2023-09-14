@@ -17,10 +17,10 @@ function besseli2x end
     ax = abs(x)
     if ax < 3.75f0
         y = (ax / 3.75f0)^2
-        y = exp(-ax) * evalpoly(y, (1.0f0, 3.5156229f0, 3.0899424f0, 1.2067492f0, 0.2659732f0, 0.360768f-1, 0.45813f-2))
+        y = exp(-ax) * evalpoly(y, (1.0f0, 3.5156212f0, 3.089966f0, 1.20663f0, 0.26623538f0, 0.035819437f0, 0.0046737944f0))
     else
         y = 3.75f0 / ax
-        y = evalpoly(y, (0.39894228f0, 0.1328592f-1, 0.225319f-2, -0.157565f-2, 0.916281f-2, -0.2057706f-1, 0.2635537f-1, -0.1647633f-1, 0.392377f-2))
+        y = evalpoly(y, (0.3989423f0, 0.013294099f0, 0.002100603f0, -0.00051136187f0, 0.005409987f0, -0.013205506f0, 0.018180212f0, -0.01168953f0, 0.002773462f0))
         y /= sqrt(ax)
     end
     return y
@@ -30,10 +30,10 @@ end
     ax = abs(x)
     if ax < 3.75f0
         y = (ax / 3.75f0)^2
-        y = exp(-ax) * ax * evalpoly(y, (0.5f0, 0.87890594f0, 0.51498869f0, 0.15084934f0, 0.2658733f-1, 0.301532f-2, 0.32411f-3))
+        y = exp(-ax) * ax * evalpoly(y, (0.5f0, 0.878906f0, 0.5149879f0, 0.15085198f0, 0.026583772f0, 0.0030173112f0, 0.00032376772f0))
     else
         y = 3.75f0 / ax
-        y = evalpoly(y, (0.39894228f0, -0.3988024f-1, -0.362018f-2, 0.163801f-2, -0.1031555f-1, 0.2282967f-1, -0.2895312f-1, 0.1787654f-1, -0.420059f-2))
+        y = evalpoly(y, (0.39894226f0, -0.039889723f0, -0.0034435112f0, 0.00041189327f0, -0.0060203597f0, 0.014447087f0, -0.01970894f0, 0.012488588f0, -0.0029104343f0))
         y /= sqrt(ax)
     end
     return x < 0 ? -y : y
@@ -57,16 +57,16 @@ end
 @inline besseli1i0m1(x::Real) = besseli1x(x) / besseli0x(x) - 1
 @inline besseli2i0(x::Real) = besseli2x(x) / besseli0x(x)
 
-# log(besselix(0, x)) loses accuracy near zero since besselix(0, x) -> 1 as x -> 0; replace with Taylor series
-@inline logbesseli0_taylor(x::Real) = (x² = abs2(x); return x² * evalpoly(x², (0.25f0, -0.015625f0, 0.0017361111f0, -0.00022379558f0, 3.092448f-5, -4.45519f-6)))
-@inline logbesseli0(x::Real) = abs(x) < 1 ? logbesseli0_taylor(x) : log(besseli0x(x)) + abs(x) # since log(besselix(0, x)) = log(I0(x)) - |x|
-@inline logbesseli0x(x::Real) = abs(x) < 1 ? logbesseli0_taylor(x) - abs(x) : log(besseli0x(x)) # since log(besselix(0, x)) = log(I0(x)) - |x|
+# log(besselix(0, x)) loses accuracy near x = 0 since besselix(0, x) -> 1 as x -> 0; replace with minimax polynomial approximation
+@inline logbesseli0_remez(x::Real) = (x² = abs2(x); return x² * evalpoly(x², (0.25f0, -0.015624705f0, 0.001733676f0, -0.00021666016f0, 2.2059316f-5)))
+@inline logbesseli0(x::Real) = abs(x) < 1 ? logbesseli0_remez(x) : log(besseli0x(x)) + abs(x) # log(besselix(0, x)) = log(I0(x)) - |x|
+@inline logbesseli0x(x::Real) = abs(x) < 1 ? logbesseli0_remez(x) - abs(x) : log(besseli0x(x))
 
-@inline logbesseli1(x::Real) = logbesseli1x(x) + abs(x) # since log(besselix(1, x)) = log(I1(x)) - |x|
-@inline logbesseli1x(x::Real) = log(besseli1x(x)) # since log(besselix(1, x)) = log(I1(x)) - |x|
+@inline logbesseli1(x::Real) = logbesseli1x(x) + abs(x) # log(besselix(1, x)) = log(I1(x)) - |x|
+@inline logbesseli1x(x::Real) = log(besseli1x(x))
 
-@inline logbesseli2(x::Real) = logbesseli2x(x) + abs(x) # since log(besselix(2, x)) = log(I2(x)) - |x|
-@inline logbesseli2x(x::Real) = log(besseli2x(x)) # since log(besselix(2, x)) = log(I2(x)) - |x|
+@inline logbesseli2(x::Real) = logbesseli2x(x) + abs(x) # log(besselix(2, x)) = log(I2(x)) - |x|
+@inline logbesseli2x(x::Real) = log(besseli2x(x))
 
 @inline laguerre½(x::Real) = ifelse(x < 0, one(x), exp(x)) * ((1 - x) * besseli0x(-x/2) - x * besseli1x(-x/2)) # besselix(ν, ±x/2) = Iν(±x/2) * exp(-|±x/2|) = Iν(-x/2) * exp(∓x/2)
 @inline ∂x_laguerre½(x::Real) = ifelse(x < 0, one(x), exp(x)) * (besseli1x(x/2) - besseli0x(x/2)) / 2
