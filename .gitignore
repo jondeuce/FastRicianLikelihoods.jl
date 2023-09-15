@@ -4,3 +4,7 @@
 /Manifest.toml
 /docs/Manifest.toml
 /docs/build/
+/test/constants/Manifest.toml
+/test/matlab/Manifest.toml
+/test/matlab/jlcall.m
+/test/matlab/.jlcall
