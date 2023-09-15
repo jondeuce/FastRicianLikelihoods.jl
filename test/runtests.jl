@@ -3,8 +3,13 @@ using Test
 using Aqua
 
 @testset "FastRicianLikelihoods.jl" begin
-    @testset "dual rules" verbose=true include("forwarddiff.jl")
-    @testset "rician" verbose=true include("rician.jl")
+    @testset "dual rules" verbose=true begin
+        include("forwarddiff.jl")
+    end
+
+    @testset "rician" verbose=true begin
+        include("rician.jl")
+    end
 
     @testset "Code quality (Aqua.jl)" begin
         # Generated methods for `ForwardDiff.Dual` introduce a lot
