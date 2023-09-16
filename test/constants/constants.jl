@@ -117,7 +117,7 @@ function besseli2_constants(min=1/1e16, low=7.75, branch=500)
     @info "besseli2x: x > $branch" E=Float64(E) N=(Float64.(N)...,)
 end
 
-function ∇neglogpdf_rician_constants(min=1/1e16)
+function ∇neglogpdf_rician_constants()
     T = Float64
     low, med, smalldeg, num, den, largedeg =
         T == Float32 ? (0.5, 15.0, 3, 4, 4, 4) :
@@ -127,8 +127,8 @@ function ∇neglogpdf_rician_constants(min=1/1e16)
     #   logÎ₀′(z) + 1 - 1/2z = I₁(z) / I₀(z) ≈ z/2 + 𝒪(z^2)
     #                        = z * P(z^2)
     #   => P(y) = (I₁(z) / I₀(z)) / z where z = √y
-    Psmall(y) = (z = sqrt(y); (ArbNumerics.besseli(1, z) / ArbNumerics.besseli(0, z)) / z)
-    N, D, E, X = ratfn_minimax(arbify(Psmall), (min^2, low^2), smalldeg, 0)
+    Psmall(y) = if y == 0; convert(typeof(y), 1/2); else; z = sqrt(y); (ArbNumerics.besseli(1, z) / ArbNumerics.besseli(0, z)) / z end
+    N, D, E, X = ratfn_minimax(arbify(Psmall), (0.0, low^2), smalldeg, 0)
     @info "∇neglogpdf_rician (degree $smalldeg): x < $low" E=T(E) N=(T.(N)...,)
 
     # # Medium low < z < med:
@@ -141,7 +141,7 @@ function ∇neglogpdf_rician_constants(min=1/1e16)
     #   z * logÎ₀′(z) = 1/2 + z * (I₁(z) / I₀(z) - 1) ≈ -1/8z + 𝒪(1/z^2)
     #                 = -z⁻¹ * P(z⁻¹)
     #   => P(y) = -z * (1/2 + z * (I₁(z) / I₀(z) - 1)) where z = 1 / y
-    Plarge(y) = (z = inv(y); -z * (0.5 + z * (ArbNumerics.besseli(1, z) / ArbNumerics.besseli(0, z) - 1)))
-    N, D, E, X = ratfn_minimax(arbify(Plarge), (min, 1/med), largedeg, 0)
+    Plarge(y) = if y == 0; convert(typeof(y), 1/8); else; z = inv(y); z * (-0.5 - z * (ArbNumerics.besseli(1, z) / ArbNumerics.besseli(0, z) - 1)) end
+    N, D, E, X = ratfn_minimax(arbify(Plarge), (0.0, 1/med), largedeg, 0)
     @info "∇neglogpdf_rician (degree $largedeg): x > $med" E=T(E) N=(T.(N)...,)
 end
