@@ -23,7 +23,7 @@ if ~exist('CONSTANTS_STARTUP', 'var')
         'threads', 'auto', ... % use the default number of Julia threads
         'restart', true ... % start a fresh Julia server environment
     )
-    CONSTANTS_STARTUP = true
+    CONSTANTS_STARTUP = true;
 end
 
 low = 0.5;

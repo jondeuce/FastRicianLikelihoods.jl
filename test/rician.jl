@@ -64,7 +64,7 @@ end
     for T in (Float32, Float64)
         f̂ = ∇neglogpdf_rician
         f = arbify(f̂)
-        low, mid = T(0.5), T(15.0)
+        low, high = T(0.5), T(15.0)
         @testset "z < $(low) ($T)" begin
             rtol = 3*eps(T)
             atol = 3*eps(T)
@@ -75,20 +75,20 @@ end
                 @test ∂f̂[2] ≈ ∂f[2] rtol=rtol atol=atol
             end
         end
-        @testset "$(low) <= z < $(mid) ($T)" begin
-            rtol = T == Float32 ? 10*eps(T) : 2e-11
-            atol = T == Float32 ? 50*eps(T) : 2e-12
-            zs = range(low + 25*eps(T), mid - 25*eps(T); length = 10)
+        @testset "$(low) <= z < $(high) ($T)" begin
+            rtol = T == Float32 ? 5*eps(T) : 100*eps(T) #2e-11
+            atol = T == Float32 ? 20*eps(T) : 250*eps(T) #2e-12
+            zs = range(low + 25*eps(T), high - 25*eps(T); length = 10)
             for z in zs, (x, ν) in xν_iterator(z)
                 ∂f̂, ∂f = f̂(x, ν), f(x, ν)
                 @test ∂f̂[1] ≈ ∂f[1] rtol=rtol atol=atol
                 @test ∂f̂[2] ≈ ∂f[2] rtol=rtol atol=atol
             end
         end
-        @testset "$(mid) <= z ($T)" begin
+        @testset "$(high) <= z ($T)" begin
             rtol = 3*eps(T)
             atol = 3*eps(T)
-            zs = (mid + 5*eps(T)) .* T.(exp10.(0:10))
+            zs = (high + 5*eps(T)) .* T.(exp10.(0:10))
             for z in zs, (x, ν) in xν_iterator(z)
                 ∂f̂, ∂f = f̂(x, ν), f(x, ν)
                 @test ∂f̂[1] ≈ ∂f[1] rtol=rtol atol=atol
