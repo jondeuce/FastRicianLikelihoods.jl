@@ -25,28 +25,27 @@ end
     #                 ≈  1/2z - 1 + z/2 - z^3/16 + z^5/96 - 11*z^7/6144 + 𝒪(z^9)                        (z << 1)
     #   d/dx logÎ₀(z) = ν * d/dz logÎ₀(z)
     #   d/dν logÎ₀(z) = x * d/dz logÎ₀(z)
-    low, mid, high = T(0.5), T(7.75), T(15.0)
-    z = x * ν
 
     # Note: there are really three relevant limits: z << 1, z >> 1, and x ≈ ν.
     # Could plausibly better account for the latter case, though it is tested quite robustly
-    if z < low
-        r = z * evalpoly(z^2, ∇neglogpdf_rician_small_coefs(T)) # logÎ₀′(z) + 1 - 1/2z = I₁(z) / I₀(z) ≈ z/2 + 𝒪(z^3)
+    z = x * ν
+    if z < besseli1i0_low_cutoff(T)
+        r = z * evalpoly(z^2, besseli1i0_low_coefs(T)) # logÎ₀′(z) + 1 - 1/2z = I₁(z) / I₀(z) ≈ z/2 + 𝒪(z^3)
         ∂x = x - ν * r - inv(x)
         ∂ν = ν - x * r
-    elseif z < mid
+    elseif z < besseli1i0_mid_cutoff(T)
         z² = z^2
-        r = z * evalpoly(z², ∇neglogpdf_rician_mid_num_coefs(T)) / evalpoly(z², ∇neglogpdf_rician_mid_den_coefs(T)) # r = besseli1x(z) / besseli0x(z) = I₁(z) / I₀(z)
+        r = z * evalpoly(z², besseli1i0_mid_num_coefs(T)) / evalpoly(z², besseli1i0_mid_den_coefs(T)) # r = I₁(z) / I₀(z)
         ∂x = x - ν * r - inv(x)
         ∂ν = ν - x * r
-    elseif z < high
+    elseif z < besseli1i0_high_cutoff(T)
         z² = z^2
-        r = z * evalpoly(z², ∇neglogpdf_rician_large_num_coefs(T)) / evalpoly(z², ∇neglogpdf_rician_large_den_coefs(T)) # r = besseli1x(z) / besseli0x(z) = I₁(z) / I₀(z)
+        r = z * evalpoly(z², besseli1i0_high_num_coefs(T)) / evalpoly(z², besseli1i0_high_den_coefs(T)) # r = I₁(z) / I₀(z)
         ∂x = x - ν * r - inv(x)
         ∂ν = ν - x * r
     else
         z⁻¹ = inv(z)
-        tmp = z⁻¹ * evalpoly(z⁻¹, ∇neglogpdf_rician_large_coefs(T)) # -z * logÎ₀′(z) = -1/2 - z * (I₁(z) / I₀(z) - 1) ≈ 1/8z + 𝒪(1/z^2)
+        tmp = z⁻¹ * evalpoly(z⁻¹, besseli1i0c_tail_coefs(T)) # -z * logÎ₀′(z) = -1/2 - z * (I₁(z) / I₀(z) - 1) ≈ 1/8z + 𝒪(1/z^2)
         ∂x = x - ν - (T(0.5) - tmp) / x
         ∂ν = ν - x + (T(0.5) + tmp) / ν
     end
@@ -54,23 +53,6 @@ end
     return (∂x, ∂ν)
 end
 @inline ∇pdf_rician(x, ν) = -exp(-neglogpdf_rician(x, ν)) .* ∇neglogpdf_rician(x, ν)
-
-# Argument ranges: x < 0.5, 0.5 < x < 15.0, x > 15.0
-∇neglogpdf_rician_small_coefs(::Type{Float32}) = (0.5f0, -0.0624989f0, 0.010394423f0, -0.0016448505f0)
-∇neglogpdf_rician_mid_num_coefs(::Type{Float32}) = (0.49999964f0, 0.042507876f0, 0.0005986794f0, 8.2039816f-7) #(0.49999985f0, 0.04570739f0, 0.0008458269f0, 3.3240756f-6, 1.2917363f-9)
-∇neglogpdf_rician_mid_den_coefs(::Type{Float32}) = (1.0f0, 0.21001345f0, 0.0066175098f0, 3.363584f-5) #(1.0f0, 0.21641381f0, 0.007910766f0, 6.735792f-5, 9.917585f-8)
-∇neglogpdf_rician_large_num_coefs(::Type{Float32}) = (0.4427933f0, 0.018132959f0, 9.000428f-5, 3.4805463f-8) #(0.49999985f0, 0.04570739f0, 0.0008458269f0, 3.3240756f-6, 1.2917363f-9)
-∇neglogpdf_rician_large_den_coefs(::Type{Float32}) = (1.0f0, 0.12933768f0, 0.0016975396f0, 2.7292274f-6) #(1.0f0, 0.21641381f0, 0.007910766f0, 6.735792f-5, 9.917585f-8)
-∇neglogpdf_rician_large_coefs(::Type{Float32}) = (0.12500001f0, 0.12498587f0, 0.19689824f0, 0.34546292f0, 1.9343305f0)
-
-# Argument ranges: x < 0.5, 0.5 < x < 15.0, x > 15.0
-#   TODO: these coefficients may be suboptimal, but it's very tricky to choose good branch points and polynomial degrees to get a good fit in the middle region because Remez.jl keeps failing to converge
-∇neglogpdf_rician_small_coefs(::Type{Float64}) = (0.4999999999999999, -0.06249999999994528, 0.010416666662044488, -0.001790364434468454, 0.0003092424332731733, -5.344192059352683e-5, 9.146096503297768e-6, -1.3486016148802727e-6)
-∇neglogpdf_rician_mid_num_coefs(::Type{Float64}) = (0.49999999999999883, 0.052470559275092726, 0.0014603579674395833, 1.4865655828999244e-5, 5.7490818341880375e-8, 7.017125206341158e-11, 1.2004842788927884e-14)
-∇neglogpdf_rician_mid_den_coefs(::Type{Float64}) = (1.0, 0.22994111855013522, 0.010830022420376213, 0.00017377331103972547, 1.0784649140018225e-6, 2.4131976302659546e-9, 1.328735170767829e-12)
-∇neglogpdf_rician_large_num_coefs(::Type{Float64}) = (0.4998040084026318, 0.04956314429268099, 0.001200034937816074, 9.523479731806683e-6, 2.515523506038697e-8, 1.8096428999138172e-11, 1.5667018049770046e-15)
-∇neglogpdf_rician_large_den_coefs(::Type{Float64}) = (1.0, 0.2239897265935517, 0.009595105452405184, 0.00012722326485112647, 5.780836248954148e-7, 8.23139782906151e-10, 2.480850142412075e-13)
-∇neglogpdf_rician_large_coefs(::Type{Float64}) = (0.12500000000000017, 0.12499999999879169, 0.19531250150899987, 0.4062492562129355, 1.0480435526081948, 3.1889066971543234, 14.493937314937872, -164.07408273123662, 10554.06604261355, -363473.6613975362, 9.257867756487811e6, -1.6750893375624812e8, 2.1100222176196077e9, -1.752346161183495e10, 8.611676733884451e10, -1.88444663825226e11)
 
 #### Rician negative log-cdf
 

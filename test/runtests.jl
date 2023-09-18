@@ -2,9 +2,15 @@ using FastRicianLikelihoods
 using Test
 using Aqua
 
+include("utils.jl")
+
 @testset "FastRicianLikelihoods.jl" begin
     @testset "dual rules" verbose=true begin
         include("forwarddiff.jl")
+    end
+
+    @testset "bessels" verbose=true begin
+        include("bessels.jl")
     end
 
     @testset "rician" verbose=true begin

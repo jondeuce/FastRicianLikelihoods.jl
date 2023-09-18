@@ -1,19 +1,12 @@
 module RicianTests
 
 using Test
+using ..Utils: arbify
 
 using ArbNumerics: ArbNumerics, ArbFloat
 using FastRicianLikelihoods: FastRicianLikelihoods, neglogpdf_rician, ∇neglogpdf_rician, f_quadrature, neglogf_quadrature
 using FiniteDifferences: FiniteDifferences
 using Distributions: Normal, logpdf, cdf
-
-ArbNumerics.setworkingprecision(ArbFloat, 500)
-ArbNumerics.setextrabits(128)
-
-arbify(f) = function f_arbified(args::T...) where {T <: Union{Float32, Float64}}
-    y = f(ArbFloat.(args)...)
-    return convert.(T, y)
-end
 
 function FastRicianLikelihoods.neglogpdf_rician(x::ArbFloat, ν::ArbFloat)
     return (x^2 + ν^2) / 2 - log(x) - log(ArbNumerics.besseli(0, x * ν))
