@@ -113,14 +113,14 @@ end
 
 @inline ∂x_laguerre½(x::T) where {T <: Union{Float32, Float64}} = ifelse(x < zero(T), one(x), exp(x)) * (besseli1x(x/2) - besseli0x(x/2)) / 2
 @scalar_rule laguerre½(x) ∂x_laguerre½(x)
-@dual_rule_from_frule laguerre½
+@dual_rule_from_frule laguerre½(x)
 
 @inline ∂x_besseli0x(Ω::T, x::T) where {T <: Union{Float32, Float64}} = besseli1x(x) - sign(x) * Ω
 @inline f_∂x_besseli0x(x::Union{Float32, Float64}) = (Ω = besseli0x(x); return (Ω, ∂x_besseli0x(Ω, x)))
 @scalar_rule besseli0x(x) ∂x_besseli0x(Ω, x)
-@dual_rule_from_frule besseli0x
+@dual_rule_from_frule besseli0x(x)
 
 @inline ∂x_besseli1x(Ω::T, x::T) where {T <: Union{Float32, Float64}} = (besseli0x(x) + besseli2x(x)) / 2 - sign(x) * Ω
 @inline f_∂x_besseli1x(x::Union{Float32, Float64}) = (Ω = besseli1x(x); return (Ω, ∂x_besseli1x(Ω, x)))
 @scalar_rule besseli1x(x) ∂x_besseli1x(Ω, x)
-@dual_rule_from_frule besseli1x
+@dual_rule_from_frule besseli1x(x)

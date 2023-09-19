@@ -89,16 +89,11 @@ macro define_ternary_dual_scalar_rule(f, df)
     end
 end
 
-macro promote_inputs(f)
-    local _f = esc(f)
-    quote
-        @inline function $(_f)(x...)
-            return $(_f)(promote(map(float, x)...)...)
-        end
-    end
+macro uniform_dual_rule_from_frule(f)
+    return uniform_dual_rule_from_frule_inner(f)
 end
 
-macro dual_rule_from_frule(f)
+function uniform_dual_rule_from_frule_inner(f)
     local CRC = ChainRulesCore
     local FD = ForwardDiff
     local _f = esc(f)
@@ -109,4 +104,52 @@ macro dual_rule_from_frule(f)
             return $(FD).Dual{T}(y, dy)
         end
     end
+end
+
+macro dual_rule_from_frule(ex)
+    return dual_rule_from_frule_inner(ex)
+end
+
+function dual_rule_from_frule_inner(ex)
+    local CRC = ChainRulesCore
+    local FD = ForwardDiff
+
+    local f, args
+    if !@capture(ex, f_(args__))
+        error("Expected `call` expression; e.g. `f(x, y, !z)`")
+    end
+
+    local T = esc(gensym(:T))
+    local inputs, primals, tangents = Any[], Any[], Any[]
+    for arg in args
+        if arg isa Symbol
+            x = esc(arg)
+            push!(inputs, :($(x)::$(FD).Dual{$(T)}))
+            push!(primals, :($(FD).value($(x))))
+            push!(tangents, :($(FD).partials($(x))))
+        elseif @capture(arg, !(notarg_))
+            x = esc(notarg)
+            push!(inputs, :($(x)))
+            push!(primals, :($(x)))
+            push!(tangents, :($(CRC).NoTangent()))
+        else
+            error("Call arguments must be symbols optionally prepended with `!`; e.g. `f(x, y, !z)`")
+        end
+    end
+
+    local fname = esc(f)
+    local fdef = Dict{Symbol, Any}(
+        :name        => fname,
+        :args        => inputs,
+        :kwargs      => Any[],
+        :whereparams => (T,),
+        :body        => quote
+            vx = ($(primals...),)
+            px = ($(tangents...),)
+            y, dy = $(CRC).frule(($(CRC).NoTangent(), px...), $(fname), vx...)
+            return $(FD).Dual{$T}(y, dy)
+        end,
+    )
+
+    return :(@inline $(combinedef(fdef)))
 end

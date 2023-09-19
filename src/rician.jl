@@ -1,10 +1,14 @@
+#### Utilities
+
+@inline promote_float(x...) = promote(map(float, x)...)
+
 #### Rician negative log-likelihood
 
-@inline function neglogpdf_rician(x, ν, logσ)
+@inline function neglogpdf_rician(x::T, ν::T, logσ::T) where {T <: Real}
     σ⁻¹ = exp(-logσ)
     return logσ + neglogpdf_rician(σ⁻¹ * x, σ⁻¹ * ν)
 end
-@promote_inputs neglogpdf_rician
+@inline neglogpdf_rician(x, ν, logσ) = neglogpdf_rician(promote_float(x, ν, logσ)...)
 
 @inline neglogpdf_rician(x::T, ν::T) where {T <: Union{Float32, Float64}} = (x - ν)^2 / 2 - log(x) - logbesseli0x(x * ν) # negative Rician log-likelihood `-logp(x | ν, σ = 1)`
 
@@ -57,33 +61,33 @@ end
 @inline ∇pdf_rician(x::T, ν::T) where {T <: Union{Float32, Float64}} = -exp(-neglogpdf_rician(x, ν)) .* ∇neglogpdf_rician(x, ν)
 
 @scalar_rule neglogpdf_rician(x, ν) (∇neglogpdf_rician(x, ν)...,)
-@dual_rule_from_frule neglogpdf_rician
+@dual_rule_from_frule neglogpdf_rician(x, ν)
 
 #### Rician negative log-cdf
 
 # CDF is approximated by an integral of the Rician PDF over `(x, x+δ)` using Gauss-Legendre quadrature.
 # Consequently, PDF is never evaluated at the endpoints.
-@inline function neglogcdf_rician(x, ν, logσ, δ)
+@inline function neglogcdf_rician(x::T, ν::T, logσ::T, δ::T, order::Val) where {T <: Real}
     σ⁻¹ = exp(-logσ)
-    return neglogcdf_rician(σ⁻¹ * x, σ⁻¹ * ν, σ⁻¹ * δ)
+    return neglogcdf_rician(σ⁻¹ * x, σ⁻¹ * ν, σ⁻¹ * δ, order)
 end
-@promote_inputs neglogcdf_rician
+@inline neglogcdf_rician(x, ν, logσ, δ, order::Val) = neglogcdf_rician(promote_float(x, ν, logσ, δ)..., order)
 
-@inline neglogcdf_rician(x::T, ν::T, δ::T) where {T <: Union{Float32, Float64}} = neglogf_quadrature(Base.Fix2(neglogpdf_rician, ν), x, δ)
-@inline ∇neglogcdf_rician(x::T, ν::T, δ::T) where {T <: Union{Float32, Float64}} = ∇neglogcdf_rician_with_primal(x, ν, δ)[2]
+@inline neglogcdf_rician(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = neglogf_quadrature(Base.Fix2(neglogpdf_rician, ν), x, δ, order)
+@inline ∇neglogcdf_rician(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = ∇neglogcdf_rician_with_primal(x, ν, δ, order)[2]
 
-@inline function ∇neglogcdf_rician_with_primal(Ω::T, x::T, ν::T, δ::T) where {T <: Union{Float32, Float64}}
-    ∂x, ∂ν = f_quadrature(x, δ) do y
+@inline function ∇neglogcdf_rician_with_primal(Ω::T, x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}}
+    ∂x, ∂ν = f_quadrature(x, δ, order) do y
         ∇ = ∇neglogpdf_rician(y, ν) # differentiate the integrand
         return exp(Ω - neglogpdf_rician(y, ν)) * SVector(∇)
     end
     ∂δ = -exp(Ω - neglogpdf_rician(x + δ, ν)) # by fundamental theorem of calculus
     return Ω, (∂x, ∂ν, ∂δ)
 end
-@inline ∇neglogcdf_rician_with_primal(x::T, ν::T, δ::T) where {T <: Union{Float32, Float64}} = ∇neglogcdf_rician_with_primal(neglogcdf_rician(x, ν, δ), x, ν, δ)
+@inline ∇neglogcdf_rician_with_primal(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = ∇neglogcdf_rician_with_primal(neglogcdf_rician(x, ν, δ, order), x, ν, δ, order)
 
-@scalar_rule neglogcdf_rician(x, ν, δ) (∇neglogcdf_rician_with_primal(Ω, x, ν, δ)[2]...,)
-@dual_rule_from_frule neglogcdf_rician
+@scalar_rule neglogcdf_rician(x, ν, δ, order::Val) (∇neglogcdf_rician_with_primal(Ω, x, ν, δ, order)[2]..., NoTangent())
+@dual_rule_from_frule neglogcdf_rician(x, ν, δ, !order)
 
 #### Gauss-Legendre quadrature
 
