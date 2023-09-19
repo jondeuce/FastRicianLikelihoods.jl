@@ -38,7 +38,7 @@ end
 
 #### Statistics
 
-@inline mean_rician(ν, σ) = sqrthalfπ * σ * laguerre½(-ν^2 / 2σ^2)
+@inline mean_rician(ν, σ) = sqrthalfπ * σ * laguerre½(-(ν / σ)^2 / 2)
 @inline Distributions.mean(d::Rician) = mean_rician(d.ν, d.σ)
 # @inline Distributions.mode(d::Rician) = ?
 # @inline Distributions.median(d::Rician) = ?

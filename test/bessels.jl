@@ -44,8 +44,8 @@ for T in (Float32, Float64)
         f = arbify(f̂)
         xsmall = reverse(-pos_range_iterator(T))
         xlarge = T(0.0):T(0.1):T(T == Float32 ? 50 : 500)
+        # TODO: inaccurate for large positive arguments, but we only use it for negative arguments
         for x in xsmall
-            # TODO: inaccurate for large arguments
             rtol = 3 * eps(T)
             atol = 3 * eps(T)
             @test f̂(x) ≈ f(x) rtol=rtol atol=atol
@@ -56,7 +56,6 @@ for T in (Float32, Float64)
         f̂ = besseli1i0
         f = arbify(f̂)
         for x in pos_range_iterator(T)
-            # TODO: inaccurate for large arguments
             rtol = T == Float32 ? 5*eps(T) : 10*eps(T)
             atol = T == Float32 ? 10*eps(T) : 100*eps(T)
             @test f̂(x) ≈ f(x) rtol=rtol atol=atol

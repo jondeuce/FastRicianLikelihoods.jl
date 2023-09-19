@@ -4,10 +4,9 @@
     σ⁻¹ = exp(-logσ)
     return logσ + neglogpdf_rician(σ⁻¹ * x, σ⁻¹ * ν)
 end
+@promote_inputs neglogpdf_rician
 
-@inline neglogpdf_rician(x, ν) = (x - ν)^2 / 2 - log(x) - logbesseli0x(x * ν) # negative Rician log-likelihood `-logp(x | ν, σ = 1)`
-@scalar_rule neglogpdf_rician(x, ν) (∇neglogpdf_rician(x, ν)...,)
-@define_binary_dual_scalar_rule neglogpdf_rician (neglogpdf_rician, ∇neglogpdf_rician)
+@inline neglogpdf_rician(x::T, ν::T) where {T <: Union{Float32, Float64}} = (x - ν)^2 / 2 - log(x) - logbesseli0x(x * ν) # negative Rician log-likelihood `-logp(x | ν, σ = 1)`
 
 @inline function ∇neglogpdf_rician(x::T, ν::T) where {T <: Union{Float32, Float64}}
     # Define the univariate normalized Bessel function `Î₀` as
@@ -16,21 +15,24 @@ end
     #
     # The negative likelihood is then be written as
     #
-    #   -logp(x | ν, σ = 1) = (x - ν)^2 / 2 - log(x / ν) / 2 - logÎ₀(x * ν) + log√2π.
+    #        -logp(x | ν, σ = 1) = (x - ν)^2 / 2 - log(x / ν) / 2 - logÎ₀(x * ν) + log√2π.
+    #   ∂/∂x -logp(x | ν, σ = 1) = x - ν - 1 / 2x - ∂/∂x logÎ₀(x * ν).
+    #   ∂/∂ν -logp(x | ν, σ = 1) = ν - x + 1 / 2ν - ∂/∂ν logÎ₀(x * ν).
     #
     # All that must be approximated then is `d/dz logÎ₀(z)` where `z = x * ν`:
     #
     #   d/dz logÎ₀(z) =  1/2z + (I₁(z) / I₀(z) - 1)
     #                 ≈ -1/8z^2 - 1/8z^3 - 25/128z^4 - 13/32z^5 - 1073/1024z^6 - 103/32z^7 + 𝒪(1/z^8)   (z >> 1)
     #                 ≈  1/2z - 1 + z/2 - z^3/16 + z^5/96 - 11*z^7/6144 + 𝒪(z^9)                        (z << 1)
-    #   d/dx logÎ₀(z) = ν * d/dz logÎ₀(z)
-    #   d/dν logÎ₀(z) = x * d/dz logÎ₀(z)
+    #   ∂/∂x logÎ₀(z) = ν * d/dz logÎ₀(z)
+    #   ∂/∂ν logÎ₀(z) = x * d/dz logÎ₀(z)
 
     # Note: there are really three relevant limits: z << 1, z >> 1, and x ≈ ν.
     # Could plausibly better account for the latter case, though it is tested quite robustly
     z = x * ν
     if z < besseli1i0_low_cutoff(T)
-        r = z * evalpoly(z^2, besseli1i0_low_coefs(T)) # logÎ₀′(z) + 1 - 1/2z = I₁(z) / I₀(z) ≈ z/2 + 𝒪(z^3)
+        z² = z^2
+        r = z * evalpoly(z², besseli1i0_low_coefs(T)) # r = logÎ₀′(z) + 1 - 1/2z = I₁(z) / I₀(z) ≈ z/2 + 𝒪(z^3)
         ∂x = x - ν * r - inv(x)
         ∂ν = ν - x * r
     elseif z < besseli1i0_mid_cutoff(T)
@@ -52,31 +54,36 @@ end
 
     return (∂x, ∂ν)
 end
-@inline ∇pdf_rician(x, ν) = -exp(-neglogpdf_rician(x, ν)) .* ∇neglogpdf_rician(x, ν)
+@inline ∇pdf_rician(x::T, ν::T) where {T <: Union{Float32, Float64}} = -exp(-neglogpdf_rician(x, ν)) .* ∇neglogpdf_rician(x, ν)
+
+@scalar_rule neglogpdf_rician(x, ν) (∇neglogpdf_rician(x, ν)...,)
+@dual_rule_from_frule neglogpdf_rician
 
 #### Rician negative log-cdf
 
+# CDF is approximated by an integral of the Rician PDF over `(x, x+δ)` using Gauss-Legendre quadrature.
+# Consequently, PDF is never evaluated at the endpoints.
 @inline function neglogcdf_rician(x, ν, logσ, δ)
     σ⁻¹ = exp(-logσ)
     return neglogcdf_rician(σ⁻¹ * x, σ⁻¹ * ν, σ⁻¹ * δ)
 end
+@promote_inputs neglogcdf_rician
 
-# Integral of the Rician PDF over `(x, x+δ)` using Gauss-Legendre quadrature.
-# Consequently, PDF is never evaluated at the endpoints.
-@inline neglogcdf_rician(x, ν, δ) = neglogf_quadrature(Base.Fix2(neglogpdf_rician, ν), x, δ)
+@inline neglogcdf_rician(x::T, ν::T, δ::T) where {T <: Union{Float32, Float64}} = neglogf_quadrature(Base.Fix2(neglogpdf_rician, ν), x, δ)
+@inline ∇neglogcdf_rician(x::T, ν::T, δ::T) where {T <: Union{Float32, Float64}} = ∇neglogcdf_rician_with_primal(x, ν, δ)[2]
 
-@inline function ∇neglogcdf_rician_kernel(Ω, x, ν, δ)
+@inline function ∇neglogcdf_rician_with_primal(Ω::T, x::T, ν::T, δ::T) where {T <: Union{Float32, Float64}}
     ∂x, ∂ν = f_quadrature(x, δ) do y
         ∇ = ∇neglogpdf_rician(y, ν) # differentiate the integrand
         return exp(Ω - neglogpdf_rician(y, ν)) * SVector(∇)
     end
     ∂δ = -exp(Ω - neglogpdf_rician(x + δ, ν)) # by fundamental theorem of calculus
-    return (∂x, ∂ν, ∂δ)
+    return Ω, (∂x, ∂ν, ∂δ)
 end
-@inline ∇neglogcdf_rician(x, ν, δ) = ∇neglogcdf_rician_kernel(neglogcdf_rician(x, ν, δ), x, ν, δ)
+@inline ∇neglogcdf_rician_with_primal(x::T, ν::T, δ::T) where {T <: Union{Float32, Float64}} = ∇neglogcdf_rician_with_primal(neglogcdf_rician(x, ν, δ), x, ν, δ)
 
-@scalar_rule neglogcdf_rician(x, ν, δ) (∇neglogcdf_rician_kernel(Ω, x, ν, δ)...,)
-@define_ternary_dual_scalar_rule neglogcdf_rician (neglogcdf_rician, ∇neglogcdf_rician)
+@scalar_rule neglogcdf_rician(x, ν, δ) (∇neglogcdf_rician_with_primal(Ω, x, ν, δ)[2]...,)
+@dual_rule_from_frule neglogcdf_rician
 
 #### Gauss-Legendre quadrature
 

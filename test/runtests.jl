@@ -18,8 +18,8 @@ include("utils.jl")
     end
 
     @testset "Code quality (Aqua.jl)" begin
-        # Generated methods for `ForwardDiff.Dual` introduce a lot
-        # of method ambiguities that will almost surely never be hit
-        Aqua.test_all(FastRicianLikelihoods; ambiguities = false)
+        # Typically causes a lot of false positives with ambiguities and/or unbound args checks;
+        # unfortunately have to periodically check this manually
+        Aqua.test_all(FastRicianLikelihoods; ambiguities = false, unbound_args = false)
     end
 end

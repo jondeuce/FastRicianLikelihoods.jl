@@ -22,11 +22,11 @@
 @inline untuple_scalar(x::Tuple) = only(x)
 @inline untuple_scalar(x) = x
 
-@inline function unary_dual_pushforward(fdf::F, x::ForwardDiff.Dual{T}) where {F, T}
+@inline function unary_dual_pushforward(fdf::F, x::Dual{T}) where {F, T}
     vx, px = unpack_dual(x)
     Ω, dΩ_dx = primal_and_partials(fdf, vx)
     dΩ = untuple_scalar(dΩ_dx) * px
-    return ForwardDiff.Dual{T}(Ω, dΩ)
+    return Dual{T}(Ω, dΩ)
 end
 
 @inline function binary_dual_pushforward(fdf::F, x, y, ::Type{T}) where {F, T}
@@ -34,7 +34,7 @@ end
     vy, py = unpack_dual(y)
     Ω, (dΩ_dx, dΩ_dy) = primal_and_partials(fdf, vx, vy)
     dΩ = dΩ_dx * px + dΩ_dy * py
-    return ForwardDiff.Dual{T}(Ω, dΩ)
+    return Dual{T}(Ω, dΩ)
 end
 
 @inline function ternary_dual_pushforward(fdf::F, x, y, z, ::Type{T}) where {F, T}
@@ -43,7 +43,7 @@ end
     vz, pz = unpack_dual(z)
     Ω, (dΩ_dx, dΩ_dy, dΩ_dz) = primal_and_partials(fdf, vx, vy, vz)
     dΩ = dΩ_dx * px + dΩ_dy * py + dΩ_dz * pz
-    return ForwardDiff.Dual{T}(Ω, dΩ)
+    return Dual{T}(Ω, dΩ)
 end
 
 macro define_unary_dual_scalar_rule(f, fdf)
@@ -86,5 +86,27 @@ macro define_ternary_dual_scalar_rule(f, df)
             $(M).ternary_dual_pushforward($(_df), x, y, z, Ty),
             $(M).ternary_dual_pushforward($(_df), x, y, z, Tz),
         )
+    end
+end
+
+macro promote_inputs(f)
+    local _f = esc(f)
+    quote
+        @inline function $(_f)(x...)
+            return $(_f)(promote(map(float, x)...)...)
+        end
+    end
+end
+
+macro dual_rule_from_frule(f)
+    local CRC = ChainRulesCore
+    local FD = ForwardDiff
+    local _f = esc(f)
+    quote
+        @inline function $(_f)(x::$(FD).Dual{T}...) where {T}
+            vx, px = $(FD).value.(x), $(FD).partials.(x)
+            y, dy = $(CRC).frule(($(CRC).NoTangent(), px...), $(_f), vx...)
+            return $(FD).Dual{T}(y, dy)
+        end
     end
 end

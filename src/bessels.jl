@@ -75,18 +75,18 @@ Ratio of modified Bessel functions of the first kind of orders one and zero, ``I
 """
 @inline function besseli1i0(x::T) where {T <: Union{Float32, Float64}}
     if x < besseli1i0_low_cutoff(T)
-        return x * evalpoly(x^2, besseli1i0_low_coefs(T)) # I₁(x) / I₀(x) ≈ x/2 + 𝒪(x^3)
+        x² = x^2
+        return x * evalpoly(x², besseli1i0_low_coefs(T)) # I₁(x) / I₀(x) = x * P(x^2) = x/2 + 𝒪(x^3)
     elseif x < besseli1i0_mid_cutoff(T)
         x² = x^2
-        return x * evalpoly(x², besseli1i0_mid_num_coefs(T)) / evalpoly(x², besseli1i0_mid_den_coefs(T)) # I₁(x) / I₀(x)
+        return x * evalpoly(x², besseli1i0_mid_num_coefs(T)) / evalpoly(x², besseli1i0_mid_den_coefs(T)) # I₁(x) / I₀(x) = x * P(x^2) / Q(x^2)
     elseif x < besseli1i0_high_cutoff(T)
         x² = x^2
-        return x * evalpoly(x², besseli1i0_high_num_coefs(T)) / evalpoly(x², besseli1i0_high_den_coefs(T)) # I₁(x) / I₀(x)
+        return x * evalpoly(x², besseli1i0_high_num_coefs(T)) / evalpoly(x², besseli1i0_high_den_coefs(T)) # I₁(x) / I₀(x) = x * P(x^2) / Q(x^2)
     else
         x⁻¹ = inv(x)
-        tmp = evalpoly(x⁻¹, besseli1i0c_tail_coefs(T)) # P(1/x) = -x * (1/2 + x * (I₁(x) / I₀(x) - 1)) ≈ 1/8 + 1/8x + 𝒪(1/x^2)
-        tmp = muladd(x⁻¹, tmp, T(0.5))
-        return muladd(x⁻¹, -tmp, T(1.0)) # I₁(x) / I₀(x) = 1 - 1/2x - P(1/x)/x^2
+        P = evalpoly(x⁻¹, besseli1i0c_tail_coefs(T)) # P(1/x) = x * (-1/2 + x * (1 - I₁(x) / I₀(x))) = 1/8 + 1/8x + 𝒪(1/x^2)
+        return evalpoly(x⁻¹, (T(1.0), T(-0.5), -P)) # I₁(x) / I₀(x) = 1 - 1/2x - P(1/x)/x^2
     end
 end
 
@@ -112,15 +112,15 @@ end
 #### ChainRules and ForwardDiff
 
 @inline ∂x_laguerre½(x::T) where {T <: Union{Float32, Float64}} = ifelse(x < zero(T), one(x), exp(x)) * (besseli1x(x/2) - besseli0x(x/2)) / 2
-@scalar_rule laguerre½(x::Union{Float32, Float64}) ∂x_laguerre½(x)
-@define_unary_dual_scalar_rule laguerre½ (laguerre½, ∂x_laguerre½)
+@scalar_rule laguerre½(x) ∂x_laguerre½(x)
+@dual_rule_from_frule laguerre½
 
 @inline ∂x_besseli0x(Ω::T, x::T) where {T <: Union{Float32, Float64}} = besseli1x(x) - sign(x) * Ω
 @inline f_∂x_besseli0x(x::Union{Float32, Float64}) = (Ω = besseli0x(x); return (Ω, ∂x_besseli0x(Ω, x)))
-@scalar_rule besseli0x(x::Union{Float32, Float64}) ∂x_besseli0x(Ω, x)
-@define_unary_dual_scalar_rule besseli0x f_∂x_besseli0x
+@scalar_rule besseli0x(x) ∂x_besseli0x(Ω, x)
+@dual_rule_from_frule besseli0x
 
 @inline ∂x_besseli1x(Ω::T, x::T) where {T <: Union{Float32, Float64}} = (besseli0x(x) + besseli2x(x)) / 2 - sign(x) * Ω
 @inline f_∂x_besseli1x(x::Union{Float32, Float64}) = (Ω = besseli1x(x); return (Ω, ∂x_besseli1x(Ω, x)))
-@scalar_rule besseli1x(x::Union{Float32, Float64}) ∂x_besseli1x(Ω, x)
-@define_unary_dual_scalar_rule besseli1x f_∂x_besseli1x
+@scalar_rule besseli1x(x) ∂x_besseli1x(Ω, x)
+@dual_rule_from_frule besseli1x

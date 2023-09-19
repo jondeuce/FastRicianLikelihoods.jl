@@ -2,11 +2,11 @@ module FastRicianLikelihoods
 
 using Base: BroadcastFunction
 using Bessels: Bessels
-using ChainRulesCore: @scalar_rule
+using ChainRulesCore: ChainRulesCore, @scalar_rule
 using Distributions: Distributions
 using FastGaussQuadrature: gausslegendre
-using ForwardDiff: ForwardDiff
-using IrrationalConstants: invsqrt2, invsqrt2π, log2π, logtwo, logπ, sqrt2, sqrt2π, sqrthalfπ, sqrtπ
+using ForwardDiff: ForwardDiff, Dual
+using IrrationalConstants: sqrthalfπ
 using LinearAlgebra: dot
 using Random: Random
 using StaticArrays: StaticArrays, SVector, SMatrix
