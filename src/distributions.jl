@@ -38,12 +38,14 @@ end
 
 #### Statistics
 
-@inline mean_rician(ν, σ) = sqrthalfπ * σ * laguerre½(-(ν / σ)^2 / 2)
+@inline mean_rician(ν, σ) = (t = ν / σ; return σ * (t > 1/√eps(one(t)) ? t : sqrthalfπ * laguerre½(-t^2 / 2)))
+@inline var_rician(ν, σ) = (t = ν / σ; return σ^2 * (1 - laguerre½²c(t))) # equivalent to: ν^2 + 2σ^2 - π * σ^2 * laguerre½(-(ν / σ)^2 / 2)^2 / 2
+@inline std_rician(ν, σ) = sqrt(var_rician(ν, σ))
+
 @inline Distributions.mean(d::Rician) = mean_rician(d.ν, d.σ)
 # @inline Distributions.mode(d::Rician) = ?
 # @inline Distributions.median(d::Rician) = ?
 
-@inline var_rician(ν, σ) = ν^2 + 2σ^2 - π * σ^2 * laguerre½(-(ν / σ)^2 / 2)^2 / 2
 @inline Distributions.var(d::Rician) = var_rician(d.ν, d.σ)
 @inline Distributions.std(d::Rician) = sqrt(var(d))
 # @inline Distributions.skewness(d::Rician{T}) where {T <: Real} = ?

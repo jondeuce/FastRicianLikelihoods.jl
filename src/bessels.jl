@@ -66,7 +66,24 @@ end
 @inline logbesseli2(x::Union{Float32, Float64}) = logbesseli2x(x) + abs(x) # log(besselix(2, x)) = log(I2(x)) - |x|
 @inline logbesseli2x(x::Union{Float32, Float64}) = log(besseli2x(x))
 
-@inline laguerre½(x::T) where {T <: Union{Float32, Float64}} = ifelse(x < zero(T), one(x), exp(x)) * ((1 - x) * besseli0x(-x/2) - x * besseli1x(-x/2)) # besselix(ν, ±x/2) = Iν(±x/2) * exp(-|±x/2|) = Iν(-x/2) * exp(∓x/2)
+@inline laguerre½(x::T) where {T <: Union{Float32, Float64}} = (x < zero(T) ? one(x) : exp(x)) * ((1 - x) * besseli0x(-x/2) - x * besseli1x(-x/2)) # besselix(ν, ±x/2) = Iν(±x/2) * exp(-|±x/2|) = Iν(-x/2) * exp(∓x/2)
+
+@inline function laguerre½²c(t::T) where {T <: Union{Float32, Float64}}
+    # laguerre½²c(t) = L^2 - t^2 - 1 where L = √(π/2) * laguerre½(-t^2/2)
+    branch = T == Float32 ? 3.4f0 : 4.3e0
+    if t < branch
+        y = t^2
+        return evalpoly(y, laguerre½²c_small_coefs(T))
+    else
+        y = inv(t)^2
+        return y * evalpoly(y, laguerre½²c_large_coefs(T))
+    end
+end
+
+@inline laguerre½²c_small_coefs(::Type{Float32}) = (0.5707962f0, -0.21459818f0, 0.049073838f0, -0.0081615625f0, 0.0010717527f0, -0.0001148001f0, 9.935807f-6, -6.625331f-7, 3.134115f-8, -9.190797f-10, 1.2392542f-11)
+@inline laguerre½²c_small_coefs(::Type{Float64}) = (0.5707963267944944, -0.21460183658265033, 0.049087385048506654, -0.008181230332361096, 0.0010865687931868046, -0.00012143915271414923, 1.1850357912302052e-5, -1.0363714628793908e-6, 8.272717280746797e-8, -6.095692789362868e-9, 4.1612417953794933e-10, -2.617973804424017e-11, 1.4957198539034854e-12, -7.583260826274592e-14, 3.3138533832359202e-15, -1.2069999116679684e-16, 3.524893658912788e-18, -7.863203684119532e-20, 1.2499337199986914e-21, -1.254956407795466e-23, 5.96116567823201e-26)
+@inline laguerre½²c_large_coefs(::Type{Float32}) = (0.5000001f0, 0.49966717f0, 1.5056641f0, -12.99378f0, 1426.22f0, -51440.543f0, 991048.2f0, -7.35821f6, -2.1984954f7, 5.800887f8, -2.2002685f9)
+@inline laguerre½²c_large_coefs(::Type{Float64}) = (0.5000000000007115, 0.49999998853939026, 1.3750298806013577, 6.344269530038998, 58.43045968676148, -5095.59086727239, 1.1829801320283161e6, -1.7743162867297137e8, 1.924618208549089e10, -1.5390306113432373e12, 9.210028517590392e13, -4.15736157803401e15, 1.4188235458026496e17, -3.649463648908279e18, 7.008308295117078e19, -9.863118766945332e20, 9.833293950803035e21, -6.515761189852251e22, 2.5001002794213213e23, -3.504756044111116e23, -4.504604424324448e23)
 
 """
     besseli1i0(x::T) where {T <: Union{Float32, Float64}}
@@ -111,7 +128,7 @@ end
 
 #### ChainRules and ForwardDiff
 
-@inline ∂x_laguerre½(x::T) where {T <: Union{Float32, Float64}} = ifelse(x < zero(T), one(x), exp(x)) * (besseli1x(x/2) - besseli0x(x/2)) / 2
+@inline ∂x_laguerre½(x::T) where {T <: Union{Float32, Float64}} = (x < zero(T) ? one(x) : exp(x)) * (besseli1x(x/2) - besseli0x(x/2)) / 2
 @scalar_rule laguerre½(x) ∂x_laguerre½(x)
 @dual_rule_from_frule laguerre½(x)
 

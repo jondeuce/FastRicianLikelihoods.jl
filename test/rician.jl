@@ -5,7 +5,7 @@ using ..Utils: arbify
 
 using ArbNumerics: ArbNumerics, ArbFloat
 using Distributions: Normal, logpdf, cdf
-using FastRicianLikelihoods: FastRicianLikelihoods, neglogpdf_rician, ∇neglogpdf_rician, neglogcdf_rician, ∇neglogcdf_rician, f_quadrature, neglogf_quadrature
+using FastRicianLikelihoods: FastRicianLikelihoods, neglogpdf_rician, ∇neglogpdf_rician, neglogcdf_rician, ∇neglogcdf_rician, mean_rician, std_rician, f_quadrature, neglogf_quadrature
 using FiniteDifferences: FiniteDifferences
 using QuadGK: quadgk
 
@@ -60,18 +60,28 @@ function xν_iterator(z::T) where {T <: Union{Float32, Float64}}
     end
 end
 
-@testset "neglogpdf_rician normalization" begin
+@testset "neglogpdf_rician properties" begin
     νs = exp10.(-1.0:0.25:1.0)
     logσs = -0.5:0.25:0.5
     for T in (Float32, Float64)
-        for ν in νs, logσ in logσs
-            ν′ = T(ν / exp(logσ))
-            I, E = quadgk(zero(T), ν′/4, ν′/2, ν′, T(Inf); rtol = eps(T), atol = eps(T), order = 15) do x
-                return exp(-neglogpdf_rician(x, ν′))
+        @testset "normalization ($T)" begin
+            for ν in νs, logσ in logσs
+                ν′ = T(ν / exp(logσ))
+                I, E = quadgk(zero(T), ν′/4, ν′/2, ν′, T(Inf); rtol = eps(T), atol = eps(T), order = 15) do x
+                    return exp(-neglogpdf_rician(x, ν′))
+                end
+                atol = T == Float32 ? 5*eps(T) : 10*eps(T)
+                rtol = zero(T)
+                @test isapprox(I, one(T); rtol, atol)
             end
-            atol = T == Float32 ? 5*eps(T) : 10*eps(T)
-            rtol = zero(T)
-            @test isapprox(I, one(T); rtol, atol)
+        end
+        @testset "scaling ($T)" begin
+            for ν in νs, logσ in logσs
+                σ = exp(logσ)
+                for x in (ν, √(ν^2 + σ^2), √((ν - σ)^2 + σ^2))
+                    @test neglogpdf_rician(x, ν, logσ) ≈ logσ + neglogpdf_rician(x / σ, ν / σ)
+                end
+            end
         end
     end
 end
@@ -144,10 +154,60 @@ function xνδ_iterator()
     return Iterators.product(xs, νs, δs)
 end
 
+function neglogcdf_rician_sum(ν::T, δ::T, order::Val) where {T}
+    μx = mean_rician(ν, one(T))
+    σx = std_rician(ν, one(T))
+    rx = √(-2*log(eps(T))) # solve for exp(-x^2/2) = eps(T)
+    N = ceil(Int, (μx + rx * σx) / δ)
+
+    cdf(x̃) = exp(-neglogcdf_rician(x̃, ν, δ, order))
+    I = sum(cdf, δ .* (0:N)) # pairwise summation for the bulk of the sum for accuracy
+    while true
+        N += 1
+        I, Ilast = I + cdf(δ * N), I
+        I == Ilast && break # stop when contribution of last term is negligible
+    end
+
+    return I
+end
+
+@testset "neglogcdf_rician properties" begin
+    for T in (Float32, Float64)
+        νs = exp10.(T[-1.0, -0.1, 0.0, 0.1, 1.0])
+        δs = exp10.(T[-2.0, -1.0, 0.0])
+        logσs = exp10.(T[-2.0, -1.0, 0.0])
+        order = Val(32)
+        @testset "normalization ($T)" begin
+            for ν in νs, δ in δs
+                I = neglogcdf_rician_sum(ν, δ, order)
+                atol = T == Float32 ? 6*eps(T) : 4*eps(T)
+                @test isapprox(I, one(T); rtol = zero(T), atol)
+            end
+        end
+        @testset "additivity ($T)" begin
+            for ν in νs, δ in δs
+                cdf(x̃, ν̃, δ̃) = exp(-neglogcdf_rician(x̃, ν̃, δ̃, order))
+                for x in δ .* (0, 1, round(Int, ν), round(Int, ν/δ))
+                    @test cdf(x, ν, δ) + cdf(x + δ, ν, δ) ≈ cdf(x, ν, 2*δ)
+                end
+            end
+        end
+        @testset "scale invariance ($T)" begin
+            for ν in νs, δ in δs, logσ in logσs
+                σ = exp(logσ)
+                for x in δ .* (0, 1, round(Int, ν), round(Int, ν/δ))
+                    @test neglogcdf_rician(x, ν, logσ, δ, order) ≈ neglogcdf_rician(x / σ, ν / σ, δ / σ, order)
+                end
+            end
+        end
+    end
+end
+
 @testset "neglogcdf_rician" begin
-    # Unlike the density function `neglogpdf_rician`, the integral defining `neglogcdf_rician`
-    # is approximated using Gauss-Legendre quadrature of a given `order`, and therefore
-    # `neglogcdf_rician` is not expected to be exact in general
+    # Unlike the density `neglogpdf_rician`, the integral defining `neglogcdf_rician`
+    # is approximated using Gauss-Legendre quadrature of a given `order`. Therefore,
+    # `neglogcdf_rician` is not exact in general. However, it should monotonically
+    # improve in accuracy as `order` increases.
     for (x, ν, δ) in xνδ_iterator()
         y = neglogcdf_rician(map(ArbFloat, (x, ν, δ))..., Val(15))
         for T in (Float32, Float64)
@@ -166,10 +226,12 @@ end
             @test pass4 || pass8 || pass16 || pass32
 
             if pass4
-                # done
+                @test pass8 && pass16 && pass32
             elseif pass8
+                @test pass16 && pass32
                 @test abs(y - ŷ8) < abs(y - ŷ4)
             elseif pass16
+                @test pass32
                 @test abs(y - ŷ16) < abs(y - ŷ8) < abs(y - ŷ4)
             else # pass32
                 @test abs(y - ŷ32) < abs(y - ŷ16) < abs(y - ŷ8) < abs(y - ŷ4)

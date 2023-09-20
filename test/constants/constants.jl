@@ -97,6 +97,26 @@ function besseli0_constants(min=1/1e16, low=7.75, branch=50)
     @info "besseli0x: x > $branch" E=Float64(E) N=(Float64.(N)...,)
 end
 
+function laguerre½_constants(; low=1.0, high=10.0, num=6, den=0)
+    L½(x) = exp(x / 2) * ((1 - x) * ArbNumerics.besseli(0, -x/2) - x * ArbNumerics.besseli(1, -x/2))
+    L½scaled(t) = sqrt(ArbFloat(pi) / 2) * L½(-t^2/2)
+
+    # Small x < low:
+    Plow(y) = (t = sqrt(y); L = L½scaled(t); return ((L - t) * (L + t) - 1))
+    N, D, E, X = ratfn_minimax(arbify(Plow), (0.0, low^2), num, 0)
+    @info "laguerre½ (degree $num / 0): x < $low" E=Float64(E) N=(Float64.(N)...,)
+
+    # # Med low < x < high:
+    # Pmed(y) = (t = sqrt(y); L = L½scaled(t); return t^2 * ((L - t) * (L + t) - 1))
+    # N, D, E, X = ratfn_minimax(arbify(Pmed), (low^2, high^2), num, den)
+    # @info "laguerre½ (degree $num / $den): $low < x < $high" E=Float64(E) N=(Float64.(N)...,) D=(Float64.(D)...,)
+
+    # Large x > high:
+    Plarge(y) = (t = 1/sqrt(y); L = L½scaled(t); return t^2 * ((L - t) * (L + t) - 1))
+    N, D, E, X = ratfn_minimax(arbify(Plarge), (1/1e16^2, 1/high^2), num, 0)
+    @info "laguerre½ (degree $num / 0): x > $high" E=Float64(E) N=(Float64.(N)...,)
+end
+
 function besseli2_constants(min=1/1e16, low=7.75, branch=500)
     # Small x < low:
     #   besseli(2, x) = y * P(y) where y = x^2 / 4

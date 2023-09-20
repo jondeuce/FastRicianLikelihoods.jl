@@ -58,6 +58,8 @@ end
 
     return (∂x, ∂ν)
 end
+
+@inline pdf_rician(args...) = exp(-neglogpdf_rician(args...))
 @inline ∇pdf_rician(x::T, ν::T) where {T <: Union{Float32, Float64}} = -exp(-neglogpdf_rician(x, ν)) .* ∇neglogpdf_rician(x, ν)
 
 @scalar_rule neglogpdf_rician(x, ν) (∇neglogpdf_rician(x, ν)...,)
