@@ -65,20 +65,21 @@ end
 @scalar_rule neglogpdf_rician(x, ν) (∇neglogpdf_rician(x, ν)...,)
 @dual_rule_from_frule neglogpdf_rician(x, ν)
 
-#### Rician negative log-cdf
+#### Quantized Rician negative log-pdf
 
-# CDF is approximated by an integral of the Rician PDF over `(x, x+δ)` using Gauss-Legendre quadrature.
-# Consequently, PDF is never evaluated at the endpoints.
-@inline function neglogcdf_rician(x::T, ν::T, logσ::T, δ::T, order::Val) where {T <: Real}
+# Quantized Rician PDF is the integral of the Rician PDF over `(x, x+δ)`.
+# This integral is approximated using Gauss-Legendre quadrature.
+# Note: Rician PDF is never evaluated at the interval endpoints.
+@inline function neglogpdf_qrician(x::T, ν::T, logσ::T, δ::T, order::Val) where {T <: Real}
     σ⁻¹ = exp(-logσ)
-    return neglogcdf_rician(σ⁻¹ * x, σ⁻¹ * ν, σ⁻¹ * δ, order)
+    return neglogpdf_qrician(σ⁻¹ * x, σ⁻¹ * ν, σ⁻¹ * δ, order)
 end
-@inline neglogcdf_rician(x, ν, logσ, δ, order::Val) = neglogcdf_rician(promote_float(x, ν, logσ, δ)..., order)
+@inline neglogpdf_qrician(x, ν, logσ, δ, order::Val) = neglogpdf_qrician(promote_float(x, ν, logσ, δ)..., order)
 
-@inline neglogcdf_rician(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = neglogf_quadrature(Base.Fix2(neglogpdf_rician, ν), x, δ, order)
-@inline ∇neglogcdf_rician(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = ∇neglogcdf_rician_with_primal(x, ν, δ, order)[2]
+@inline neglogpdf_qrician(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = neglogf_quadrature(Base.Fix2(neglogpdf_rician, ν), x, δ, order)
+@inline ∇neglogpdf_qrician(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = ∇neglogpdf_qrician_with_primal(x, ν, δ, order)[2]
 
-@inline function ∇neglogcdf_rician_with_primal(Ω::T, x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}}
+@inline function ∇neglogpdf_qrician_with_primal(Ω::T, x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}}
     ∂x, ∂ν = f_quadrature(x, δ, order) do y
         ∇ = ∇neglogpdf_rician(y, ν) # differentiate the integrand
         ∇ = SVector{2, T}(∇)
@@ -87,10 +88,10 @@ end
     ∂δ = -exp(Ω - neglogpdf_rician(x + δ, ν)) # by fundamental theorem of calculus
     return Ω, (∂x, ∂ν, ∂δ)
 end
-@inline ∇neglogcdf_rician_with_primal(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = ∇neglogcdf_rician_with_primal(neglogcdf_rician(x, ν, δ, order), x, ν, δ, order)
+@inline ∇neglogpdf_qrician_with_primal(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = ∇neglogpdf_qrician_with_primal(neglogpdf_qrician(x, ν, δ, order), x, ν, δ, order)
 
-@scalar_rule neglogcdf_rician(x, ν, δ, order::Val) (∇neglogcdf_rician_with_primal(Ω, x, ν, δ, order)[2]..., NoTangent())
-@dual_rule_from_frule neglogcdf_rician(x, ν, δ, !order)
+@scalar_rule neglogpdf_qrician(x, ν, δ, order::Val) (∇neglogpdf_qrician_with_primal(Ω, x, ν, δ, order)[2]..., NoTangent())
+@dual_rule_from_frule neglogpdf_qrician(x, ν, δ, !order)
 
 #### Gauss-Legendre quadrature
 

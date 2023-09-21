@@ -5,7 +5,7 @@ using ..Utils: arbify, ∇Zyg, ∇Fwd
 
 using ArbNumerics: ArbNumerics, ArbFloat
 using Distributions: Normal, logpdf, cdf
-using FastRicianLikelihoods: FastRicianLikelihoods, neglogpdf_rician, ∇neglogpdf_rician, neglogcdf_rician, ∇neglogcdf_rician, mean_rician, std_rician, f_quadrature, neglogf_quadrature
+using FastRicianLikelihoods: FastRicianLikelihoods, neglogpdf_rician, ∇neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician, mean_rician, std_rician, f_quadrature, neglogf_quadrature
 using FiniteDifferences: FiniteDifferences
 using QuadGK: quadgk
 
@@ -20,22 +20,22 @@ function FastRicianLikelihoods.∇neglogpdf_rician(x::ArbFloat, ν::ArbFloat)
     return (∂x, ∂ν)
 end
 
-neglogcdf_rician_arbfloat_eps() = ArbFloat(1e-30)
+neglogpdf_qrician_arbfloat_eps() = ArbFloat(1e-30)
 
-function FastRicianLikelihoods.neglogcdf_rician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, ::Val{order}) where {order}
+function FastRicianLikelihoods.neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, ::Val{order}) where {order}
     a, b = ArbFloat(x), ArbFloat(x + δ), ArbFloat(1e-30)
-    rtol, atol = neglogcdf_rician_arbfloat_eps(), 0
+    rtol, atol = neglogpdf_qrician_arbfloat_eps(), 0
     I, E = quadgk(a, b; rtol, atol, order) do x̃
         return exp(-neglogpdf_rician(x̃, ν))
     end
     return -log(I)
 end
 
-function FastRicianLikelihoods.∇neglogcdf_rician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, order::Val)
-    ϵ = sqrt(neglogcdf_rician_arbfloat_eps())
-    ∂x = (neglogcdf_rician(x + ϵ, ν, δ, order) - neglogcdf_rician(x - ϵ, ν, δ, order)) / 2ϵ
-    ∂ν = (neglogcdf_rician(x, ν + ϵ, δ, order) - neglogcdf_rician(x, ν - ϵ, δ, order)) / 2ϵ
-    ∂δ = (neglogcdf_rician(x, ν, δ + ϵ, order) - neglogcdf_rician(x, ν, δ - ϵ, order)) / 2ϵ
+function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, order::Val)
+    ϵ = sqrt(neglogpdf_qrician_arbfloat_eps())
+    ∂x = (neglogpdf_qrician(x + ϵ, ν, δ, order) - neglogpdf_qrician(x - ϵ, ν, δ, order)) / 2ϵ
+    ∂ν = (neglogpdf_qrician(x, ν + ϵ, δ, order) - neglogpdf_qrician(x, ν - ϵ, δ, order)) / 2ϵ
+    ∂δ = (neglogpdf_qrician(x, ν, δ + ϵ, order) - neglogpdf_qrician(x, ν, δ - ϵ, order)) / 2ϵ
     return (∂x, ∂ν, ∂δ)
 end
 
@@ -44,9 +44,9 @@ function FastRicianLikelihoods.neglogpdf_rician(x::ArbFloat, ν::ArbFloat, logσ
     return logσ + neglogpdf_rician(σ⁻¹ * x, σ⁻¹ * ν)
 end
 
-function FastRicianLikelihoods.neglogcdf_rician(x::ArbFloat, ν::ArbFloat, logσ::ArbFloat, δ::ArbFloat, order::Val)
+function FastRicianLikelihoods.neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, logσ::ArbFloat, δ::ArbFloat, order::Val)
     σ⁻¹ = exp(-logσ)
-    return neglogcdf_rician(σ⁻¹ * x, σ⁻¹ * ν, σ⁻¹ * δ, order)
+    return neglogpdf_qrician(σ⁻¹ * x, σ⁻¹ * ν, σ⁻¹ * δ, order)
 end
 
 function xν_iterator(z::T) where {T <: Union{Float32, Float64}}
@@ -161,24 +161,24 @@ function xνδ_iterator()
     return Iterators.product(xs, νs, δs)
 end
 
-function neglogcdf_rician_sum(ν::T, δ::T, order::Val) where {T}
+function neglogpdf_qrician_sum(ν::T, δ::T, order::Val) where {T}
     μx = mean_rician(ν, one(T))
     σx = std_rician(ν, one(T))
     rx = √(-2*log(eps(T))) # solve for exp(-x^2/2) = eps(T)
     N = ceil(Int, (μx + rx * σx) / δ)
 
-    cdf(x̃) = exp(-neglogcdf_rician(x̃, ν, δ, order))
-    I = sum(cdf, δ .* (0:N)) # pairwise summation for the bulk of the sum for accuracy
+    pdf(x̃) = exp(-neglogpdf_qrician(x̃, ν, δ, order))
+    I = sum(pdf, δ .* (0:N)) # pairwise summation for the bulk of the sum for accuracy
     while true
         N += 1
-        I, Ilast = I + cdf(δ * N), I
+        I, Ilast = I + pdf(δ * N), I
         I == Ilast && break # stop when contribution of last term is negligible
     end
 
     return I
 end
 
-@testset "neglogcdf_rician properties" begin
+@testset "neglogpdf_qrician properties" begin
     for T in (Float32, Float64)
         νs = exp10.(T[-1.0, -0.1, 0.0, 0.1, 1.0])
         δs = exp10.(T[-2.0, -1.0, 0.0])
@@ -186,16 +186,16 @@ end
         order = Val(32)
         @testset "normalization ($T)" begin
             for ν in νs, δ in δs
-                I = neglogcdf_rician_sum(ν, δ, order)
+                I = neglogpdf_qrician_sum(ν, δ, order)
                 atol = T == Float32 ? 6*eps(T) : 4*eps(T)
                 @test isapprox(I, one(T); rtol = zero(T), atol)
             end
         end
         @testset "additivity ($T)" begin
             for ν in νs, δ in δs
-                cdf(x̃, ν̃, δ̃) = exp(-neglogcdf_rician(x̃, ν̃, δ̃, order))
+                pdf(x̃, ν̃, δ̃) = exp(-neglogpdf_qrician(x̃, ν̃, δ̃, order))
                 for x in δ .* (0, 1, round(Int, ν), round(Int, ν/δ))
-                    @test cdf(x, ν, δ) + cdf(x + δ, ν, δ) ≈ cdf(x, ν, 2*δ)
+                    @test pdf(x, ν, δ) + pdf(x + δ, ν, δ) ≈ pdf(x, ν, 2*δ)
                 end
             end
         end
@@ -203,21 +203,21 @@ end
             for ν in νs, δ in δs, logσ in logσs
                 σ = exp(logσ)
                 for x in δ .* (0, 1, round(Int, ν), round(Int, ν/δ))
-                    @test neglogcdf_rician(x, ν, logσ, δ, order) ≈ neglogcdf_rician(x / σ, ν / σ, δ / σ, order)
+                    @test neglogpdf_qrician(x, ν, logσ, δ, order) ≈ neglogpdf_qrician(x / σ, ν / σ, δ / σ, order)
                 end
             end
         end
     end
 end
 
-@testset "neglogcdf_rician" begin
-    # Unlike the density `neglogpdf_rician`, the integral defining `neglogcdf_rician`
+@testset "neglogpdf_qrician" begin
+    # Unlike the density `neglogpdf_rician`, the integral defining `neglogpdf_qrician`
     # is approximated using Gauss-Legendre quadrature of a given `order`. Therefore,
-    # `neglogcdf_rician` is not exact in general. However, it should monotonically
+    # `neglogpdf_qrician` is not exact in general. However, it should monotonically
     # improve in accuracy as `order` increases.
     for (x, ν, δ) in xνδ_iterator()
-        f̂ = neglogcdf_rician
-        f = arbify(neglogcdf_rician)
+        f̂ = neglogpdf_qrician
+        f = arbify(neglogpdf_qrician)
         y = f(x, ν, δ, Val(15))
 
         for T in (Float32, Float64)
@@ -250,10 +250,10 @@ end
     end
 end
 
-@testset "∇neglogcdf_rician" begin
+@testset "∇neglogpdf_qrician" begin
     for (x, ν, δ) in xνδ_iterator()
-        f̂ = neglogcdf_rician
-        ∇f̂ = ∇neglogcdf_rician
+        f̂ = neglogpdf_qrician
+        ∇f̂ = ∇neglogpdf_qrician
         ∇f = arbify(∇f̂)
         ∂y = ∇f(x, ν, δ, Val(15))
 
