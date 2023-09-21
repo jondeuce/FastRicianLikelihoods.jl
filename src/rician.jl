@@ -81,7 +81,8 @@ end
 @inline function ∇neglogcdf_rician_with_primal(Ω::T, x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}}
     ∂x, ∂ν = f_quadrature(x, δ, order) do y
         ∇ = ∇neglogpdf_rician(y, ν) # differentiate the integrand
-        return exp(Ω - neglogpdf_rician(y, ν)) * SVector(∇)
+        ∇ = SVector{2, T}(∇)
+        return exp(Ω - neglogpdf_rician(y, ν)) * ∇
     end
     ∂δ = -exp(Ω - neglogpdf_rician(x + δ, ν)) # by fundamental theorem of calculus
     return Ω, (∂x, ∂ν, ∂δ)
@@ -122,11 +123,11 @@ end
 
 @inline function weighted_logsumexp(w::SVector{N, T}, logy::SVector{N, SVector{M, T}}) where {N, M, T <: AbstractFloat}
     max_ = reduce(BroadcastFunction(max), logy) # elementwise maximum
-    logy = hcat(logy...) # stack as columns
+    logy = reduce(hcat, logy) # stack as columns
     ȳ = exp.(logy .- max_)
     return log.(vecdot(w, ȳ)) .+ max_
 end
 
 @inline vecdot(w::SVector{N, T}, y::SVector{N, T}) where {N, T <: AbstractFloat} = dot(w, y)
-@inline vecdot(w::SVector{N, T}, y::SVector{N, SVector{M, T}}) where {N, M, T <: AbstractFloat} = vecdot(w, hcat(y...))
+@inline vecdot(w::SVector{N, T}, y::SVector{N, SVector{M, T}}) where {N, M, T <: AbstractFloat} = vecdot(w, reduce(hcat, y))
 @inline vecdot(w::SVector{N, T}, y::SMatrix{M, N, T}) where {N, M, T <: AbstractFloat} = y * w

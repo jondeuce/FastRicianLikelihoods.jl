@@ -1,7 +1,7 @@
 module RicianTests
 
 using Test
-using ..Utils: arbify
+using ..Utils: arbify, ∇Zyg, ∇Fwd
 
 using ArbNumerics: ArbNumerics, ArbFloat
 using Distributions: Normal, logpdf, cdf
@@ -33,9 +33,9 @@ end
 
 function FastRicianLikelihoods.∇neglogcdf_rician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, order::Val)
     ϵ = sqrt(neglogcdf_rician_arbfloat_eps())
-    ∂x = (neglogpdf_rician(x + ϵ, ν, δ, order) - neglogpdf_rician(x - ϵ, ν, δ, order)) / 2ϵ
-    ∂ν = (neglogpdf_rician(x, ν + ϵ, δ, order) - neglogpdf_rician(x, ν - ϵ, δ, order)) / 2ϵ
-    ∂δ = (neglogpdf_rician(x, ν, δ + ϵ, order) - neglogpdf_rician(x, ν, δ - ϵ, order)) / 2ϵ
+    ∂x = (neglogcdf_rician(x + ϵ, ν, δ, order) - neglogcdf_rician(x - ϵ, ν, δ, order)) / 2ϵ
+    ∂ν = (neglogcdf_rician(x, ν + ϵ, δ, order) - neglogcdf_rician(x, ν - ϵ, δ, order)) / 2ϵ
+    ∂δ = (neglogcdf_rician(x, ν, δ + ϵ, order) - neglogcdf_rician(x, ν, δ - ϵ, order)) / 2ϵ
     return (∂x, ∂ν, ∂δ)
 end
 
@@ -95,7 +95,7 @@ end
             atol = 3*eps(T)
             zs = range(eps(T), one(T); length = 10)
             for z in zs, (x, ν) in xν_iterator(z)
-                @test f̂(x, ν) ≈ f(x, ν) rtol=rtol atol=atol
+                @test @inferred(f̂(x, ν)) ≈ f(x, ν) rtol=rtol atol=atol
             end
         end
         @testset "1 <= z ($T)" begin
@@ -103,7 +103,7 @@ end
             atol = T == Float32 ? 10*eps(T) : 20*eps(T)
             zs = T.(exp10.([0.0:0.1:0.5; 0.75; 1.0; 2.0:10.0]))
             for z in zs, (x, ν) in xν_iterator(z)
-                @test f̂(x, ν) ≈ f(x, ν) rtol=rtol atol=atol
+                @test @inferred(f̂(x, ν)) ≈ f(x, ν) rtol=rtol atol=atol
             end
         end
     end
@@ -111,17 +111,20 @@ end
 
 @testset "∇neglogpdf_rician" begin
     for T in (Float32, Float64)
-        f̂ = ∇neglogpdf_rician
-        f = arbify(f̂)
+        f̂ = neglogpdf_rician
+        ∇f̂ = ∇neglogpdf_rician
+        ∇f = arbify(∇f̂)
         low, high = T(0.5), T(15.0)
         @testset "z < $(low) ($T)" begin
             rtol = 3*eps(T)
             atol = 3*eps(T)
             zs = range(eps(T), low - eps(T); length = 10)
             for z in zs, (x, ν) in xν_iterator(z)
-                ∂f̂, ∂f = f̂(x, ν), f(x, ν)
-                @test ∂f̂[1] ≈ ∂f[1] rtol=rtol atol=atol
-                @test ∂f̂[2] ≈ ∂f[2] rtol=rtol atol=atol
+                ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)
+                @test ∂ŷ[1] ≈ ∂y[1] rtol=rtol atol=atol
+                @test ∂ŷ[2] ≈ ∂y[2] rtol=rtol atol=atol
+                @test ∂ŷ == ∇Fwd(f̂, x, ν)
+                @test ∂ŷ == ∇Zyg(f̂, x, ν)
             end
         end
         @testset "$(low) <= z < $(high) ($T)" begin
@@ -129,9 +132,11 @@ end
             atol = T == Float32 ? 20*eps(T) : 250*eps(T)
             zs = range(low + 25*eps(T), high - 25*eps(T); length = 10)
             for z in zs, (x, ν) in xν_iterator(z)
-                ∂f̂, ∂f = f̂(x, ν), f(x, ν)
-                @test ∂f̂[1] ≈ ∂f[1] rtol=rtol atol=atol
-                @test ∂f̂[2] ≈ ∂f[2] rtol=rtol atol=atol
+                ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)
+                @test ∂ŷ[1] ≈ ∂y[1] rtol=rtol atol=atol
+                @test ∂ŷ[2] ≈ ∂y[2] rtol=rtol atol=atol
+                @test ∂ŷ == ∇Fwd(f̂, x, ν)
+                @test ∂ŷ == ∇Zyg(f̂, x, ν)
             end
         end
         @testset "$(high) <= z ($T)" begin
@@ -139,9 +144,11 @@ end
             atol = 3*eps(T)
             zs = (high + 5*eps(T)) .* T.(exp10.([0.0:0.1:0.5; 0.75; 1.0; 2.0:10.0]))
             for z in zs, (x, ν) in xν_iterator(z)
-                ∂f̂, ∂f = f̂(x, ν), f(x, ν)
-                @test ∂f̂[1] ≈ ∂f[1] rtol=rtol atol=atol
-                @test ∂f̂[2] ≈ ∂f[2] rtol=rtol atol=atol
+                ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)
+                @test ∂ŷ[1] ≈ ∂y[1] rtol=rtol atol=atol
+                @test ∂ŷ[2] ≈ ∂y[2] rtol=rtol atol=atol
+                @test ∂ŷ == ∇Fwd(f̂, x, ν)
+                @test ∂ŷ == ∇Zyg(f̂, x, ν)
             end
         end
     end
@@ -209,12 +216,15 @@ end
     # `neglogcdf_rician` is not exact in general. However, it should monotonically
     # improve in accuracy as `order` increases.
     for (x, ν, δ) in xνδ_iterator()
-        y = neglogcdf_rician(map(ArbFloat, (x, ν, δ))..., Val(15))
+        f̂ = neglogcdf_rician
+        f = arbify(neglogcdf_rician)
+        y = f(x, ν, δ, Val(15))
+
         for T in (Float32, Float64)
-            ŷ4 = @inferred neglogcdf_rician(T(x), T(ν), T(δ), Val(4))
-            ŷ8 = @inferred neglogcdf_rician(T(x), T(ν), T(δ), Val(8))
-            ŷ16 = @inferred neglogcdf_rician(T(x), T(ν), T(δ), Val(16))
-            ŷ32 = @inferred neglogcdf_rician(T(x), T(ν), T(δ), Val(32))
+            ŷ4 = @inferred f̂(T(x), T(ν), T(δ), Val(4))
+            ŷ8 = @inferred f̂(T(x), T(ν), T(δ), Val(8))
+            ŷ16 = @inferred f̂(T(x), T(ν), T(δ), Val(16))
+            ŷ32 = @inferred f̂(T(x), T(ν), T(δ), Val(32))
 
             rtol = 5*eps(T)
             atol = zero(T)
@@ -240,10 +250,33 @@ end
     end
 end
 
+@testset "∇neglogcdf_rician" begin
+    for (x, ν, δ) in xνδ_iterator()
+        f̂ = neglogcdf_rician
+        ∇f̂ = ∇neglogcdf_rician
+        ∇f = arbify(∇f̂)
+        ∂y = ∇f(x, ν, δ, Val(15))
+
+        for T in (Float32, Float64)
+            order = Val(64)
+            rtol = T == Float32 ? 50*eps(T) : 80*eps(T)
+            atol = T == Float32 ? 50*eps(T) : 80*eps(T)
+
+            ∂ŷ = @inferred ∇f̂(T(x), T(ν), T(δ), order)
+            @test isapprox(∂ŷ[1], ∂y[1]; rtol, atol)
+            @test isapprox(∂ŷ[2], ∂y[2]; rtol, atol)
+            @test isapprox(∂ŷ[3], ∂y[3]; rtol, atol)
+
+            @test ∂ŷ == ∇Fwd((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))
+            @test ∂ŷ == ∇Zyg((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))
+        end
+    end
+end
+
 @testset "gauss legendre quadrature" begin
-    map((Float32, Float64)) do T
-        d = Normal(randn(T) / 2, 1 + rand(T))
-        a, δ = randn(T), rand(T) / 10
+    for T in (Float32, Float64)
+        d = Normal(randn(T) / 5, 1 + rand(T))
+        a, δ = randn(T) / 5, (1 + rand(T)) / 10
         Ω = @inferred f_quadrature(x -> exp(logpdf(d, x)), a, δ)
         logΩ = @inferred -neglogf_quadrature(x -> -logpdf(d, x), a, δ)
         Ωtrue = cdf(d, a + δ) - cdf(d, a)
