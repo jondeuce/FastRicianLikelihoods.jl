@@ -25,7 +25,7 @@ FastRicianLikelihoods.std_rician(ν::ArbFloat, σ::ArbFloat) = sqrt(ν^2 + 2σ^2
 # FastRicianLikelihoods.∂x_besseli0x(x::ArbFloat) = ArbNumerics.∂x_besseli0x(x)
 # FastRicianLikelihoods.∂x_besseli1x(x::ArbFloat) = ArbNumerics.∂x_besseli1x(x)
 
-function pos_range_iterator(::Type{T}; scale = 10, step = 0.1) where {T <: Union{Float32, Float64}}
+function pos_range_iterator(::Type{T}; scale = 10, step = 0.05) where {T <: Union{Float32, Float64}}
     return exp10.(-T(scale):T(step):T(scale))
 end
 
@@ -71,8 +71,8 @@ for T in (Float32, Float64)
         f̂ = besseli1i0
         f = arbify(f̂)
         for x in pos_range_iterator(T)
-            rtol = T == Float32 ? 5*eps(T) : 10*eps(T)
-            atol = T == Float32 ? 10*eps(T) : 100*eps(T)
+            rtol = T == Float32 ? 2*eps(T) : 5*eps(T)
+            atol = T == Float32 ? 2*eps(T) : 15*eps(T)
             @test f̂(x) ≈ f(x) rtol=rtol atol=atol
         end
     end

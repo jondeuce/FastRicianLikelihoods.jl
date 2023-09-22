@@ -128,8 +128,8 @@ end
             end
         end
         @testset "$(low) <= z < $(high) ($T)" begin
-            rtol = T == Float32 ? 5*eps(T) : 100*eps(T)
-            atol = T == Float32 ? 20*eps(T) : 250*eps(T)
+            rtol = T == Float32 ? 3*eps(T) : 20*eps(T)
+            atol = T == Float32 ? 10*eps(T) : 40*eps(T)
             zs = range(low + 25*eps(T), high - 25*eps(T); length = 10)
             for z in zs, (x, ν) in xν_iterator(z)
                 ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)

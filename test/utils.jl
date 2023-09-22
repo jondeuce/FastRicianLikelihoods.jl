@@ -29,7 +29,7 @@ arbify(f::Function) = function f_arbified(args...)
 end
 
 ∇Zyg(f, args::Real...) = @inferred Zygote.gradient(f, args...)
-∇Fwd(f, args::Real...) = @inferred Tuple(ForwardDiff.gradient(splat(f), SVector(args)))
+∇Fwd(f, args::Real...) = @inferred Tuple(ForwardDiff.gradient(Base.splat(f), SVector(args)))
 
 end # module Utils
 
