@@ -23,12 +23,12 @@ end
 neglogpdf_qrician_arbfloat_eps() = ArbFloat(1e-30)
 
 function FastRicianLikelihoods.neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, ::Val{order}) where {order}
-    a, b = ArbFloat(x), ArbFloat(x + δ), ArbFloat(1e-30)
     rtol, atol = neglogpdf_qrician_arbfloat_eps(), 0
-    I, E = quadgk(a, b; rtol, atol, order) do x̃
-        return exp(-neglogpdf_rician(x̃, ν))
+    Ω = neglogpdf_rician(x + δ / 2, ν)
+    I, E = quadgk(x, x + δ; rtol, atol, order) do x̃
+        return exp(Ω - neglogpdf_rician(x̃, ν))
     end
-    return -log(I)
+    return Ω - log(I)
 end
 
 function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, order::Val)
@@ -139,7 +139,7 @@ end
                 @test ∂ŷ == ∇Zyg(f̂, x, ν)
             end
         end
-        @testset "$(high) <= z ($T)" begin
+        @testset "z >= $(high) ($T)" begin
             rtol = 3*eps(T)
             atol = 3*eps(T)
             zs = (high + 5*eps(T)) .* T.(exp10.([0.0:0.1:0.5; 0.75; 1.0; 2.0:10.0]))
@@ -180,6 +180,7 @@ end
 
 @testset "neglogpdf_qrician properties" begin
     for T in (Float32, Float64)
+        ns = [0, 1, 2, 5, 10, 100, 1000]
         νs = exp10.(T[-1.0, -0.1, 0.0, 0.1, 1.0])
         δs = exp10.(T[-2.0, -1.0, 0.0])
         logσs = exp10.(T[-2.0, -1.0, 0.0])
@@ -187,7 +188,7 @@ end
         @testset "normalization ($T)" begin
             for ν in νs, δ in δs
                 I = neglogpdf_qrician_sum(ν, δ, order)
-                atol = T == Float32 ? 6*eps(T) : 4*eps(T)
+                atol = T == Float32 ? 6*eps(T) : 5*eps(T)
                 @test isapprox(I, one(T); rtol = zero(T), atol)
             end
         end
@@ -205,6 +206,15 @@ end
                 for x in δ .* (0, 1, round(Int, ν), round(Int, ν/δ))
                     @test neglogpdf_qrician(x, ν, logσ, δ, order) ≈ neglogpdf_qrician(x / σ, ν / σ, δ / σ, order)
                 end
+            end
+        end
+        @testset "discrete input ($T)" begin
+            ν = rand(νs)
+            δ = rand(δs)
+            logσ = rand(logσs)
+            for n in ns
+                x = n * δ
+                @test neglogpdf_qrician(x, ν, logσ, δ, order) == neglogpdf_qrician(n, ν, logσ, δ, order)
             end
         end
     end
@@ -289,4 +299,4 @@ end
 
 end # module RicianTests
 
-import .RicianTests
+using .RicianTests

@@ -1,40 +1,52 @@
 ####
-#### Rician Distribution
+#### Rice distribution
 ####
 
-#### Rician distribution: https://en.wikipedia.org/wiki/Rice_distribution
+"""
+    Rice(ν, σ)
 
-struct Rician{T <: Real} <: Distributions.ContinuousUnivariateDistribution
+The *Rice distribution* with parameters `ν` and `σ` has probability density function:
+
+```math
+f(x; \\nu, \\sigma) = \\frac{x}{\\sigma^2} \\exp\\left( \\frac{-(x^2 + \\nu^2)}{2\\sigma^2} \\right) I_0\\left( \\frac{x\\nu}{\\sigma^2} \\right).
+```
+
+External links:
+
+* [Rice distribution on Wikipedia](https://en.wikipedia.org/wiki/Rice_distribution)
+
+"""
+struct Rice{T <: Real} <: Distributions.ContinuousUnivariateDistribution
     ν::T
     σ::T
 end
 
 #### Outer constructors
 
-@inline Rician(ν::Real, σ::Real) = Rician(promote(ν, σ)...)
-@inline Rician(ν::Integer, σ::Integer) = Rician(float(ν), float(σ))
-@inline Rician(ν::Real) = Rician(ν, one(typeof(ν)))
-@inline Rician() = Rician(0.0, 1.0)
+@inline Rice(ν::Real, σ::Real) = Rice(promote(ν, σ)...)
+@inline Rice(ν::Integer, σ::Integer) = Rice(float(ν), float(σ))
+@inline Rice(ν::Real) = Rice(ν, one(typeof(ν)))
+@inline Rice() = Rice(0.0, 1.0)
 
 #### Conversions
 
-@inline Base.convert(::Type{Rician{T}}, ν::Real, σ::Real) where {T <: Real} = Rician(T(ν), T(σ))
-@inline Base.convert(::Type{Rician{T}}, d::Rician{<:Real}) where {T <: Real} = Rician(T(d.ν), T(d.σ))
+@inline Base.convert(::Type{Rice{T}}, ν::Real, σ::Real) where {T <: Real} = Rice(T(ν), T(σ))
+@inline Base.convert(::Type{Rice{T}}, d::Rice{<:Real}) where {T <: Real} = Rice(T(d.ν), T(d.σ))
 
-# Distributions.@distr_support Rician 0 Inf
+# Distributions.@distr_support Rice 0 Inf
 
-@inline Base.minimum(::Union{Rician, Type{<:Rician}}) = 0
-@inline Base.maximum(::Union{Rician, Type{<:Rician}}) = Inf
+@inline Base.minimum(::Union{Rice, Type{<:Rice}}) = 0
+@inline Base.maximum(::Union{Rice, Type{<:Rice}}) = Inf
 
 #### Parameters
 
-@inline Distributions.params(d::Rician) = (d.ν, d.σ)
-@inline Distributions.partype(::Rician{T}) where {T} = T
+@inline Distributions.params(d::Rice) = (d.ν, d.σ)
+@inline Distributions.partype(::Rice{T}) where {T} = T
 
-@inline Distributions.location(d::Rician) = d.ν
-@inline Distributions.scale(d::Rician) = d.σ
+@inline Distributions.location(d::Rice) = d.ν
+@inline Distributions.scale(d::Rice) = d.σ
 
-@inline Base.eltype(::Type{Rician{T}}) where {T} = T
+@inline Base.eltype(::Type{Rice{T}}) where {T} = T
 
 #### Statistics
 
@@ -42,22 +54,22 @@ end
 @inline var_rician(ν, σ) = (t = ν / σ; return σ^2 * (1 - laguerre½²c(t))) # equivalent to: ν^2 + 2σ^2 - π * σ^2 * laguerre½(-(ν / σ)^2 / 2)^2 / 2
 @inline std_rician(ν, σ) = sqrt(var_rician(ν, σ))
 
-@inline Distributions.mean(d::Rician) = mean_rician(d.ν, d.σ)
-# @inline Distributions.mode(d::Rician) = ?
-# @inline Distributions.median(d::Rician) = ?
+@inline Distributions.mean(d::Rice) = mean_rician(d.ν, d.σ)
+# @inline Distributions.mode(d::Rice) = ?
+# @inline Distributions.median(d::Rice) = ?
 
-@inline Distributions.var(d::Rician) = var_rician(d.ν, d.σ)
-@inline Distributions.std(d::Rician) = sqrt(var(d))
-# @inline Distributions.skewness(d::Rician{T}) where {T <: Real} = ?
-# @inline Distributions.kurtosis(d::Rician{T}) where {T <: Real} = ?
-# @inline Distributions.entropy(d::Rician) = ?
+@inline Distributions.var(d::Rice) = var_rician(d.ν, d.σ)
+@inline Distributions.std(d::Rice) = sqrt(var(d))
+# @inline Distributions.skewness(d::Rice{T}) where {T <: Real} = ?
+# @inline Distributions.kurtosis(d::Rice{T}) where {T <: Real} = ?
+# @inline Distributions.entropy(d::Rice) = ?
 
 #### Evaluation
 
 # p(x | ν, σ) = x * I₀(x * ν / σ^2) * exp(-(x^2 + ν^2) / 2σ^2) / σ^2
-@inline Distributions.logpdf(d::Rician, x::Real) = -neglogpdf_rician(x, d.ν, log(d.σ))
-@inline Distributions.pdf(d::Rician, x::Real) = exp(logpdf(d, x))
+@inline Distributions.logpdf(d::Rice, x::Real) = -neglogpdf_rician(x, d.ν, log(d.σ))
+@inline Distributions.pdf(d::Rice, x::Real) = exp(Distributions.logpdf(d, x))
 
 #### Sampling
 
-@inline Distributions.rand(rng::Random.AbstractRNG, d::Rician{T}) where {T} = sqrt((d.ν + d.σ * randn(rng, T))^2 + (d.σ * randn(rng, T))^2)
+@inline Distributions.rand(rng::Random.AbstractRNG, d::Rice{T}) where {T} = hypot(d.ν + d.σ * randn(rng, T), d.σ * randn(rng, T))

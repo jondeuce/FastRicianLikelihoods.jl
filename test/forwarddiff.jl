@@ -74,4 +74,4 @@ end
 
 end # module ForwardDiffTests
 
-import .ForwardDiffTests
+using .ForwardDiffTests

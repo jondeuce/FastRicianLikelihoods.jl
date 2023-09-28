@@ -1,3 +1,7 @@
+####
+#### Rician negative log-pdf
+####
+
 #### Utilities
 
 @inline promote_float(x...) = promote(map(float, x)...)
@@ -8,7 +12,7 @@
     σ⁻¹ = exp(-logσ)
     return logσ + neglogpdf_rician(σ⁻¹ * x, σ⁻¹ * ν)
 end
-@inline neglogpdf_rician(x, ν, logσ) = neglogpdf_rician(promote_float(x, ν, logσ)...)
+@inline neglogpdf_rician(x::Real, ν::Real, logσ::Real) = neglogpdf_rician(promote_float(x, ν, logσ)...)
 
 @inline neglogpdf_rician(x::T, ν::T) where {T <: Union{Float32, Float64}} = (x - ν)^2 / 2 - log(x) - logbesseli0x(x * ν) # negative Rician log-likelihood `-logp(x | ν, σ = 1)`
 
@@ -52,8 +56,8 @@ end
     else
         z⁻¹ = inv(z)
         tmp = z⁻¹ * evalpoly(z⁻¹, besseli1i0c_tail_coefs(T)) # -z * logÎ₀′(z) = -1/2 - z * (I₁(z) / I₀(z) - 1) ≈ 1/8z + 𝒪(1/z^2)
-        ∂x = x - ν - (T(0.5) - tmp) / x
-        ∂ν = ν - x + (T(0.5) + tmp) / ν
+        ∂x = x - ν + (T(-0.5) + tmp) / x
+        ∂ν = ν - x + (T(+0.5) + tmp) / ν
     end
 
     return (∂x, ∂ν)
@@ -65,7 +69,9 @@ end
 @scalar_rule neglogpdf_rician(x, ν) (∇neglogpdf_rician(x, ν)...,)
 @dual_rule_from_frule neglogpdf_rician(x, ν)
 
+####
 #### Quantized Rician negative log-pdf
+####
 
 # Quantized Rician PDF is the integral of the Rician PDF over `(x, x+δ)`.
 # This integral is approximated using Gauss-Legendre quadrature.
@@ -74,7 +80,8 @@ end
     σ⁻¹ = exp(-logσ)
     return neglogpdf_qrician(σ⁻¹ * x, σ⁻¹ * ν, σ⁻¹ * δ, order)
 end
-@inline neglogpdf_qrician(x, ν, logσ, δ, order::Val) = neglogpdf_qrician(promote_float(x, ν, logσ, δ)..., order)
+@inline neglogpdf_qrician(x::Real, ν::Real, logσ::Real, δ::Real, order::Val) = neglogpdf_qrician(promote_float(x, ν, logσ, δ)..., order)
+@inline neglogpdf_qrician(n::Int, ν::Real, logσ::Real, δ::Real, order::Val) = neglogpdf_qrician(n * δ, ν, logσ, δ, order)
 
 @inline neglogpdf_qrician(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = neglogf_quadrature(Base.Fix2(neglogpdf_rician, ν), x, δ, order)
 @inline ∇neglogpdf_qrician(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = ∇neglogpdf_qrician_with_primal(x, ν, δ, order)[2]

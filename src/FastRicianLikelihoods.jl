@@ -12,7 +12,7 @@ using MacroTools: @capture, combinedef, prettify, splitdef
 using Random: Random
 using StaticArrays: StaticArrays, SVector, SMatrix
 
-export Rician
+export Rice, neglogpdf_rician, neglogpdf_qrician
 
 include("forwarddiff.jl")
 include("bessels.jl")

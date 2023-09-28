@@ -7,8 +7,9 @@ using ForwardDiff: ForwardDiff
 using StaticArrays: SVector
 using Zygote: Zygote
 
-setworkingprecision(ArbFloat, 500)
-setextrabits(128)
+Base.setprecision(BigFloat, 500; base = 2)
+ArbNumerics.setworkingprecision(ArbFloat; digits = 500, base = 2)
+ArbNumerics.setextrabits(128)
 
 @inline common_float_type(args::Tuple) = mapfoldl(typeof, common_float_type, args)
 
@@ -33,4 +34,4 @@ end
 
 end # module Utils
 
-import .Utils
+using .Utils
