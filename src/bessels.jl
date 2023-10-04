@@ -10,6 +10,53 @@
 @inline besseli1x(x) = Bessels.besseli1x(x)
 
 """
+    besseli0m1x(x::T) where T <: Union{Float32, Float64}
+
+Scaled modified Bessel function of the first kind of order zero minus one, ``(I_0(x) - 1)*e^{-x}``.
+
+See also: [`besseli0(x)`](@ref Bessels.besseli0), [`besseli1x(x)`](@ref Bessels.besseli1x), [`besseli(nu,x)`](@ref Bessels.besseli))
+"""
+function besseli0m1x(x::T) where T <: Union{Float32, Float64}
+    T == Float32 ? low = 6.75 : low = 16.0
+    T == Float32 ? branch = 50 : branch = 500
+    x = abs(x)
+    if x < low
+        a = x * x / 4
+        return a * evalpoly(a, besseli0m1x_small_coefs(T)) * exp(-x)
+    elseif x < branch
+        return evalpoly(inv(x), besseli0m1x_med_coefs(T)) / sqrt(x)
+    else
+        return evalpoly(inv(x), besseli0m1x_large_coefs(T)) / sqrt(x)
+    end
+end
+
+function logbesseli0m1x(x::T) where T <: Union{Float32, Float64}
+    T == Float32 ? low = 6.75 : low = 16.0
+    T == Float32 ? branch = 50 : branch = 500
+    x = abs(x)
+    if x < low
+        a = x * x / 4
+        return log(a * evalpoly(a, besseli0m1x_small_coefs(T))) - x
+    elseif x < branch
+        return log(evalpoly(inv(x), besseli0m1x_med_coefs(T)) / sqrt(x))
+    else
+        return log(evalpoly(inv(x), besseli0m1x_large_coefs(T)) / sqrt(x))
+    end
+end
+
+@inline besseli0m1x_small_coefs(::Type{Float32}) = (0.9999999f0, 0.25000122f0, 0.027775574f0, 0.0017376335f0, 6.892991f-5, 2.0227067f-6, 3.0070932f-8, 1.0751665f-9)
+@inline besseli0m1x_med_coefs(::Type{Float32}) = (0.39887866f0, 0.06057018f0, -0.70964724f0, 27.146845f0, -578.4168f0, 7264.5205f0, -51609.934f0, 185786.06f0, -265738.56f0)
+@inline besseli0m1x_med_num_coefs(::Type{Float32}) = (0.39894706f0, -7.777536f0, 68.3436f0, -268.09674f0, 438.21545f0)
+@inline besseli0m1x_med_den_coefs(::Type{Float32}) = (1.0f0, -19.61879f0, 173.612f0, -690.39886f0, 1150.0469f0)
+@inline besseli0m1x_large_coefs(::Type{Float32}) = (0.3989423f0, 0.049860857f0, 0.028961208f0)
+
+@inline besseli0m1x_small_coefs(::Type{Float64}) = (1.0, 0.25000000000000006, 0.027777777777777655, 0.0017361111111112342, 6.944444444437954e-5, 1.929012345699996e-6, 3.93675988868729e-8, 6.151187333719624e-10, 7.594058350037932e-12, 7.594059093379885e-14, 6.276076969892409e-16, 4.358412357436062e-18, 2.5788371910145114e-20, 1.3160763622513412e-22, 5.840301033998216e-25, 2.299821101721548e-27, 7.657011478962633e-30, 2.7450102221441183e-32, 3.914976964195122e-35, 3.6000158386208433e-37, -4.742187837043056e-40, 2.95126297137588e-42)
+@inline besseli0m1x_med_coefs(::Type{Float64}) = (0.3989422804012607, 0.04986778540587323, 0.028050307495006976, 0.029388810402809357, -0.013798992100663144, 14.269520676696201, -2511.3666124068586, 335129.1941264714, -3.440937920417942e7, 2.761040774786925e9, -1.7506342771577005e11, 8.8359431835763e12, -3.564976706320503e14, 1.1510754413445302e16, -2.968668369343783e17, 6.083314332002715e18, -9.81294687877789e19, 1.2279434474327913e21, -1.1654678488341868e22, 8.098203967282104e22, -3.882057548943311e23, 1.1468205083405064e24, -1.5730545601072846e24)
+@inline besseli0m1x_med_num_coefs(::Type{Float64}) = (0.3989422804014235, -12.161834141246917, 180.3499525703925, 21.901634823723352, 11.935046173406183, 12.353455075204916, -31.290613372311775, 5975.026295933406, -563683.1575798317, 4.242633067816853e7, -2.5401108147247005e9, 1.2080841731102097e11, -4.539283010575132e12, 1.335213616835021e14, -3.0341880553731475e15, 5.229312867669351e16, -6.660539624080351e17, 6.037427451929038e18, -3.668380959994813e19, 1.33631431219921e20, -2.204320347434442e20)
+@inline besseli0m1x_med_den_coefs(::Type{Float64}) = (1.0, -30.61019732986138, 455.82625263684065)
+@inline besseli0m1x_large_coefs(::Type{Float64}) = (0.3989422804014327, 0.049867785050035494, 0.02805062966442321, 0.02921860341712994, 0.04519908777162243)
+
+"""
     besseli2(x::T) where {T <: Union{Float32, Float64}}
 
 Modified Bessel function of the first kind of order two, ``I_2(x)``.

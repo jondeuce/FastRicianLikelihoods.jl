@@ -97,6 +97,31 @@ function besseli0_constants(min=1/1e16, low=7.75, branch=50)
     @info "besseli0x: x > $branch" E=Float64(E) N=(Float64.(N)...,)
 end
 
+function besseli0m1x_constants(::Type{T} = Float32, min=1e-30, low=16.0) where {T}
+    branch = T === Float32 ? 50 : 500
+    deglow = T === Float32 ? 7 : 21
+    degmid = T === Float32 ? 8 : 22
+    deghigh = T === Float32 ? 2 : 4
+
+    # Small x < low:
+    #   besseli(0, x) - 1 = y * P(y) where y = x^2 / 4
+    Plow(y) = (x = 2*sqrt(y); (ArbNumerics.besseli(0, x) - 1) / y)
+    N, D, E, X = ratfn_minimax(arbify(Plow), (min, low^2 / 4), deglow, 0)
+    @info "besseli0: x < $low" E=Float64(E) N=(Float64.(N)...,)
+
+    # Medium low < x < branch:
+    #   besseli(0, x) - 1 = exp(x) * P(y) / sqrt(x) where y = 1/x
+    Pmed(y) = (x = 1/y; exp(-x) * sqrt(x) * (ArbNumerics.besseli(0, x) - 1))
+    N, D, E, X = ratfn_minimax(arbify(Pmed), (1/branch, 1/low), degmid, 0)
+    @info "besseli0m1x: x > $low" E=Float64(E) N=(Float64.(N)...,)
+
+    # Large x > branch:
+    #   besseli(0, x) - 1 = exp(x) * P(y) / sqrt(x) where y = 1/x
+    Plarge(y) = (x = 1/y; exp(-x) * sqrt(x) * ArbNumerics.besseli(0, x))
+    N, D, E, X = ratfn_minimax(arbify(Plarge), (min, 1/branch), deghigh, 0)
+    @info "besseli0x: x > $branch" E=Float64(E) N=(Float64.(N)...,)
+end
+
 function laguerre½_constants(; low=1.0, high=10.0, num=6, den=0)
     L½(x) = exp(x / 2) * ((1 - x) * ArbNumerics.besseli(0, -x/2) - x * ArbNumerics.besseli(1, -x/2))
     L½scaled(t) = sqrt(ArbFloat(pi) / 2) * L½(-t^2/2)

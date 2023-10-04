@@ -7,7 +7,7 @@ using ForwardDiff: ForwardDiff
 using StaticArrays: SVector
 using Zygote: Zygote
 
-Base.setprecision(BigFloat, 500; base = 2)
+Base.setprecision(BigFloat, 500)
 ArbNumerics.setworkingprecision(ArbFloat; digits = 500, base = 2)
 ArbNumerics.setextrabits(128)
 

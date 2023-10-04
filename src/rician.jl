@@ -6,7 +6,62 @@
 
 @inline promote_float(x...) = promote(map(float, x)...)
 
+####
+#### Quantized Gaussian log-pdf
+####
+
+function logpdf_qnormal(x::T, δ::T) where {T <: Union{Float32, Float64}}
+    @assert x >= 0 && δ > 0
+    if δ <= T(0.15)
+        if δ * x > T(0.3)
+            return logpdf_qnormal_small_δ_large_δx(x, δ)
+        else
+            return logpdf_qnormal_small_δ_small_δx(x, δ)
+        end
+    elseif x > 1
+        Φ⁻ = erfcx((x + δ) * invsqrt2)
+        Φ⁺ = erfcx(x * invsqrt2)
+        return log(Φ⁺ / 2) - abs2(x) / 2 + log1p(-(Φ⁻ / Φ⁺) * exp(-δ * (x + δ / 2))) # x > 1 and x + δ > 1
+    elseif x + δ > 1
+        return log((1 - erfc((x + δ) * invsqrt2) - erf(x * invsqrt2)) / 2) # 0 <= x <= 1 and x + δ > 1
+    else
+        return log((erf((x + δ) * invsqrt2) - erf(x * invsqrt2)) / 2) # 0 <= x <= 1 and 0 <= x + δ <= 1
+    end
+end
+
+function logpdf_qnormal_small_δ_large_δx(x::T, δ::T) where {T <: Union{Float32, Float64}}
+    # Small `δ` but large `δ * x` (and therefore large `x`); Taylor expand in `δ` only and integrate termwise:
+    #   -x^2 / 2 - T(log2π) / 2 - log(x) + log1p(exp(-δ * x) * (945 / x^10 + 945 * δ / x^9 + 945 * δ^2 / (2 * x^8) + 315 * δ^3 / (2 * x^7) + 315 * δ^4 / (8 * x^6) + 63 * δ^5 / (8 * x^5) + 21 * δ^6 / (16 * x^4) + 3 * δ^7 / (16 * x^3) + 3 * δ^8 / (128 * x^2) + δ^9 / (384 * x) + δ^10 / 3840 - δ^8 / 384 - δ^7 / (48 * x) - 7 * δ^6 / (48 * x^2) - 7 * δ^5 / (8 * x^3) - 35 * δ^4 / (8 * x^4) - 35 * δ^3 / (2 * x^5) - 105 * δ^2 / (2 * x^6) - 105 * δ / x^7 - 105 / x^8 + δ^6 / 48 + δ^5 / (8 * x) + 5 * δ^4 / (8 * x^2) + 5 * δ^3 / (2 * x^3) + 15 * δ^2 / (2 * x^4) + 15 * δ / x^5 + 15 / x^6 - δ^4 / 8 - δ^3 / (2 * x) - 3 * δ^2 / (2 * x^2) - 3 * δ / x^3 - 3 / x^4 + δ^2 / 2 + δ / x + 1 / x^2 - 1) + (-945) / x^10 + 105 / x^8 - 15 / x^6 + 3 / x^4 - 1 / x^2)
+    x⁻² = inv(x)^2
+    a10 = T(1)/384
+    a8 = evalpoly(x⁻², T.((-1, 9)) ./ 48)
+    a6 = evalpoly(x⁻², T.((1, -7, 63)) ./ 8)
+    a4 = evalpoly(x⁻², T.((-1, 5, -35, 315)) ./ 2)
+    a2 = evalpoly(x⁻², T.((1, -3, 15, -105, 945)))
+    a0 = muladd(x⁻², a2, T(-1))
+    p = (a0, a2 / x, a2 / 2, a4 / x, a4 / 4, a6 / x, a6 / 6, a8 / x, a8 / 8, a10 / x, a10 / 10)
+    return -x^2 / 2 - T(log2π) / 2 - log(x) + log1p(exp(-δ * x) * evalpoly(δ, p) - x⁻² * a2)
+end
+
+function logpdf_qnormal_small_δ_small_δx(x::T, δ::T) where {T <: Union{Float32, Float64}}
+    # Small `δ` and small `δ * x`; use Taylor expansion:
+    #   log(δ) - x^2 / 2 - T(log2π) / 2 - (x * δ) / 2 + (x^2 * δ^2) / 24 - (x^4 * δ^4) / 2880 + (x^6 * δ^6) / 181440 - (x^8 * δ^8) / 9676800 + (x^10 * δ^10) / 479001600 - δ^2 / 6 + (x * δ^3) / 24 - (x^2 * δ^4) / 720 - (x^3 * δ^5) / 1440 + (x^4 * δ^6) / 30240 + (x^5 * δ^7) / 60480 - (x^6 * δ^8) / 1209600 - (x^7 * δ^9) / 2419200 + (x^8 * δ^10) / 47900160 + (x^9 * δ^11) / 95800320 + δ^4 / 90 - (x * δ^5) / 720 - (61 * x^2 * δ^6) / 120960 + (x^3 * δ^7) / 15120 + (47 * x^4 * δ^8) / 2419200 - (x^5 * δ^9) / 403200 - (643 * x^6 * δ^10) / 958003200 + (x^7 * δ^11) / 11975040 - δ^6 / 2835 - (19 * x * δ^7) / 120960 + (181 * x^2 * δ^8) / 3628800 + (41 * x^3 * δ^9) / 3628800 - (739 * x^4 * δ^10) / 239500800 - (181 * x^5 * δ^11) / 319334400 - δ^8 / 56700 + (61 * x * δ^9) / 3628800 + (1579 * x^2 * δ^10) / 479001600 - (61 * x^3 * δ^11) / 29937600 + δ^10 / 467775 + (193 * x * δ^11) / 479001600
+    δx = δ * x
+    x², δ², δx² = x^2, δ^2, δx^2
+    p = (
+        δx² * evalpoly(δx², (T(1)/24, T(-1)/2880, T(1)/181440, T(-1)/9676800, T(1)/479001600)),
+        evalpoly(δx, (T(-1)/6, T(1)/24, T(-1)/720, T(-1)/1440, T(1)/30240, T(1)/60480, T(-1)/1209600, T(-1)/2419200, T(1)/47900160, T(1)/95800320)),
+        evalpoly(δx, (T(1)/90, T(-1)/720, T(-61)/120960, T(1)/15120, T(47)/2419200, T(-1)/403200, T(-643)/958003200, T(1)/11975040)),
+        evalpoly(δx, (T(-1)/2835, T(-19)/120960, T(181)/3628800, T(41)/3628800, T(-739)/239500800, T(-181)/319334400)),
+        evalpoly(δx, (T(-1)/56700, T(61)/3628800, T(1579)/479001600, T(-61)/29937600)),
+        evalpoly(δx, (T(1)/467775, T(193)/479001600)),
+    )
+    return log(δ) - x² / 2 - T(log2π) / 2 - δx / 2 + evalpoly(δ², p)
+end
+
+####
 #### Rician negative log-likelihood
+####
 
 @inline function neglogpdf_rician(x::T, ν::T, logσ::T) where {T <: Real}
     σ⁻¹ = exp(-logσ)
