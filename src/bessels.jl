@@ -13,8 +13,6 @@
     besseli0m1x(x::T) where T <: Union{Float32, Float64}
 
 Scaled modified Bessel function of the first kind of order zero minus one, ``(I_0(x) - 1)*e^{-x}``.
-
-See also: [`besseli0(x)`](@ref Bessels.besseli0), [`besseli1x(x)`](@ref Bessels.besseli1x), [`besseli(nu,x)`](@ref Bessels.besseli))
 """
 function besseli0m1x(x::T) where T <: Union{Float32, Float64}
     T == Float32 ? low = 6.75 : low = 16.0

@@ -4,13 +4,13 @@ using Base: BroadcastFunction
 using Bessels: Bessels
 using ChainRulesCore: ChainRulesCore, @scalar_rule, NoTangent
 using Distributions: Distributions, normlogccdf, normlogcdf
-using FastGaussQuadrature: gausslegendre
+using FastGaussQuadrature: gausslegendre, gausslaguerre
 using ForwardDiff: ForwardDiff, Dual
-using IrrationalConstants: invsqrt2, sqrt2, sqrt2π, sqrthalfπ, logtwo, log2π
+using IrrationalConstants: invsqrt2, sqrt2, invsqrt2π, sqrt2π, sqrthalfπ, logtwo, log2π
 using LinearAlgebra: dot
 using MacroTools: @capture, combinedef, prettify, splitdef
 using Random: Random
-using SpecialFunctions: erf, erfc, erfcx
+using SpecialFunctions: erf, erfc, erfcinv, erfcx
 using StaticArrays: StaticArrays, SVector, SMatrix
 
 export Rice, neglogpdf_rician, neglogpdf_qrician

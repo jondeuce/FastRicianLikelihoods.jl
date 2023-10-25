@@ -1,4 +1,7 @@
 [deps]
 ArbNumerics = "7e558dbc-694d-5a72-987c-6f4ebed21442"
 FastRicianLikelihoods = "055965c9-ba11-4dd1-a5dd-741b25c2e658"
+MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 Remez = "2e7db186-766a-50e7-8928-5c30181fb135"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+SymPy = "24249f21-da20-56a4-8eb1-6a02cf4ae2e6"

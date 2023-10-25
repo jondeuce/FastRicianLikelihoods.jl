@@ -3,27 +3,9 @@ module BesselsTests
 using Test
 using ..Utils: arbify
 
-using ArbNumerics: ArbNumerics, ArbFloat
 using FastRicianLikelihoods: FastRicianLikelihoods,
     besseli2, besseli2x, logbesseli0, logbesseli0x, logbesseli1, logbesseli1x, logbesseli2, logbesseli2x,
     laguerre½, mean_rician, std_rician, besseli1i0, ∂x_laguerre½, ∂x_besseli0x, ∂x_besseli1x
-using FiniteDifferences: FiniteDifferences
-
-FastRicianLikelihoods.besseli2(x::ArbFloat) = ArbNumerics.besseli(2, x)
-FastRicianLikelihoods.besseli2x(x::ArbFloat) = exp(-abs(x)) * ArbNumerics.besseli(2, x)
-FastRicianLikelihoods.logbesseli0(x::ArbFloat) = log(ArbNumerics.besseli(0, x))
-FastRicianLikelihoods.logbesseli0x(x::ArbFloat) = log(ArbNumerics.besseli(0, x)) - abs(x)
-FastRicianLikelihoods.logbesseli1(x::ArbFloat) = log(ArbNumerics.besseli(1, x))
-FastRicianLikelihoods.logbesseli1x(x::ArbFloat) = log(ArbNumerics.besseli(1, x)) - abs(x)
-FastRicianLikelihoods.logbesseli2(x::ArbFloat) = log(ArbNumerics.besseli(2, x))
-FastRicianLikelihoods.logbesseli2x(x::ArbFloat) = log(ArbNumerics.besseli(2, x)) - abs(x)
-FastRicianLikelihoods.laguerre½(x::ArbFloat) = exp(x / 2) * ((1 - x) * ArbNumerics.besseli(0, -x/2) - x * ArbNumerics.besseli(1, -x/2))
-FastRicianLikelihoods.besseli1i0(x::ArbFloat) = ArbNumerics.besseli(1, x) / ArbNumerics.besseli(0, x)
-FastRicianLikelihoods.mean_rician(ν::ArbFloat, σ::ArbFloat) = σ * √(ArbFloat(π) / 2) * laguerre½(-(ν / σ)^2 / 2)
-FastRicianLikelihoods.std_rician(ν::ArbFloat, σ::ArbFloat) = sqrt(ν^2 + 2σ^2 - ArbFloat(π) * σ^2 * laguerre½(-(ν / σ)^2 / 2)^2 / 2)
-# FastRicianLikelihoods.∂x_laguerre½(x::ArbFloat) = ArbNumerics.∂x_laguerre½(x)
-# FastRicianLikelihoods.∂x_besseli0x(x::ArbFloat) = ArbNumerics.∂x_besseli0x(x)
-# FastRicianLikelihoods.∂x_besseli1x(x::ArbFloat) = ArbNumerics.∂x_besseli1x(x)
 
 function pos_range_iterator(::Type{T}; scale = 10, step = 0.05) where {T <: Union{Float32, Float64}}
     return exp10.(-T(scale):T(step):T(scale))

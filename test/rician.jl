@@ -3,51 +3,9 @@ module RicianTests
 using Test
 using ..Utils: arbify, ∇Zyg, ∇Fwd
 
-using ArbNumerics: ArbNumerics, ArbFloat
 using Distributions: Normal, logpdf, cdf
 using FastRicianLikelihoods: FastRicianLikelihoods, neglogpdf_rician, ∇neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician, mean_rician, std_rician, f_quadrature, neglogf_quadrature
-using FiniteDifferences: FiniteDifferences
 using QuadGK: quadgk
-
-function FastRicianLikelihoods.neglogpdf_rician(x::ArbFloat, ν::ArbFloat)
-    return (x^2 + ν^2) / 2 - log(x) - log(ArbNumerics.besseli(0, x * ν))
-end
-
-function FastRicianLikelihoods.∇neglogpdf_rician(x::ArbFloat, ν::ArbFloat)
-    ϵ = sqrt(eps(one(ArbFloat)))
-    ∂x = (neglogpdf_rician(x + ϵ, ν) - neglogpdf_rician(x - ϵ, ν)) / 2ϵ
-    ∂ν = (neglogpdf_rician(x, ν + ϵ) - neglogpdf_rician(x, ν - ϵ)) / 2ϵ
-    return (∂x, ∂ν)
-end
-
-neglogpdf_qrician_arbfloat_eps() = ArbFloat(1e-30)
-
-function FastRicianLikelihoods.neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, ::Val{order}) where {order}
-    rtol, atol = neglogpdf_qrician_arbfloat_eps(), 0
-    Ω = neglogpdf_rician(x + δ / 2, ν)
-    I, E = quadgk(x, x + δ; rtol, atol, order) do x̃
-        return exp(Ω - neglogpdf_rician(x̃, ν))
-    end
-    return Ω - log(I)
-end
-
-function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, order::Val)
-    ϵ = sqrt(neglogpdf_qrician_arbfloat_eps())
-    ∂x = (neglogpdf_qrician(x + ϵ, ν, δ, order) - neglogpdf_qrician(x - ϵ, ν, δ, order)) / 2ϵ
-    ∂ν = (neglogpdf_qrician(x, ν + ϵ, δ, order) - neglogpdf_qrician(x, ν - ϵ, δ, order)) / 2ϵ
-    ∂δ = (neglogpdf_qrician(x, ν, δ + ϵ, order) - neglogpdf_qrician(x, ν, δ - ϵ, order)) / 2ϵ
-    return (∂x, ∂ν, ∂δ)
-end
-
-function FastRicianLikelihoods.neglogpdf_rician(x::ArbFloat, ν::ArbFloat, logσ::ArbFloat)
-    σ⁻¹ = exp(-logσ)
-    return logσ + neglogpdf_rician(σ⁻¹ * x, σ⁻¹ * ν)
-end
-
-function FastRicianLikelihoods.neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, logσ::ArbFloat, δ::ArbFloat, order::Val)
-    σ⁻¹ = exp(-logσ)
-    return neglogpdf_qrician(σ⁻¹ * x, σ⁻¹ * ν, σ⁻¹ * δ, order)
-end
 
 function xν_iterator(z::T) where {T <: Union{Float32, Float64}}
     rmax = T == Float32 ? 6 : 12

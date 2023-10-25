@@ -3,8 +3,8 @@ module ForwardDiffTests
 using Test
 
 using FastRicianLikelihoods: @define_unary_dual_scalar_rule, @define_binary_dual_scalar_rule, @define_ternary_dual_scalar_rule
-import FiniteDifferences
-import ForwardDiff
+using FiniteDifferences: FiniteDifferences
+using ForwardDiff: ForwardDiff
 
 f_unary(x) = exp(x*cos(x))
 ∇f_unary(x) = ((cos(x)-x*sin(x)) * exp(x*cos(x)),)

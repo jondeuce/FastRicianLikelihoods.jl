@@ -155,9 +155,10 @@ end
 @scalar_rule neglogpdf_qrician(x, ν, δ, order::Val) (∇neglogpdf_qrician_with_primal(Ω, x, ν, δ, order)[2]..., NoTangent())
 @dual_rule_from_frule neglogpdf_qrician(x, ν, δ, !order)
 
-#### Gauss-Legendre quadrature
+#### Gaussian quadrature
 
 const DEFAULT_GAUSSLEGENDRE_ORDER = 16
+const DEFAULT_GAUSSLAGUERRE_ORDER = 16
 
 @generated function gausslegendre_unit_interval(::Val{order}, ::Type{T}) where {order, T <: AbstractFloat}
     x, w = gausslegendre(order)
@@ -166,16 +167,32 @@ const DEFAULT_GAUSSLEGENDRE_ORDER = 16
     return :($x, $w)
 end
 
+@generated function gausslaguerre_positive_real_axis(::Val{order}, ::Type{T}) where {order, T <: AbstractFloat}
+    x, w = gausslaguerre(order)
+    x = SVector{order, T}(T.(x)) # nodes lie in [0, ∞)
+    w = SVector{order, T}(T.(w)) # exponentially decreasing weights
+    return :($x, $w)
+end
+
 @inline function f_quadrature(f::F, x₀::T, δ::T, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, order, T <: AbstractFloat}
+    # I = ∫_{0}^{δ} [f(t)] dt
     x, w = gausslegendre_unit_interval(Val(order), T)
     y = @. f(x₀ + δ * x)
     return vecdot(w, y) * δ
 end
 
 @inline function neglogf_quadrature(neglogf::F, x₀::T, δ::T, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, order, T <: AbstractFloat}
+    # I = ∫_{0}^{δ} [f(t)] dt, where f(t) = exp(-neglogf(t))
     x, w = gausslegendre_unit_interval(Val(order), T)
     logy = @. -neglogf(x₀ + δ * x)
     return -weighted_logsumexp(w, logy) .- log(δ)
+end
+
+@inline function f_tail_quadrature(f::F, λ::T, ::Val{order} = Val(DEFAULT_GAUSSLAGUERRE_ORDER)) where {F, order, T <: AbstractFloat}
+    # I = ∫_{0}^{∞} [exp(-λt) f(t)] dt, where f(t) = signf(t) * exp(-neglogf(t))
+    x, w = gausslaguerre_positive_real_axis(Val(order), T)
+    y = @. f(x / λ)
+    return vecdot(w, y) / λ
 end
 
 @inline function weighted_logsumexp(w::SVector{N, T}, logy::SVector{N, T}) where {N, T <: AbstractFloat}
