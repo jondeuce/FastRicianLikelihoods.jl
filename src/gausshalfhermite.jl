@@ -30,12 +30,13 @@ gₙasy_large_γ(n, γ) = (2 - 9γ^2) / (72 * Yₙ(n, γ))
 # Equation 3.9-3.13, asymptotic limit (valid for small `γ` and large `n`)
 function gₙasy(n, γ)
     Y = Yₙ(n, γ)
-    γ² = γ^2
-    C₀ = evalpoly(γ², (1 // 36, -1 // 8))
-    C₁ = evalpoly(γ², (23 // 432, -11 // 48, 3 // 32))
-    C₂ = evalpoly(γ², (1189 // 2592, -409 // 192, 75 // 64, 9 // 64))
-    C₃ = evalpoly(γ², (196057 // 20736, -153559 // 3456, 7111 // 256, 639 // 128, 135 // 512))
-    return evalpoly(1 / Y^2, (C₀, C₁, C₂, C₃)) / Y
+    Y⁻², γ² = 1 / Y^2, γ^2
+    T = typeof(Y⁻²)
+    C₀ = evalpoly(γ², (T(1 // 36), T(-1 // 8)))
+    C₁ = evalpoly(γ², (T(23 // 432), T(-11 // 48), T(3 // 32)))
+    C₂ = evalpoly(γ², (T(1189 // 2592), T(-409 // 192), T(75 // 64), T(9 // 64)))
+    C₃ = evalpoly(γ², (T(196057 // 20736), T(-153559 // 3456), T(7111 // 256), T(639 // 128), T(135 // 512)))
+    return evalpoly(Y⁻², (C₀, C₁, C₂, C₃)) / Y
 end
 
 function g_init!(g, γ)

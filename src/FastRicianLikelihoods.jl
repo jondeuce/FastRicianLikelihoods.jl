@@ -18,6 +18,7 @@ export Rice, neglogpdf_rician, neglogpdf_qrician
 include("gausshalfhermite.jl")
 using .GaussHalfHermite
 
+include("utils.jl")
 include("forwarddiff.jl")
 include("bessels.jl")
 include("rician.jl")
