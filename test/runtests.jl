@@ -5,6 +5,10 @@ using Aqua
 include("utils.jl")
 
 @testset "FastRicianLikelihoods.jl" begin
+    @testset "gaussian half-hermite quadrature" verbose=true begin
+        include("gausshalfhermite.jl")
+    end
+
     @testset "dual rules" verbose=true begin
         include("forwarddiff.jl")
     end

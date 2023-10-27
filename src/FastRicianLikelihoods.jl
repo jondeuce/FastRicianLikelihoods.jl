@@ -15,6 +15,9 @@ using StaticArrays: StaticArrays, SVector, SMatrix
 
 export Rice, neglogpdf_rician, neglogpdf_qrician
 
+include("gausshalfhermite.jl")
+using .GaussHalfHermite
+
 include("forwarddiff.jl")
 include("bessels.jl")
 include("rician.jl")
