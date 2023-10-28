@@ -3,10 +3,10 @@
 module GaussHalfHermite
 
 using LinearAlgebra: SymTridiagonal, Tridiagonal, eigen, ldiv!
-using SpecialFunctions: gamma
+using SpecialFunctions: gamma, loggamma
 
 # Recursion base cases
-alpha₀(γ) = gamma(γ / 2 + 1) / gamma((γ + 1) / 2)
+alpha₀(γ) = γ < 25 ? gamma(γ / 2 + 1) / gamma((γ + 1) / 2) : exp(loggamma(γ / 2 + 1) - loggamma((γ + 1) / 2))
 beta₀(γ) = zero(γ)
 
 function g₀₁(γ)
@@ -25,10 +25,16 @@ betaₙ(n, γ, gₙ) = Yₙ(n, γ) / 12 + gₙ
 Yₙ(n, γ) = 2 * n + γ
 
 # Equation 3.7, asymptotic limit (valid for all `γ` for suitably large `n`)
-gₙasy_large_γ(n, γ) = (2 - 9γ^2) / (72 * Yₙ(n, γ))
+gₙ_limit(n, γ) = (2 - 9γ^2) / (72 * Yₙ(n, γ))
+
+# Improvement on Equation 3.7 (empirically never worse for any `n, γ`, and much better for small `n` and/or large `γ`)
+function gₙ_large_γ(n, γ)
+    Y = Yₙ(n, γ)
+    return gₙ_limit(n, γ) * (Y / (Y + γ^2 / (Y + γ)))
+end
 
 # Equation 3.9-3.13, asymptotic limit (valid for small `γ` and large `n`)
-function gₙasy(n, γ)
+function gₙ_asy(n, γ)
     Y = Yₙ(n, γ)
     Y⁻², γ² = 1 / Y^2, γ^2
     T = typeof(Y⁻²)
@@ -39,34 +45,53 @@ function gₙasy(n, γ)
     return evalpoly(Y⁻², (C₀, C₁, C₂, C₃)) / Y
 end
 
-function g_init!(g, γ)
-    N = length(g) - 1
-    g₀, g₁ = g₀₁(γ)
-    N >= 1 && (g[1] = g₀)
-    N >= 2 && (g[2] = g₁)
-    return g₀, g₁, g
+# Solving Equation 3.5 for gₙ₊₁
+function gₙ₊₁_rec(n, γ, gₙ₋₁, gₙ)
+    Y = Yₙ(n, γ)
+    gₙ₊₁ = (
+        24gₙ * (Y^2 + 18gₙ^2) * (2Y - 3gₙ) -
+        (Y + 12gₙ)^2 * (3Y * (2gₙ + gₙ₋₁) - 9gₙ * (gₙ + gₙ₋₁) + 3gₙ₋₁ + 1) +
+        (3γ / 2)^2 * (2 * (Y - 6gₙ)^2 - (3γ / 2)^2)
+    ) / (
+        3 * (Y + 12gₙ)^2 * (Y - 3 * (gₙ + gₙ₋₁) - 1)
+    )
+    return gₙ₊₁
 end
-g_init(N, γ) = g_init!(zeros(typeof(float(γ)), N + 1), γ)
 
 # Returns length `n+1` vector `g` containing `[g₀, g₁, ..., gₙ]`
-function g_rec!(g, γ; asymptotic)
+function g_init!(g, γ; asymptotic)
     N = length(g) - 1
-    gₙ₋₁, gₙ, _ = g_init!(g, γ)
+    gₙ₋₁, gₙ = g₀₁(γ)
+    N >= 0 && (g[1] = gₙ₋₁)
+    N >= 1 && (g[2] = gₙ)
 
     for i in 3:N+1
         n = i - 2
-        Y = Yₙ(n, γ)
-        gₙ₊₁ = if n >= asymptotic
-            γ < 5 ? gₙasy(n + 1, γ) : gₙasy_large_γ(n + 1, γ)
+
+        if n >= asymptotic
+            gₙ₊₁ = γ <= 2 ? gₙ_asy(n + 1, γ) : gₙ_large_γ(n + 1, γ)
         else
-            (16 * (Y + 12 * gₙ)^2 * (-Y^2 + Y * (6 * gₙ + 3 * gₙ₋₁) - 9 * gₙ * (gₙ + gₙ₋₁) + 3 * gₙ₋₁ + 1) + (9 * γ^2 - 4 * (Y - 6 * gₙ)^2)^2) / (48 * (Y + 12 * gₙ)^2 * (-Y + 3 * gₙ + 3 * gₙ₋₁ + 1))
+            gₙ₊₁ = gₙ₊₁_rec(n, γ, gₙ₋₁, gₙ)
         end
+
+        if γ > 2 && n < asymptotic
+            # Recurrence equation can fail badly for large `γ`, and asymptotic limit can be inaccurate for moderate `n`
+            # Detect if estimates have diverged and fall back to empirical estimate which is reasonably accurate for all `n` and `γ > 2`
+            gₙ₊₁_est = gₙ_large_γ(n + 1, γ)
+            abserr = abs(gₙ₊₁ - gₙ₊₁_est)
+            relerr = abserr / abs(gₙ₊₁_est)
+            if !isfinite(gₙ₊₁) || min(abserr, relerr) > 0.05 # only switch if estimate is very bad, otherwise Newton handles it fine
+                gₙ₊₁ = gₙ₊₁_est
+                asymptotic = n
+            end
+        end
+
         gₙ₋₁, gₙ, g[i] = gₙ, gₙ₊₁, gₙ₊₁
     end
 
     return g
 end
-g_rec(N, γ; kwargs...) = g_rec!(zeros(typeof(float(γ)), N + 1), γ; kwargs...)
+g_init(N, γ; kwargs...) = g_init!(zeros(typeof(float(γ)), N + 1), γ; kwargs...)
 
 # Equation 3.5: The nonlinear equation to solve for g_{n+1} and g_{n}
 function Fₙ(n, γ, gₙ₋₁, gₙ, gₙ₊₁)
@@ -104,25 +129,25 @@ end
 
 function J!(Jdiags, g, γ)
     N = length(g) - 1
-    (; Jlow, Jdiag, Jhigh) = Jdiags
-    @assert length.((Jlow, Jdiag, Jhigh)) == (N - 3, N - 2, N - 3)
+    @assert length.(Jdiags) == (N - 3, N - 2, N - 3)
 
+    J₋, J₀, J₊ = Jdiags
     for i in 1:N-2
         n = i + 1
         gₙ₋₁, gₙ, gₙ₊₁ = g[n], g[n+1], g[n+2] # note: g[n] = gₙ₋₁
         ∂gₙ₋₁, ∂gₙ, ∂gₙ₊₁ = ∇Fₙ(n, γ, gₙ₋₁, gₙ, gₙ₊₁)
-        Jdiag[i] = ∂gₙ
-        i > 1 && (Jlow[i-1] = ∂gₙ₋₁)
-        i < N - 2 && (Jhigh[i] = ∂gₙ₊₁)
+        J₀[i] = ∂gₙ
+        i > 1 && (J₋[i-1] = ∂gₙ₋₁)
+        i < N - 2 && (J₊[i] = ∂gₙ₊₁)
     end
 
-    return Tridiagonal(Jlow, Jdiag, Jhigh)
+    return Tridiagonal(J₋, J₀, J₊)
 end
 
 function g_newton!(Jdiags, F, g, γ; maxiter=50, verbose=false)
-    # `g::AbstractVector` has length `N + 1`, representing `gₙ` where `n ∈ 0:N`
-    # `F::AbstractVector` has length `N - 2`, representing the `N - 2` equations `Fₙ` used to determine `gₙ` where `n ∈ 2:N-1`
-    # `J::Tridiagonal` has size `(N - 2) × (N - 2)`, representing `∂Fᵢ/∂gⱼ` where `i,j ∈ 2:N-1`
+    # `J` is tri-diagonal with size `(N - 2) × (N - 2)`, representing `∂Fᵢ/∂gⱼ` where `i,j ∈ 2:N-1`
+    # `F` has length `N - 2`, representing the `N - 2` equations `Fₙ` used to determine `gₙ` where `n ∈ 2:N-1`
+    # `g` has length `N + 1`, representing `gₙ` where `n ∈ 0:N`
     Δg_norm_last = eltype(g)(Inf)
     Δg_norm_decrease = zero(eltype(g))
 
@@ -138,6 +163,10 @@ function g_newton!(Jdiags, F, g, γ; maxiter=50, verbose=false)
 
         (Δg_norm_decrease >= 0.95 && Δg_norm <= √eps(eltype(g))) && break
         Δg_norm_last = Δg_norm
+
+        if i == maxiter
+            @warn "Newton's method failed to converge in $maxiter iterations" F_norm = maximum(abs, F) Δg_norm_decrease Δg_norm
+        end
     end
 
     return g
@@ -145,9 +174,9 @@ end
 
 function g_newton(N, γ; asymptotic, kwargs...)
     # Initial guess using recurrence relation, switching to asymptotic approximation when `n ≥ asymptotic`
-    g = g_rec(N, γ; asymptotic)
+    g = g_init(N, γ; asymptotic)
     F = similar(g, N - 2)
-    Jdiags = (; Jlow=similar(g, N - 3), Jdiag=similar(g, N - 2), Jhigh=similar(g, N - 3))
+    Jdiags = (similar(g, N - 3), similar(g, N - 2), similar(g, N - 3))
     return g_newton!(Jdiags, F, g, γ; kwargs...)
 end
 
@@ -161,9 +190,9 @@ function g_heuristic(N, γ)
     #   1. Error ϵₙ in estimate gₙ decreases by factors of ~14 as we get away from the fixed g_{N}, i.e. |ϵₙ₋₁ / ϵₙ| ~ 14
     #   2. Asymptotic estimate for g_{N} is accurate to ~8 digits above N=9 in Float64
     # So if we compute ~10 extra gₙ, error in g_{N} should be less than 10^-8 / 14^10 ~ 10^-20.
-    # In practice we get about 10^-15 absolute error and 10^-14 - 10^-11 relative error for N <= 50,
-    # both of which slowly increase with N.
-    Nnewt = N + 10
+    # In practice we get ~machine precision for all `N` when `γ ⪅ 2`, with slow loss of accuracy for large `γ` when `N ⪅ γ`.
+    # For large γ, it seems that computing another ~10 terms is necessary, but this has not been investigated thoroughly.
+    Nnewt = N + (γ <= 2 ? 10 : 20)
     g = g_newton(Nnewt, γ; asymptotic=9)
     g = g[1:N+1] # note: g[n] = gₙ₋₁
 
@@ -172,29 +201,36 @@ end
 
 function gausshalfhermite_rec_coeffs(N, γ)
     g = g_heuristic(N, γ) # g₀, g₁, ..., g_{N}
-    α = [alpha₀(γ); zeros(eltype(g), N - 1)] # β₀, β₁, ..., β_{N-1}
-    β = [beta₀(γ); zeros(eltype(g), N - 1)] # β₀, β₁, ..., β_{N-1}
+    α = zeros(eltype(g), N) # β₀, β₁, ..., β_{N-1}
+    β = zeros(eltype(g), N) # β₀, β₁, ..., β_{N-1}
+    α[1], β[1] = alpha₀(γ), beta₀(γ)
     gₙ, gₙ₊₁ = g[1], g[2]
+
     for n in 1:N-1
         gₙ, gₙ₊₁ = gₙ₊₁, g[n+2]
         α[n+1] = √alphaₙ²(n, γ, gₙ, gₙ₊₁) # note: α[n+1] = αₙ
         β[n+1] = betaₙ(n, γ, gₙ) # note: β[n+1] = βₙ
     end
+
     return α, β
 end
 
-function gausshalfhermite_gw(n::Integer, γ; normalize=false)
-    # Golub-Welsch algorithm
-    α, β = gausshalfhermite_rec_coeffs(n, γ)
-    T = SymTridiagonal(α, sqrt.(β[2:end]))
-    x, Ψ = eigen(T) # eigenvalue decomposition
-    w = abs2.(Ψ[1, :]) # quadrature weights
+function gausshalfhermite_gw(N, γ; normalize=false)
+    # Golub-Welsch algorithm for computing nodes and weights from recurrence coefficients
+    #   see: https://en.wikipedia.org/wiki/Gaussian_quadrature#The_Golub-Welsch_algorithm
+    α, β = gausshalfhermite_rec_coeffs(N, γ)
+    𝒥 = SymTridiagonal(α, sqrt.(β[2:end]))
+    x, ϕ = eigen(𝒥) # eigenvalue decomposition
+    w = abs2.(ϕ[1, :]) # quadrature weights
+
+    T = eltype(x)
+    Iγ = gamma((T(γ) + 1) / 2) / 2 # Iγ = ∫_{0}^{∞} x^γ exp(-x^2) dx
     if normalize
-        w ./= sum(w) # ensure weights sum to 1
-    else
-        Iγ = gamma((γ + 1) / 2) / 2 # Iγ = ∫_{0}^{∞} x^γ exp(-x^2) dx
-        w .*= (Iγ / sum(w)) # ensure weights sum to `Iγ`
+        Iγ *= T(2)^(T(γ) / 2) / √(T(π)) # Iγ′ = ∫_{0}^{∞} t^γ exp(-t^2 / 2) / √(2π) dt = (2^(γ/2) / √π) * Iγ
+        x .*= √(T(2))
     end
+    w .*= (Iγ / sum(w)) # ensure weights sum to `Iγ`
+
     return x, w
 end
 

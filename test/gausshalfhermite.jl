@@ -10,10 +10,11 @@ include("gausshalfhermite_tables.jl")
 
 matchingdigits(x, y) = x == y ? oftype(x / y, Inf) : -log10(abs((x - y) / y))
 
-@testset "quadgk" begin
-    # Quadrature weight function
-    W(t, γ) = t^γ * exp(-t^2)
+# Quadrature weight functions
+weight(t, γ) = t^γ * exp(-t^2)
+weight_norm(t, γ) = t^γ * exp(-t^2 / 2) / √(2 * oftype(t, π))
 
+@testset "quadgk" begin
     @testset "polynomial: γ = $γ, N = $N" for γ in [-0.7, -0.3, 0.4, 1.2, 2.1], N in 1:5
         # Quadrature rule should integrate polynomials of degree 2N-1 exactly.
         # Chebyshev polynomials are a nice test case for two reasons:
@@ -29,31 +30,34 @@ matchingdigits(x, y) = x == y ? oftype(x / y, Inf) : -log10(abs((x - y) / y))
             c = randn(deg + 1) # coefficients for degree `deg` polynomial in Chebyshev basis
             ctup, cbig = (c...,), big.(c)
 
-            I, E = quadgk(t -> W(t, γ) * p(t, cbig), big"0.0", big"5.0", big"Inf"; order=15, rtol=1e-30)
+            I, E = quadgk(t -> weight(t, γ) * p(t, cbig), big"0.0", big"5.0", big"Inf"; order=15, rtol=1e-30)
             Î = sum(w .* p.(x, (ctup,)))
             @test isapprox(Î, I; atol, rtol)
         end
     end
 
-    @testset "generic: γ = $γ, f = $f" for γ in [-0.7, -0.3, 0.6, 1.7], f in [sin, exp]
-        knot = γ < 0 ? big"1.0" : √(BigFloat(γ) / 2)
-        I, E = quadgk(t -> W(t, γ) * f(t), big"0.0", knot, big"Inf"; order=15, rtol=1e-30)
+    @testset "generic: γ = $γ, f = $f, nrm = $normalize" for γ in [-0.6, 0.8, 1.7, 2.5], f in [sin, exp], normalize in [false, true]
+        knot = γ < 0 ? big"1.0" : √(big(γ) / 2)
+        I, E = quadgk(big"0.0", knot, big"Inf"; order=15, rtol=1e-30) do t
+            wₜ = !normalize ? weight(t, γ) : weight_norm(t, γ)
+            return wₜ * f(t)
+        end
 
-        N = 2 .^ (0:5)
+        N = [1, 2, 4, 8, 12, 16, 24, 32]
         Î = map(N) do N
-            x, w = gausshalfhermite_gw(N, γ)
+            x, w = gausshalfhermite_gw(N, γ; normalize)
             Î = sum(@. w * f(x))
         end
         ΔI = @. Float64(abs(I - Î))
 
-        last_converged = isapprox(Î[1], I; atol = 10 * eps(), rtol = 10 * eps())
+        atol = rtol = 10 * eps()
+        last_converged = isapprox(Î[1], I; atol, rtol)
+        @test !last_converged # first estimate should not be good enough
         for i in 2:length(N)
-            curr_converged = isapprox(Î[i], I; atol = 10 * eps(), rtol = 10 * eps())
-            if !last_converged
-                @test ΔI[i] < ΔI[i-1] # haven't converged; next estimate should be strictly better
-            else
-                @test curr_converged # have converged; next estimate should also be accurate
-            end
+            # Either 1) estimate hasn't converged => higher order estimate should be strictly better,
+            # or 2) estimate has converged => higher order estimate should remain accurate
+            curr_converged = isapprox(Î[i], I; atol, rtol)
+            @test (!last_converged && ΔI[i] < ΔI[i-1]) || (last_converged && curr_converged)
             last_converged = curr_converged
         end
         @test last_converged # final estimate should be good

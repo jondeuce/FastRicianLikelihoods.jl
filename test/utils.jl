@@ -37,8 +37,8 @@ end
 
 #### ArbFloat extensions
 
-SpecialFunctions.erfinv(x::ArbFloat) = ArbFloat(erfinv(BigFloat(x)))
-SpecialFunctions.erfcinv(x::ArbFloat) = ArbFloat(erfcinv(BigFloat(x)))
+SpecialFunctions.erfinv(x::ArbFloat) = ArbFloat(erfinv(big(x)))
+SpecialFunctions.erfcinv(x::ArbFloat) = ArbFloat(erfcinv(big(x)))
 
 FastRicianLikelihoods.besseli2(x::ArbFloat) = ArbNumerics.besseli(2, x)
 FastRicianLikelihoods.besseli2x(x::ArbFloat) = exp(-abs(x)) * ArbNumerics.besseli(2, x)
