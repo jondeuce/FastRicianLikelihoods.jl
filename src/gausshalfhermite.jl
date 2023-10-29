@@ -27,10 +27,10 @@ Yₙ(n, γ) = 2 * n + γ
 # Equation 3.7, asymptotic limit (valid for all `γ` for suitably large `n`)
 gₙ_limit(n, γ) = (2 - 9γ^2) / (72 * Yₙ(n, γ))
 
-# Improvement on Equation 3.7 (empirically never worse for any `n, γ`, and much better for small `n` and/or large `γ`)
+# Improvement on Equation 3.7 (empirically never worse for any `n` for `γ ⪆ 2.5`, and much better for `γ ≫ 2.5`)
 function gₙ_large_γ(n, γ)
     Y = Yₙ(n, γ)
-    return gₙ_limit(n, γ) * (Y / (Y + γ^2 / (Y + γ)))
+    return (2 - 9γ^2) / (72 * (Y + γ^2 / (Y + γ)))
 end
 
 # Equation 3.9-3.13, asymptotic limit (valid for small `γ` and large `n`)
@@ -69,14 +69,14 @@ function g_init!(g, γ; asymptotic)
         n = i - 2
 
         if n >= asymptotic
-            gₙ₊₁ = γ <= 2 ? gₙ_asy(n + 1, γ) : gₙ_large_γ(n + 1, γ)
+            gₙ₊₁ = γ < 2.5 ? gₙ_asy(n + 1, γ) : gₙ_large_γ(n + 1, γ)
         else
             gₙ₊₁ = gₙ₊₁_rec(n, γ, gₙ₋₁, gₙ)
         end
 
-        if γ > 2 && n < asymptotic
+        if γ >= 2.5 && n < asymptotic
             # Recurrence equation can fail badly for large `γ`, and asymptotic limit can be inaccurate for moderate `n`
-            # Detect if estimates have diverged and fall back to empirical estimate which is reasonably accurate for all `n` and `γ > 2`
+            # Detect if estimates have diverged and fall back to empirical estimate which is reasonably accurate for all `n` and `γ >= 2.5`
             gₙ₊₁_est = gₙ_large_γ(n + 1, γ)
             abserr = abs(gₙ₊₁ - gₙ₊₁_est)
             relerr = abserr / abs(gₙ₊₁_est)
@@ -98,19 +98,22 @@ function Fₙ(n, γ, gₙ₋₁, gₙ, gₙ₊₁)
     # Equivalent version, but *much* less accurate, since gₙ^4 and Y^4 terms cancel out catestrophically
     #   F = ((Y + 1) / 3 - gₙ₊₁ - gₙ) * ((Y - 1) / 3 - gₙ - gₙ₋₁) * (Y / 12 + gₙ)^2 - ((Y / 6 - gₙ)^2 - γ^2 / 16)^2
     Y = Yₙ(n, γ)
-    F = Y^3 * (14 * gₙ - (gₙ₊₁ + gₙ₋₁)) / 432 +
-        Y^2 * (-414 * gₙ^2 - 126 * gₙ * (gₙ₊₁ + gₙ₋₁) + 18 * gₙ₊₁ * gₙ₋₁ + 6 * (gₙ₊₁ - gₙ₋₁) + 9 * γ^2 - 2) / 2592 -
-        Y * gₙ * (-36 * gₙ^2 + 36 * gₙ * (gₙ₊₁ + gₙ₋₁) - 36 * gₙ₊₁ * gₙ₋₁ - 12 * (gₙ₊₁ - gₙ₋₁) + 9 * γ^2 + 4) / 216 +
-        gₙ^3 * (gₙ₊₁ + gₙ₋₁) + gₙ^2 * (72 * gₙ₊₁ * gₙ₋₁ + 24 * (gₙ₊₁ - gₙ₋₁) + 9 * γ^2 - 8) / 72 - γ^4 / 256
+    F = (Y / 12 + gₙ)^2 * (
+        gₙ₊₁ * (-Y + 3gₙ + 1 + 3gₙ₋₁ / 2) / 3 +
+        gₙ₋₁ * (-Y + 3gₙ - 1 + 3gₙ₊₁ / 2) / 3
+    ) - gₙ * (
+        2Y * (-7Y^2 + 9γ^2 + 4) + 3gₙ * (23Y^2 - 24Y * gₙ - 18γ^2 + 16)
+    ) / 432 +
+        Y^2 * (9γ^2 - 2) / 2592 - γ^4 / 256
     return F
 end
 
 # Derivative of Equation 3.5 w.r.t. g_{n-1}, g_{n}, and g_{n+1}
 function ∇Fₙ(n, γ, gₙ₋₁, gₙ, gₙ₊₁)
     Y = Yₙ(n, γ)
-    ∂gₙ₋₁ = (Y + 12 * gₙ)^2 * (-Y + 3 * gₙ + 3 * gₙ₊₁ - 1) / 432
-    ∂gₙ = -(Y - 6 * gₙ) * (9 * γ^2 - 4 * (Y - 6 * gₙ)^2) / 216 + (Y + 12 * gₙ)^2 * (-2 * Y + 6 * gₙ + 3 * gₙ₊₁ + 3 * gₙ₋₁) / 432 - (Y + 12 * gₙ) * (-Y + 3 * gₙ + 3 * gₙ₋₁ + 1) * (Y - 3 * gₙ - 3 * gₙ₊₁ + 1) / 54
-    ∂gₙ₊₁ = (Y + 12 * gₙ)^2 * (-Y + 3 * gₙ + 3 * gₙ₋₁ + 1) / 432
+    ∂gₙ₋₁ = (Y + 12gₙ)^2 * (-Y + 3gₙ + 3gₙ₊₁ - 1) / 432
+    ∂gₙ = (Y - 6gₙ) * (2Y - 12gₙ - 3γ) * (2Y - 12gₙ + 3γ) / 216 + (Y + 12gₙ) * ((Y + 12gₙ) * (-2Y + 6gₙ + 3gₙ₊₁ + 3gₙ₋₁) - 8 * (-Y + 3gₙ + 3gₙ₋₁ + 1) * (Y - 3gₙ - 3gₙ₊₁ + 1)) / 432
+    ∂gₙ₊₁ = (Y + 12gₙ)^2 * (-Y + 3gₙ + 3gₙ₋₁ + 1) / 432
     return (∂gₙ₋₁, ∂gₙ, ∂gₙ₊₁)
 end
 
@@ -192,7 +195,7 @@ function g_heuristic(N, γ)
     # So if we compute ~10 extra gₙ, error in g_{N} should be less than 10^-8 / 14^10 ~ 10^-20.
     # In practice we get ~machine precision for all `N` when `γ ⪅ 2`, with slow loss of accuracy for large `γ` when `N ⪅ γ`.
     # For large γ, it seems that computing another ~10 terms is necessary, but this has not been investigated thoroughly.
-    Nnewt = N + (γ <= 2 ? 10 : 20)
+    Nnewt = N + (γ < 2.5 ? 10 : 20)
     g = g_newton(Nnewt, γ; asymptotic=9)
     g = g[1:N+1] # note: g[n] = gₙ₋₁
 
@@ -218,15 +221,16 @@ end
 function gausshalfhermite_gw(N, γ; normalize=false)
     # Golub-Welsch algorithm for computing nodes and weights from recurrence coefficients
     #   see: https://en.wikipedia.org/wiki/Gaussian_quadrature#The_Golub-Welsch_algorithm
+    γ = float(γ)
+    T = typeof(γ)
     α, β = gausshalfhermite_rec_coeffs(N, γ)
     𝒥 = SymTridiagonal(α, sqrt.(β[2:end]))
     x, ϕ = eigen(𝒥) # eigenvalue decomposition
     w = abs2.(ϕ[1, :]) # quadrature weights
 
-    T = eltype(x)
-    Iγ = gamma((T(γ) + 1) / 2) / 2 # Iγ = ∫_{0}^{∞} x^γ exp(-x^2) dx
+    Iγ = gamma((γ + 1) / 2) / 2 # Iγ = ∫_{0}^{∞} [x^γ exp(-x^2)] dx
     if normalize
-        Iγ *= T(2)^(T(γ) / 2) / √(T(π)) # Iγ′ = ∫_{0}^{∞} t^γ exp(-t^2 / 2) / √(2π) dt = (2^(γ/2) / √π) * Iγ
+        Iγ *= exp2(γ / 2) / √(T(π)) # Iγ′ = ∫_{0}^{∞} [x^γ exp(-x^2 / 2) / √(2π)] dx = (2^(γ/2) / √π) * Iγ
         x .*= √(T(2))
     end
     w .*= (Iγ / sum(w)) # ensure weights sum to `Iγ`
