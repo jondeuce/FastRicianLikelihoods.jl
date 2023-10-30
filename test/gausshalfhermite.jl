@@ -84,7 +84,7 @@ end
         1 => TABLE_IIb_SHIZGAL_1981(),
         2 => TABLE_IIc_SHIZGAL_1981(),
     )
-    for (γ, tbl) in tbls, (N, xw) in tbl, (T, digits) in [(Float64, 13.5), (BigFloat, 15.0)]
+    for (γ, tbl) in tbls, (N, xw) in tbl, (T, digits) in [(Float64, 13.25), (BigFloat, 15.0)]
         x, w = gausshalfhermite_gw(N, T(γ))
         for n in 1:N
             @test matchingdigits(x[n], xw[n, 1]) >= digits

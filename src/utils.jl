@@ -3,35 +3,37 @@
 
 function clenshaw(x::T1, c::AbstractVector{T2}) where {T1, T2}
     n = length(c)
-    n == 0 && return zero(x)
+    n == 0 && return zero(T1)
     n == 1 && return convert(promote_type(T1, T2), c[1])
     n == 2 && return muladd(x, c[2], c[1])
     x2 = 2x
-    bₖ₊₂ = c[n]
-    bₖ₊₁ = muladd(x2, bₖ₊₂, c[n-1])
-    for k in n-2:-2:3
-        bₖ₊₂ = muladd(x2, bₖ₊₁, c[k] - bₖ₊₂)
-        bₖ₊₁ = muladd(x2, bₖ₊₂, c[k-1] - bₖ₊₁)
+    @inbounds begin
+        bₖ₊₂ = c[n]
+        bₖ₊₁ = muladd(x2, bₖ₊₂, c[n-1])
+        for k in n-2:-2:3
+            bₖ₊₂ = muladd(x2, bₖ₊₁, c[k] - bₖ₊₂)
+            bₖ₊₁ = muladd(x2, bₖ₊₂, c[k-1] - bₖ₊₁)
+        end
+        if iseven(n)
+            bₖ₊₂, bₖ₊₁ = bₖ₊₁, muladd(x2, bₖ₊₁, c[2] - bₖ₊₂)
+        end
+        y = muladd(x, bₖ₊₁, c[1] - bₖ₊₂)
     end
-    if iseven(n)
-        bₖ₊₂, bₖ₊₁ = bₖ₊₁, muladd(x2, bₖ₊₁, c[2] - bₖ₊₂)
-    end
-    y = muladd(x, bₖ₊₁, c[1] - bₖ₊₂)
     return y
 end
 
 @generated function clenshaw(x::T1, c::NTuple{n, T2}) where {n, T1, T2}
-    n == 0 && return :(zero(x))
+    n == 0 && return :($(zero(T1)))
     n == 1 && return :(convert($(promote_type(T1, T2)), c[1]))
     n == 2 && return :(muladd(x, c[2], c[1]))
     return quote
         x2 = 2x
-        bₖ₊₂ = c[$n]
+        bₖ₊₂ = c[$(n)]
         bₖ₊₁ = muladd(x2, bₖ₊₂, c[$(n - 1)])
         $(
             map(n-2:-2:3) do k
                 quote
-                    bₖ₊₂ = muladd(x2, bₖ₊₁, c[$k] - bₖ₊₂)
+                    bₖ₊₂ = muladd(x2, bₖ₊₁, c[$(k)] - bₖ₊₂)
                     bₖ₊₁ = muladd(x2, bₖ₊₂, c[$(k - 1)] - bₖ₊₁)
                 end
             end...
