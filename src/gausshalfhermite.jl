@@ -2,7 +2,7 @@
 
 module GaussHalfHermite
 
-using LinearAlgebra: SymTridiagonal, Tridiagonal, eigen
+using LinearAlgebra: SymTridiagonal, Tridiagonal, eigen, norm
 using SpecialFunctions: gamma, loggamma
 using IrrationalConstants: sqrtπ, invsqrtπ
 
@@ -164,12 +164,11 @@ function g_init!(g, γ; asymptotic)
 end
 g_init(N, γ; kwargs...) = g_init!(zeros(typeof(float(γ)), N + 1), γ; kwargs...)
 
-function g_newton!(Jdiags, F, g, γ; maxiter = 50, verbose = false)
+function g_newton!(Jdiags, F, g, γ; maxiter = 20, verbose = false)
     # `J` is tri-diagonal with size `(N - 2) × (N - 2)`, representing `∂Fᵢ/∂gⱼ` where `i,j ∈ 2:N-1`
     # `F` has length `N - 2`, representing the `N - 2` equations `Fₙ` used to determine `gₙ` where `n ∈ 2:N-1`
     # `g` has length `N + 1`, representing `gₙ` where `n ∈ 0:N`
-    Δg_norm_last = eltype(g)(Inf)
-    Δg_norm_decrease = zero(eltype(g))
+    Δg_norm_min = eltype(g)(Inf)
 
     for i in 1:maxiter
         F = F!(F, g, γ) # Recurrence equation Fᵢ where `i ∈ 2:N-1`
@@ -177,17 +176,15 @@ function g_newton!(Jdiags, F, g, γ; maxiter = 50, verbose = false)
         Δg = J \ F # TODO: in-place Tridiagonal solve?
         @views g[3:end-1] .-= Δg # Update estimates for {g₂, g₃, ..., g_{N-1}}
 
-        g_norm = @views maximum(abs, g[3:end-1])
-        Δg_norm = maximum(abs, Δg)
-        (i > 1) && (Δg_norm_decrease = Δg_norm_last == 0 ? one(eltype(g)) : Δg_norm / Δg_norm_last)
-        verbose && @info "iter $i:" F_norm = maximum(abs, F) Δg_norm Δg_norm_last Δg_norm_decrease
+        g_max = @views maximum(abs, g[3:end-1])
+        Δg_max = maximum(abs, Δg)
+        Δg_norm = norm(Δg)
 
-        (Δg_norm_decrease >= 0.95 && Δg_norm <= cbrt(eps(eltype(g)))^2 * g_norm) && break
-        Δg_norm_last = Δg_norm
+        verbose && @info "iter $i:" F_norm = maximum(abs, F) Δg_max Δg_norm Δg_norm_min
+        Δg_norm >= 0.75 * Δg_norm_min && Δg_max <= cbrt(eps(eltype(g)))^2 * g_max && break
+        i == maxiter && @warn "Newton's method failed to converge in $(maxiter) iterations" γ F_norm = maximum(abs, F) Δg_max Δg_norm Δg_norm_min
 
-        if i == maxiter
-            @warn "Newton's method failed to converge in $maxiter iterations" γ F_norm = maximum(abs, F) Δg_norm Δg_norm_last Δg_norm_decrease
-        end
+        Δg_norm_min = min(Δg_norm_min, Δg_norm)
     end
 
     return g

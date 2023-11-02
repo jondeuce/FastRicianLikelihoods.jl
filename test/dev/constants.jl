@@ -1,12 +1,25 @@
-Pkg.activate(@__DIR__)
+using Pkg
+Pkg.activate(joinpath(@__DIR__))
 
-using Remez
+using FastRicianLikelihoods
+
+Revise.includet(joinpath(@__DIR__, "../utils.jl"))
+using .Utils: arbify
+
 using ArbNumerics
+using Distributions
+using MacroTools
+using Remez
+using SpecialFunctions
+using SymPy
+using SymbolicRegression
+using SymbolicRegression: Options, equation_search, eval_tree_array, calculate_pareto_frontier
+
+const F = FastRicianLikelihoods
+const GHH = F.GaussHalfHermite
 
 setworkingprecision(ArbFloat, 500)
 setextrabits(128)
-
-arbify(f) = x -> convert(typeof(x), f(ArbFloat(x)))
 
 function logbesseli0_small_constants(a=1/1e16)
     # Small x < 1.0:
