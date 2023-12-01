@@ -3,11 +3,15 @@ module Utils
 using Test
 
 using ArbNumerics: ArbNumerics, ArbFloat
+using CSV: CSV
+using DataFrames: DataFrame
 using FastRicianLikelihoods: FastRicianLikelihoods, neglogpdf_rician, ∇neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician
 using ForwardDiff: ForwardDiff
+using Memoize: @memoize
 using QuadGK: quadgk
 using SpecialFunctions: SpecialFunctions
 using StaticArrays: SVector
+using ThreadSafeDicts: ThreadSafeDict
 using Zygote: Zygote
 
 Base.setprecision(BigFloat, 500)
@@ -99,24 +103,60 @@ function FastRicianLikelihoods.var_mode_rician(ν::ArbFloat; kwargs...)
     return 1/∂²x
 end
 
-neglogpdf_qrician_arbfloat_eps() = ArbFloat(1e-30)
+const ARBFLOAT_QUADGK_RTOL_DIGITS = 30
+const ARBFLOAT_QUADGK_EPS = exp10(-ArbFloat(ARBFLOAT_QUADGK_RTOL_DIGITS))
 
-function FastRicianLikelihoods.neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, ::Val{order}) where {order}
+neglogpdf_qrician_arbfloat_digits() = ARBFLOAT_QUADGK_RTOL_DIGITS
+neglogpdf_qrician_arbfloat_eps() = ARBFLOAT_QUADGK_EPS
+
+const NEGLOGPDF_QRICIAN_CACHE = ThreadSafeDict{Tuple{ArbFloat, ArbFloat, ArbFloat, Int}, ArbFloat}()
+
+@memoize ()->NEGLOGPDF_QRICIAN_CACHE function FastRicianLikelihoods.neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, order::Int)
     rtol, atol = neglogpdf_qrician_arbfloat_eps(), 0
-    Ω = neglogpdf_rician(x + δ / 2, ν)
-    I, E = quadgk(x, x + δ; rtol, atol, order) do x̃
-        return exp(Ω - neglogpdf_rician(x̃, ν))
-    end
-    return Ω - log(I)
-end
+    μ = FastRicianLikelihoods.mode_rician(ν)
 
-function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, order::Val)
+    function integrate(Ω, knots...)
+        # ArbFloat returns NaN for 1/0.0 whereas BigFloat returns +Inf, and quadgk relies on the latter internally for handling (semi-)infinite intervals
+        I, _ = quadgk(BigFloat.(knots)...; rtol, atol, order) do x̃
+            return BigFloat(exp(Ω - neglogpdf_rician(ArbFloat(x̃), ν)))
+        end
+        return ArbFloat(I)
+    end
+
+    if x < μ < x + δ && δ > 3
+        Ω2 = neglogpdf_rician(x + δ, ν) # minimum on [x + δ, Inf)
+        I2 = integrate(Ω2, x + δ, Inf)
+        if x > 0
+            Ω1 = neglogpdf_rician(x, ν) # minimum on [0, x]
+            I1 = integrate(Ω1, 0, x)
+            out = -log1p(-(exp(-Ω1) * I1 + exp(-Ω2) * I2))
+        else
+            out = -log1p(-exp(-Ω2) * I2)
+        end
+    else
+        if x < μ < x + δ
+            Ω = neglogpdf_rician(μ, ν) # minimum on [x, x + δ]
+        elseif x >= μ
+            Ω = neglogpdf_rician(x, ν) # minimum on [x, x + δ]
+        else # x + δ <= μ
+            Ω = neglogpdf_rician(x + δ, ν) # minimum on [x, x + δ]
+        end
+        I = integrate(Ω, x, x + δ)
+        out = Ω - log(I)
+    end
+
+    return out
+end
+FastRicianLikelihoods.neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, ::Val{order} = Val(15)) where {order} = neglogpdf_qrician(x, ν, δ, order)
+
+function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, order::Int)
     ϵ = sqrt(neglogpdf_qrician_arbfloat_eps())
     ∂x = (neglogpdf_qrician(x + ϵ, ν, δ, order) - neglogpdf_qrician(x - ϵ, ν, δ, order)) / 2ϵ
     ∂ν = (neglogpdf_qrician(x, ν + ϵ, δ, order) - neglogpdf_qrician(x, ν - ϵ, δ, order)) / 2ϵ
     ∂δ = (neglogpdf_qrician(x, ν, δ + ϵ, order) - neglogpdf_qrician(x, ν, δ - ϵ, order)) / 2ϵ
     return (∂x, ∂ν, ∂δ)
 end
+FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, ::Val{order} = Val(15)) where {order} = ∇neglogpdf_qrician(x, ν, δ, order)
 
 function FastRicianLikelihoods.neglogpdf_rician(x::ArbFloat, ν::ArbFloat, logσ::ArbFloat)
     σ⁻¹ = exp(-logσ)

@@ -6,6 +6,7 @@ using ChainRulesCore: ChainRulesCore, @scalar_rule, NoTangent
 using Distributions: Distributions, normlogccdf, normlogcdf
 using FastGaussQuadrature: gausslegendre, gausslaguerre
 using ForwardDiff: ForwardDiff, Dual
+using GenericLinearAlgebra: GenericLinearAlgebra # need to load this package to extend `LinearAlgebra.eigen` to matrices of `BigFloat`s
 using IrrationalConstants: invsqrt2, sqrt2, invsqrt2π, sqrt2π, sqrthalfπ, logtwo, log2π
 using LinearAlgebra: dot
 using MacroTools: @capture, combinedef, prettify, splitdef

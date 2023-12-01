@@ -103,9 +103,9 @@ function _mode_rician(ν::T) where {T <: Union{Float32, Float64}}
     elseif ν < med5
         return ν + evalpoly(ν, mode_rician_coeff_med5_num(T)) / evalpoly(ν, mode_rician_coeff_med5_den(T))
     elseif ν < tail
-        return ν * evalpoly(1 / ν^2, mode_rician_coeff_tail(T))
+        return ν * evalpoly(inv(ν^2), mode_rician_coeff_tail(T))
     else
-        return ν * evalpoly(1 / ν^2, mode_rician_coeff_long_tail(T))
+        return ν * evalpoly(inv(ν^2), mode_rician_coeff_long_tail(T))
     end
 end
 
@@ -126,9 +126,9 @@ function _var_mode_rician(ν::T) where {T <: Union{Float32, Float64}}
     elseif ν < med6
         return evalpoly(ν, var_mode_rician_coeff_med6_num(T)) / evalpoly(ν, var_mode_rician_coeff_med6_den(T))
     elseif ν < tail
-        return evalpoly(1 / ν^2, var_mode_rician_coeff_tail(T))
+        return evalpoly(inv(ν^2), var_mode_rician_coeff_tail(T))
     else
-        return evalpoly(1 / ν^2, var_mode_rician_coeff_long_tail(T))
+        return evalpoly(inv(ν^2), var_mode_rician_coeff_long_tail(T))
     end
 end
 

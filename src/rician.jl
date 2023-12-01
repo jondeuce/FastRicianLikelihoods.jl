@@ -7,59 +7,6 @@
 @inline promote_float(x...) = promote(map(float, x)...)
 
 ####
-#### Quantized Gaussian log-pdf
-####
-
-function logpdf_qnormal(x::T, δ::T) where {T <: Union{Float32, Float64}}
-    @assert x >= 0 && δ > 0
-    if δ <= T(0.15)
-        if δ * x > T(0.3)
-            return logpdf_qnormal_small_δ_large_δx(x, δ)
-        else
-            return logpdf_qnormal_small_δ_small_δx(x, δ)
-        end
-    elseif x > 1
-        Φ⁻ = erfcx((x + δ) * invsqrt2)
-        Φ⁺ = erfcx(x * invsqrt2)
-        return log(Φ⁺ / 2) - abs2(x) / 2 + log1p(-(Φ⁻ / Φ⁺) * exp(-δ * (x + δ / 2))) # x > 1 and x + δ > 1
-    elseif x + δ > 1
-        return log((1 - erfc((x + δ) * invsqrt2) - erf(x * invsqrt2)) / 2) # 0 <= x <= 1 and x + δ > 1
-    else
-        return log((erf((x + δ) * invsqrt2) - erf(x * invsqrt2)) / 2) # 0 <= x <= 1 and 0 <= x + δ <= 1
-    end
-end
-
-function logpdf_qnormal_small_δ_large_δx(x::T, δ::T) where {T <: Union{Float32, Float64}}
-    # Small `δ` but large `δ * x` (and therefore large `x`); Taylor expand in `δ` only and integrate termwise:
-    #   -x^2 / 2 - T(log2π) / 2 - log(x) + log1p(exp(-δ * x) * (945 / x^10 + 945 * δ / x^9 + 945 * δ^2 / (2 * x^8) + 315 * δ^3 / (2 * x^7) + 315 * δ^4 / (8 * x^6) + 63 * δ^5 / (8 * x^5) + 21 * δ^6 / (16 * x^4) + 3 * δ^7 / (16 * x^3) + 3 * δ^8 / (128 * x^2) + δ^9 / (384 * x) + δ^10 / 3840 - δ^8 / 384 - δ^7 / (48 * x) - 7 * δ^6 / (48 * x^2) - 7 * δ^5 / (8 * x^3) - 35 * δ^4 / (8 * x^4) - 35 * δ^3 / (2 * x^5) - 105 * δ^2 / (2 * x^6) - 105 * δ / x^7 - 105 / x^8 + δ^6 / 48 + δ^5 / (8 * x) + 5 * δ^4 / (8 * x^2) + 5 * δ^3 / (2 * x^3) + 15 * δ^2 / (2 * x^4) + 15 * δ / x^5 + 15 / x^6 - δ^4 / 8 - δ^3 / (2 * x) - 3 * δ^2 / (2 * x^2) - 3 * δ / x^3 - 3 / x^4 + δ^2 / 2 + δ / x + 1 / x^2 - 1) + (-945) / x^10 + 105 / x^8 - 15 / x^6 + 3 / x^4 - 1 / x^2)
-    x⁻² = inv(x)^2
-    a10 = T(1)/384
-    a8 = evalpoly(x⁻², T.((-1, 9)) ./ 48)
-    a6 = evalpoly(x⁻², T.((1, -7, 63)) ./ 8)
-    a4 = evalpoly(x⁻², T.((-1, 5, -35, 315)) ./ 2)
-    a2 = evalpoly(x⁻², T.((1, -3, 15, -105, 945)))
-    a0 = muladd(x⁻², a2, T(-1))
-    p = (a0, a2 / x, a2 / 2, a4 / x, a4 / 4, a6 / x, a6 / 6, a8 / x, a8 / 8, a10 / x, a10 / 10)
-    return -x^2 / 2 - T(log2π) / 2 - log(x) + log1p(exp(-δ * x) * evalpoly(δ, p) - x⁻² * a2)
-end
-
-function logpdf_qnormal_small_δ_small_δx(x::T, δ::T) where {T <: Union{Float32, Float64}}
-    # Small `δ` and small `δ * x`; use Taylor expansion:
-    #   log(δ) - x^2 / 2 - T(log2π) / 2 - (x * δ) / 2 + (x^2 * δ^2) / 24 - (x^4 * δ^4) / 2880 + (x^6 * δ^6) / 181440 - (x^8 * δ^8) / 9676800 + (x^10 * δ^10) / 479001600 - δ^2 / 6 + (x * δ^3) / 24 - (x^2 * δ^4) / 720 - (x^3 * δ^5) / 1440 + (x^4 * δ^6) / 30240 + (x^5 * δ^7) / 60480 - (x^6 * δ^8) / 1209600 - (x^7 * δ^9) / 2419200 + (x^8 * δ^10) / 47900160 + (x^9 * δ^11) / 95800320 + δ^4 / 90 - (x * δ^5) / 720 - (61 * x^2 * δ^6) / 120960 + (x^3 * δ^7) / 15120 + (47 * x^4 * δ^8) / 2419200 - (x^5 * δ^9) / 403200 - (643 * x^6 * δ^10) / 958003200 + (x^7 * δ^11) / 11975040 - δ^6 / 2835 - (19 * x * δ^7) / 120960 + (181 * x^2 * δ^8) / 3628800 + (41 * x^3 * δ^9) / 3628800 - (739 * x^4 * δ^10) / 239500800 - (181 * x^5 * δ^11) / 319334400 - δ^8 / 56700 + (61 * x * δ^9) / 3628800 + (1579 * x^2 * δ^10) / 479001600 - (61 * x^3 * δ^11) / 29937600 + δ^10 / 467775 + (193 * x * δ^11) / 479001600
-    δx = δ * x
-    x², δ², δx² = x^2, δ^2, δx^2
-    p = (
-        δx² * evalpoly(δx², (T(1)/24, T(-1)/2880, T(1)/181440, T(-1)/9676800, T(1)/479001600)),
-        evalpoly(δx, (T(-1)/6, T(1)/24, T(-1)/720, T(-1)/1440, T(1)/30240, T(1)/60480, T(-1)/1209600, T(-1)/2419200, T(1)/47900160, T(1)/95800320)),
-        evalpoly(δx, (T(1)/90, T(-1)/720, T(-61)/120960, T(1)/15120, T(47)/2419200, T(-1)/403200, T(-643)/958003200, T(1)/11975040)),
-        evalpoly(δx, (T(-1)/2835, T(-19)/120960, T(181)/3628800, T(41)/3628800, T(-739)/239500800, T(-181)/319334400)),
-        evalpoly(δx, (T(-1)/56700, T(61)/3628800, T(1579)/479001600, T(-61)/29937600)),
-        evalpoly(δx, (T(1)/467775, T(193)/479001600)),
-    )
-    return log(δ) - x² / 2 - T(log2π) / 2 - δx / 2 + evalpoly(δ², p)
-end
-
-####
 #### Rician negative log-likelihood
 ####
 
@@ -138,6 +85,207 @@ end
 @inline neglogpdf_qrician(x::Real, ν::Real, logσ::Real, δ::Real, order::Val) = neglogpdf_qrician(promote_float(x, ν, logσ, δ)..., order)
 @inline neglogpdf_qrician(n::Int, ν::Real, logσ::Real, δ::Real, order::Val) = neglogpdf_qrician(n * δ, ν, logσ, δ, order)
 
+function neglogpdf_qrician_direct(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}}
+    Δ = x - ν
+    I0 = Δ^2 / 2
+    I1 = neglogf_quadrature(zero(T), δ, order) do t
+        return t * (Δ + t / 2) - log(t + x) - logbesseli0x((t + x) * ν)
+    end
+    I = I0 + I1
+    return I
+end
+
+function neglogpdf_qrician_taylor(x::T, ν::T, δ::T) where {T <: Union{Float32, Float64}}
+    I = cdf_qrician_taylor_scaled(x + δ, ν)
+    if x > 0
+        I -= exp(-δ * ν) * cdf_qrician_taylor_scaled(x, ν)
+    end
+    return ν * (ν / 2 - (x + δ)) - log(I)
+end
+
+function cdf_qrician_taylor_scaled(a::T, ν::T) where {T <: Union{Float32, Float64}}
+    # I = exp(-a * ν) * ∫_{0}^{a} [x * exp(-x^2/2) * I₀(x * ν)] dx
+    if a < 3e-8 # nterms == 1
+        return (a / ν) * besseli1x(a * ν)
+    end
+
+    ν⁻², a², aν, a⁻¹ν = inv(ν^2), a^2, a * ν, a / ν
+    if a < 3e-4 # nterms == 2
+        c₀ = T(1)
+        c₁ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2))), T(-2)))
+    elseif a < 5e-3 # nterms == 3
+        c₀ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2))), T(-4)))
+        c₁ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8))), evalpoly(a², (T(-2), T(2))), T(8)))
+    elseif a < 3e-2 # nterms == 4
+        c₀ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8))), evalpoly(a², (T(-4), T(3))), T(24)))
+        c₁ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48))), evalpoly(a², (T(-2), T(2), T(-3 // 4))), evalpoly(a², (T(8), T(-12))), T(-48)))
+    elseif a < 8e-2 # nterms == 5
+        c₀ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48))), evalpoly(a², (T(-4), T(3), T(-1))), evalpoly(a², (T(24), T(-24))), T(-192)))
+        c₁ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48), T(1 // 384))), evalpoly(a², (T(-2), T(2), T(-3 // 4), T(1 // 6))), evalpoly(a², (T(8), T(-12), T(6))), evalpoly(a², (T(-48), T(96))), T(384)))
+    elseif a < 0.15 # nterms == 6
+        c₀ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48), T(1 // 384))), evalpoly(a², (T(-4), T(3), T(-1), T(5 // 24))), evalpoly(a², (T(24), T(-24), T(10))), evalpoly(a², (T(-192), T(240))), T(1920)))
+        c₁ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48), T(1 // 384), T(-1 // 3840))), evalpoly(a², (T(-2), T(2), T(-3 // 4), T(1 // 6), T(-5 // 192))), evalpoly(a², (T(8), T(-12), T(6), T(-5 // 3))), evalpoly(a², (T(-48), T(96), T(-60))), evalpoly(a², (T(384), T(-960))), T(-3840)))
+    elseif a < 0.24 # nterms == 7
+        c₀ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48), T(1 // 384), T(-1 // 3840))), evalpoly(a², (T(-4), T(3), T(-1), T(5 // 24), T(-1 // 32))), evalpoly(a², (T(24), T(-24), T(10), T(-5 // 2))), evalpoly(a², (T(-192), T(240), T(-120))), evalpoly(a², (T(1920), T(-2880))), T(-23040)))
+        c₁ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48), T(1 // 384), T(-1 // 3840), T(1 // 46080))), evalpoly(a², (T(-2), T(2), T(-3 // 4), T(1 // 6), T(-5 // 192), T(1 // 320))), evalpoly(a², (T(8), T(-12), T(6), T(-5 // 3), T(5 // 16))), evalpoly(a², (T(-48), T(96), T(-60), T(20))), evalpoly(a², (T(384), T(-960), T(720))), evalpoly(a², (T(-3840), T(11520))), T(46080)))
+    elseif a < 0.33 # nterms == 8
+        c₀ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48), T(1 // 384), T(-1 // 3840), T(1 // 46080))), evalpoly(a², (T(-4), T(3), T(-1), T(5 // 24), T(-1 // 32), T(7 // 1920))), evalpoly(a², (T(24), T(-24), T(10), T(-5 // 2), T(7 // 16))), evalpoly(a², (T(-192), T(240), T(-120), T(35))), evalpoly(a², (T(1920), T(-2880), T(1680))), evalpoly(a², (T(-23040), T(40320))), T(322560)))
+        c₁ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48), T(1 // 384), T(-1 // 3840), T(1 // 46080), T(-1 // 645120))), evalpoly(a², (T(-2), T(2), T(-3 // 4), T(1 // 6), T(-5 // 192), T(1 // 320), T(-7 // 23040))), evalpoly(a², (T(8), T(-12), T(6), T(-5 // 3), T(5 // 16), T(-7 // 160))), evalpoly(a², (T(-48), T(96), T(-60), T(20), T(-35 // 8))), evalpoly(a², (T(384), T(-960), T(720), T(-280))), evalpoly(a², (T(-3840), T(11520), T(-10080))), evalpoly(a², (T(46080), T(-161280))), T(-645120)))
+    elseif a < 0.42 # nterms == 9
+        c₀ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48), T(1 // 384), T(-1 // 3840), T(1 // 46080), T(-1 // 645120))), evalpoly(a², (T(-4), T(3), T(-1), T(5 // 24), T(-1 // 32), T(7 // 1920), T(-1 // 2880))), evalpoly(a², (T(24), T(-24), T(10), T(-5 // 2), T(7 // 16), T(-7 // 120))), evalpoly(a², (T(-192), T(240), T(-120), T(35), T(-7))), evalpoly(a², (T(1920), T(-2880), T(1680), T(-560))), evalpoly(a², (T(-23040), T(40320), T(-26880))), evalpoly(a², (T(322560), T(-645120))), T(-5160960)))
+        c₁ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48), T(1 // 384), T(-1 // 3840), T(1 // 46080), T(-1 // 645120), T(1 // 10321920))), evalpoly(a², (T(-2), T(2), T(-3 // 4), T(1 // 6), T(-5 // 192), T(1 // 320), T(-7 // 23040), T(1 // 40320))), evalpoly(a², (T(8), T(-12), T(6), T(-5 // 3), T(5 // 16), T(-7 // 160), T(7 // 1440))), evalpoly(a², (T(-48), T(96), T(-60), T(20), T(-35 // 8), T(7 // 10))), evalpoly(a², (T(384), T(-960), T(720), T(-280), T(70))), evalpoly(a², (T(-3840), T(11520), T(-10080), T(4480))), evalpoly(a², (T(46080), T(-161280), T(161280))), evalpoly(a², (T(-645120), T(2580480))), T(10321920)))
+    elseif a < 0.53 # nterms == 10
+        c₀ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48), T(1 // 384), T(-1 // 3840), T(1 // 46080), T(-1 // 645120), T(1 // 10321920))), evalpoly(a², (T(-4), T(3), T(-1), T(5 // 24), T(-1 // 32), T(7 // 1920), T(-1 // 2880), T(1 // 35840))), evalpoly(a², (T(24), T(-24), T(10), T(-5 // 2), T(7 // 16), T(-7 // 120), T(1 // 160))), evalpoly(a², (T(-192), T(240), T(-120), T(35), T(-7), T(21 // 20))), evalpoly(a², (T(1920), T(-2880), T(1680), T(-560), T(126))), evalpoly(a², (T(-23040), T(40320), T(-26880), T(10080))), evalpoly(a², (T(322560), T(-645120), T(483840))), evalpoly(a², (T(-5160960), T(11612160))), T(92897280)))
+        c₁ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48), T(1 // 384), T(-1 // 3840), T(1 // 46080), T(-1 // 645120), T(1 // 10321920), T(-1 // 185794560))), evalpoly(a², (T(-2), T(2), T(-3 // 4), T(1 // 6), T(-5 // 192), T(1 // 320), T(-7 // 23040), T(1 // 40320), T(-1 // 573440))), evalpoly(a², (T(8), T(-12), T(6), T(-5 // 3), T(5 // 16), T(-7 // 160), T(7 // 1440), T(-1 // 2240))), evalpoly(a², (T(-48), T(96), T(-60), T(20), T(-35 // 8), T(7 // 10), T(-7 // 80))), evalpoly(a², (T(384), T(-960), T(720), T(-280), T(70), T(-63 // 5))), evalpoly(a², (T(-3840), T(11520), T(-10080), T(4480), T(-1260))), evalpoly(a², (T(46080), T(-161280), T(161280), T(-80640))), evalpoly(a², (T(-645120), T(2580480), T(-2903040))), evalpoly(a², (T(10321920), T(-46448640))), T(-185794560)))
+    else # nterms == 11
+        c₀ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48), T(1 // 384), T(-1 // 3840), T(1 // 46080), T(-1 // 645120), T(1 // 10321920), T(-1 // 185794560))), evalpoly(a², (T(-4), T(3), T(-1), T(5 // 24), T(-1 // 32), T(7 // 1920), T(-1 // 2880), T(1 // 35840), T(-1 // 516096))), evalpoly(a², (T(24), T(-24), T(10), T(-5 // 2), T(7 // 16), T(-7 // 120), T(1 // 160), T(-1 // 1792))), evalpoly(a², (T(-192), T(240), T(-120), T(35), T(-7), T(21 // 20), T(-1 // 8))), evalpoly(a², (T(1920), T(-2880), T(1680), T(-560), T(126), T(-21))), evalpoly(a², (T(-23040), T(40320), T(-26880), T(10080), T(-2520))), evalpoly(a², (T(322560), T(-645120), T(483840), T(-201600))), evalpoly(a², (T(-5160960), T(11612160), T(-9676800))), evalpoly(a², (T(92897280), T(-232243200))), T(-1857945600)))
+        c₁ = evalpoly(ν⁻², (evalpoly(a², (T(1), T(-1 // 2), T(1 // 8), T(-1 // 48), T(1 // 384), T(-1 // 3840), T(1 // 46080), T(-1 // 645120), T(1 // 10321920), T(-1 // 185794560), T(1 // 3715891200))), evalpoly(a², (T(-2), T(2), T(-3 // 4), T(1 // 6), T(-5 // 192), T(1 // 320), T(-7 // 23040), T(1 // 40320), T(-1 // 573440), T(1 // 9289728))), evalpoly(a², (T(8), T(-12), T(6), T(-5 // 3), T(5 // 16), T(-7 // 160), T(7 // 1440), T(-1 // 2240), T(1 // 28672))), evalpoly(a², (T(-48), T(96), T(-60), T(20), T(-35 // 8), T(7 // 10), T(-7 // 80), T(1 // 112))), evalpoly(a², (T(384), T(-960), T(720), T(-280), T(70), T(-63 // 5), T(7 // 4))), evalpoly(a², (T(-3840), T(11520), T(-10080), T(4480), T(-1260), T(252))), evalpoly(a², (T(46080), T(-161280), T(161280), T(-80640), T(25200))), evalpoly(a², (T(-645120), T(2580480), T(-2903040), T(1612800))), evalpoly(a², (T(10321920), T(-46448640), T(58060800))), evalpoly(a², (T(-185794560), T(928972800))), T(3715891200)))
+    end
+
+    I₀, I₁ = besseli0x(aν), besseli1x(aν)
+    return a⁻¹ν * muladd(a⁻¹ν, c₀ * I₀, c₁ * I₁) # Note: c₀ ~ O(1), c₁ ~ O(1)
+end
+
+function neglogpdf_qrician_right_laguerre_tail(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}}
+    Δ = x - ν
+    I0 = Δ^2 / 2
+
+    if δ * (Δ + δ / 2) > -log(eps(T))
+        I1 = f_laguerre_tail_quadrature(Δ, order) do t̂
+            t = x + t̂
+            return exp(-t̂^2 / 2) * t * besseli0x(t * ν)
+        end
+        I1 = -log(I1)
+    else
+        I1⁺ = f_laguerre_tail_quadrature(Δ, order) do t̂
+            t = x + t̂
+            return exp(-t̂^2 / 2) * t * besseli0x(t * ν)
+        end
+        I1⁻ = f_laguerre_tail_quadrature(Δ + δ, order) do t̂
+            t = x + δ + t̂
+            return exp(-t̂^2 / 2) * t * besseli0x(t * ν)
+        end
+        I1 = -log(I1⁺ - exp(-δ * (Δ + δ / 2)) * I1⁻)
+
+        #TODO merging into one call worth it?
+        # I1 = f_laguerre_tail_quadrature(Δ, order) do t̂
+        #     t = x + t̂
+        #     f1 = t * besseli0x(t * ν)
+        #     f2 = (t + δ) * besseli0x((t + δ) * ν)
+        #     return exp(-t̂^2 / 2) * (f1 - exp(-δ * (t̂ + Δ + δ / 2)) * f2)
+        # end
+        # I1 = -log(I1)
+    end
+    I = I0 + I1
+
+    return I
+end
+
+function neglogpdf_qrician_right_halfhermite_tail(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}}
+    Δ = x - ν
+    I0 = Δ^2 / 2
+
+    if δ * (Δ + δ / 2) > -log(eps(T))
+        I1 = f_halfhermite_tail_quadrature(Val(zero(T)), order) do t̂
+            t = x + t̂
+            return exp(-Δ * t̂) * t * besseli0x(t * ν)
+        end
+        I1 = -log(I1) - T(log2π) / 2
+    else
+        I1⁺ = f_halfhermite_tail_quadrature(Val(zero(T)), order) do t̂
+            t = x + t̂
+            return exp(-Δ * t̂) * t * besseli0x(t * ν)
+        end
+        I1⁻ = f_halfhermite_tail_quadrature(Val(zero(T)), order) do t̂
+            t = x + δ + t̂
+            return exp(-(Δ + δ) * t̂) * t * besseli0x(t * ν)
+        end
+        I1 = -log(I1⁺ - exp(-δ * (Δ + δ / 2)) * I1⁻) - T(log2π) / 2
+
+        #TODO merging into one call worth it?
+        # I1 = f_halfhermite_tail_quadrature(Val(zero(T)), order) do t̂
+        #     t = x + t̂
+        #     f1 = t * besseli0x(t * ν)
+        #     f2 = (t + δ) * besseli0x((t + δ) * ν)
+        #     return exp(-Δ * t̂) * (f1 - exp(-δ * (t̂ + Δ + δ / 2)) * f2)
+        # end
+        # I1 = -log(I1) - T(log2π) / 2
+    end
+    I = I0 + I1
+
+    return I
+end
+
+function neglogpdf_qrician_left_laguerre_tail(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}}
+    Δ = ν - (x + δ)
+    I0 = Δ^2 / 2
+
+    if δ * (Δ + δ / 2) > -log(eps(T))
+        I1 = f_laguerre_tail_quadrature(Δ, order) do t̂
+            t = x + δ - t̂
+            return exp(-t̂^2 / 2) * t * besseli0x(t * ν) # odd extension of `t * besseli0x(t * ν)` to `t < 0`
+        end
+        I1 = -log(I1)
+    else
+        I1⁺ = f_laguerre_tail_quadrature(Δ, order) do t̂
+            t = x + δ - t̂
+            return exp(-t̂^2 / 2) * t * besseli0x(t * ν) # odd extension of `t * besseli0x(t * ν)` to `t < 0`
+        end
+        I1⁻ = f_laguerre_tail_quadrature(Δ + δ, order) do t̂
+            t = x - t̂
+            return exp(-t̂^2 / 2) * t * besseli0x(t * ν) # odd extension of `t * besseli0x(t * ν)` to `t < 0`
+        end
+        I1 = -log(I1⁺ - exp(-δ * (Δ + δ / 2)) * I1⁻)
+
+        #TODO merging into one call worth it?
+        # I1 = f_laguerre_tail_quadrature(Δ, order) do t̂
+        #     t = x - t̂
+        #     I1⁺ = exp(-t̂^2 / 2) * (t + δ) * besseli0x((t + δ) * ν) # odd extension of `t * besseli0x(t * ν)` to `t < 0`
+        #     I1⁻ = exp(-t̂^2 / 2) * t * besseli0x(t * ν) # odd extension of `t * besseli0x(t * ν)` to `t < 0`
+        #     return I1⁺ - exp(-δ * (Δ + δ / 2)) * I1⁻
+        # end
+        # I1 = -log(I1)
+    end
+    I = I0 + I1
+
+    return I
+end
+
+function neglogpdf_qrician_left_halfhermite_tail(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}}
+    Δ = ν - (x + δ)
+    I0 = Δ^2 / 2
+
+    if δ * (Δ + δ / 2) > -log(eps(T))
+        I1 = f_halfhermite_tail_quadrature(Val(zero(T)), order) do t̂
+            t = x + δ - t̂
+            return exp(-Δ * t̂) * t * besseli0x(t * ν) # odd extension of `t * besseli0x(t * ν)` to `t < 0`
+        end
+        I1 = -log(I1) - T(log2π) / 2
+    else
+        I1⁺ = f_halfhermite_tail_quadrature(Val(zero(T)), order) do t̂
+            t = x + δ - t̂
+            return exp(-Δ * t̂) * t * besseli0x(t * ν) # odd extension of `t * besseli0x(t * ν)` to `t < 0`
+        end
+        I1⁻ = f_halfhermite_tail_quadrature(Val(zero(T)), order) do t̂
+            t = x - t̂
+            return exp(-(Δ + δ) * t̂) * t * besseli0x(t * ν) # odd extension of `t * besseli0x(t * ν)` to `t < 0`
+        end
+        I1 = -log(I1⁺ - exp(-δ * (Δ + δ / 2)) * I1⁻) - T(log2π) / 2
+
+        #TODO merging into one call worth it?
+        # I1 = f_halfhermite_tail_quadrature(Val(zero(T)), order) do t̂
+        #     t = x - t̂
+        #     I1⁺ = exp(-Δ * t̂) * (t + δ) * besseli0x((t + δ) * ν) # odd extension of `t * besseli0x(t * ν)` to `t < 0`
+        #     I1⁻ = exp(-(Δ + δ) * t̂) * t * besseli0x(t * ν) # odd extension of `t * besseli0x(t * ν)` to `t < 0`
+        #     return I1⁺ - exp(-δ * (Δ + δ / 2)) * I1⁻
+        # end
+        # I1 = -log(I1) - T(log2π) / 2
+    end
+    I = I0 + I1
+
+    return I
+end
+
 @inline neglogpdf_qrician(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = neglogf_quadrature(Base.Fix2(neglogpdf_rician, ν), x, δ, order)
 @inline ∇neglogpdf_qrician(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = ∇neglogpdf_qrician_with_primal(x, ν, δ, order)[2]
 
@@ -174,6 +322,14 @@ end
     return :($x, $w)
 end
 
+@generated function gausshalfhermite_positive_real_axis(::Val{order}, ::Type{T}, ::Val{γ}) where {order, T <: AbstractFloat, γ}
+    @assert γ > -1 "γ must be greater than -1"
+    x, w = gausshalfhermite_gw(order, BigFloat(γ); normalize = true)
+    x = SVector{order, T}(T.(x)) # nodes lie in [0, ∞)
+    w = SVector{order, T}(T.(w)) # exponentially decreasing weights
+    return :($x, $w)
+end
+
 @inline function f_quadrature(f::F, x₀::T, δ::T, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, order, T <: AbstractFloat}
     # I = ∫_{0}^{δ} [f(t)] dt
     x, w = gausslegendre_unit_interval(Val(order), T)
@@ -188,11 +344,19 @@ end
     return -weighted_logsumexp(w, logy) .- log(δ)
 end
 
-@inline function f_tail_quadrature(f::F, λ::T, ::Val{order} = Val(DEFAULT_GAUSSLAGUERRE_ORDER)) where {F, order, T <: AbstractFloat}
-    # I = ∫_{0}^{∞} [exp(-λt) f(t)] dt, where f(t) = signf(t) * exp(-neglogf(t))
+@inline function f_laguerre_tail_quadrature(f::F, λ::T, ::Val{order} = Val(DEFAULT_GAUSSLAGUERRE_ORDER)) where {F, order, T <: AbstractFloat}
+    # I = ∫_{0}^{∞} [exp(-λt) f(t)] dt
     x, w = gausslaguerre_positive_real_axis(Val(order), T)
     y = @. f(x / λ)
     return vecdot(w, y) / λ
+end
+
+@inline function f_halfhermite_tail_quadrature(f::F, ::Val{γ}, ::Val{order} = Val(DEFAULT_GAUSSLAGUERRE_ORDER)) where {F, order, γ}
+    # I = ∫_{0}^{∞} [x^γ exp(-t^2/2) f(t)] / √(2π) dt
+    T = typeof(float(γ))
+    x, w = gausshalfhermite_positive_real_axis(Val(order), T, Val(γ))
+    y = @. f(x)
+    return vecdot(w, y)
 end
 
 @inline function weighted_logsumexp(w::SVector{N, T}, logy::SVector{N, T}) where {N, T <: AbstractFloat}

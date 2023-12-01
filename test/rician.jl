@@ -186,7 +186,7 @@ end
     for (x, ν, δ) in xνδ_iterator()
         f̂ = neglogpdf_qrician
         f = arbify(neglogpdf_qrician)
-        y = f(x, ν, δ, Val(15))
+        y = f(x, ν, δ)
 
         for T in (Float32, Float64)
             ŷ4 = @inferred f̂(T(x), T(ν), T(δ), Val(4))
@@ -223,7 +223,7 @@ end
         f̂ = neglogpdf_qrician
         ∇f̂ = ∇neglogpdf_qrician
         ∇f = arbify(∇f̂)
-        ∂y = ∇f(x, ν, δ, Val(15))
+        ∂y = ∇f(x, ν, δ)
 
         for T in (Float32, Float64)
             order = Val(64)
