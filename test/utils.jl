@@ -3,8 +3,6 @@ module Utils
 using Test
 
 using ArbNumerics: ArbNumerics, ArbFloat
-using CSV: CSV
-using DataFrames: DataFrame
 using FastRicianLikelihoods: FastRicianLikelihoods, neglogpdf_rician, ∇neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician
 using ForwardDiff: ForwardDiff
 using Memoize: @memoize
