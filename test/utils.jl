@@ -2,7 +2,7 @@ module Utils
 
 using Test
 
-using ArbNumerics: ArbNumerics, ArbFloat
+using ArbNumerics: ArbNumerics, ArbReal
 using FastRicianLikelihoods: FastRicianLikelihoods, neglogpdf_rician, ∇neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician
 using ForwardDiff: ForwardDiff
 using Memoize: @memoize
@@ -13,7 +13,7 @@ using ThreadSafeDicts: ThreadSafeDict
 using Zygote: Zygote
 
 Base.setprecision(BigFloat, 500)
-ArbNumerics.setworkingprecision(ArbFloat; digits = 500, base = 2)
+ArbNumerics.setworkingprecision(ArbReal; digits = 500, base = 2)
 ArbNumerics.setextrabits(128)
 
 @inline common_float_type(args::Tuple) = mapfoldl(typeof, common_float_type, args)
@@ -25,8 +25,8 @@ ArbNumerics.setextrabits(128)
     (T1)
 
 arbify(x) = x
-arbify(x::AbstractFloat) = error("Expected typeof(x) = $(typeof(x)) <: Union{Float32, Float64}")
-arbify(x::Union{Float32, Float64}) = ArbFloat(x)::ArbFloat
+arbify(x::Real) = error("Expected typeof(x) = $(typeof(x)) <: Union{Float32, Float64}")
+arbify(x::Union{Float32, Float64}) = ArbReal(x)::ArbReal
 arbify(f::Function) = function f_arbified(args...)
     T = common_float_type(args)
     xs = arbify.(args)
@@ -37,49 +37,49 @@ end
 ∇Zyg(f, args::Real...) = @inferred Zygote.gradient(f, args...)
 ∇Fwd(f, args::Real...) = @inferred Tuple(ForwardDiff.gradient(Base.splat(f), SVector(args)))
 
-#### ArbFloat extensions
+#### ArbReal extensions
 
-SpecialFunctions.erfinv(x::ArbFloat) = ArbFloat(erfinv(big(x)))
-SpecialFunctions.erfcinv(x::ArbFloat) = ArbFloat(erfcinv(big(x)))
+SpecialFunctions.erfinv(x::ArbReal) = ArbReal(erfinv(big(x)))
+SpecialFunctions.erfcinv(x::ArbReal) = ArbReal(erfcinv(big(x)))
 
-FastRicianLikelihoods.besseli2(x::ArbFloat) = ArbNumerics.besseli(2, x)
-FastRicianLikelihoods.besseli2x(x::ArbFloat) = exp(-abs(x)) * ArbNumerics.besseli(2, x)
-FastRicianLikelihoods.logbesseli0(x::ArbFloat) = log(ArbNumerics.besseli(0, x))
-FastRicianLikelihoods.logbesseli0x(x::ArbFloat) = log(ArbNumerics.besseli(0, x)) - abs(x)
-FastRicianLikelihoods.logbesseli1(x::ArbFloat) = log(ArbNumerics.besseli(1, x))
-FastRicianLikelihoods.logbesseli1x(x::ArbFloat) = log(ArbNumerics.besseli(1, x)) - abs(x)
-FastRicianLikelihoods.logbesseli2(x::ArbFloat) = log(ArbNumerics.besseli(2, x))
-FastRicianLikelihoods.logbesseli2x(x::ArbFloat) = log(ArbNumerics.besseli(2, x)) - abs(x)
-FastRicianLikelihoods.laguerre½(x::ArbFloat) = exp(x / 2) * ((1 - x) * ArbNumerics.besseli(0, -x/2) - x * ArbNumerics.besseli(1, -x/2))
-FastRicianLikelihoods.besseli1i0(x::ArbFloat) = ArbNumerics.besseli(1, x) / ArbNumerics.besseli(0, x)
-FastRicianLikelihoods.mean_rician(ν::ArbFloat, σ::ArbFloat) = σ * √(ArbFloat(π) / 2) * FastRicianLikelihoods.laguerre½(-(ν / σ)^2 / 2)
-FastRicianLikelihoods.std_rician(ν::ArbFloat, σ::ArbFloat) = sqrt(ν^2 + 2σ^2 - ArbFloat(π) * σ^2 * FastRicianLikelihoods.laguerre½(-(ν / σ)^2 / 2)^2 / 2)
-# FastRicianLikelihoods.∂x_laguerre½(x::ArbFloat)
-# FastRicianLikelihoods.∂x_besseli0x(x::ArbFloat)
-# FastRicianLikelihoods.∂x_besseli1x(x::ArbFloat)
+FastRicianLikelihoods.besseli2(x::ArbReal) = ArbNumerics.besseli(2, x)
+FastRicianLikelihoods.besseli2x(x::ArbReal) = exp(-abs(x)) * ArbNumerics.besseli(2, x)
+FastRicianLikelihoods.logbesseli0(x::ArbReal) = log(ArbNumerics.besseli(0, x))
+FastRicianLikelihoods.logbesseli0x(x::ArbReal) = log(ArbNumerics.besseli(0, x)) - abs(x)
+FastRicianLikelihoods.logbesseli1(x::ArbReal) = log(ArbNumerics.besseli(1, x))
+FastRicianLikelihoods.logbesseli1x(x::ArbReal) = log(ArbNumerics.besseli(1, x)) - abs(x)
+FastRicianLikelihoods.logbesseli2(x::ArbReal) = log(ArbNumerics.besseli(2, x))
+FastRicianLikelihoods.logbesseli2x(x::ArbReal) = log(ArbNumerics.besseli(2, x)) - abs(x)
+FastRicianLikelihoods.laguerre½(x::ArbReal) = exp(x / 2) * ((1 - x) * ArbNumerics.besseli(0, -x/2) - x * ArbNumerics.besseli(1, -x/2))
+FastRicianLikelihoods.besseli1i0(x::ArbReal) = ArbNumerics.besseli(1, x) / ArbNumerics.besseli(0, x)
+FastRicianLikelihoods.mean_rician(ν::ArbReal, σ::ArbReal) = σ * √(ArbReal(π) / 2) * FastRicianLikelihoods.laguerre½(-(ν / σ)^2 / 2)
+FastRicianLikelihoods.std_rician(ν::ArbReal, σ::ArbReal) = sqrt(ν^2 + 2σ^2 - ArbReal(π) * σ^2 * FastRicianLikelihoods.laguerre½(-(ν / σ)^2 / 2)^2 / 2)
+# FastRicianLikelihoods.∂x_laguerre½(x::ArbReal)
+# FastRicianLikelihoods.∂x_besseli0x(x::ArbReal)
+# FastRicianLikelihoods.∂x_besseli1x(x::ArbReal)
 
-function FastRicianLikelihoods.neglogpdf_rician(x::ArbFloat, ν::ArbFloat)
-    x <= 0 && return ArbFloat(Inf)
+function FastRicianLikelihoods.neglogpdf_rician(x::ArbReal, ν::ArbReal)
+    x <= 0 && return ArbReal(Inf)
     return (x^2 + ν^2) / 2 - log(x) - log(ArbNumerics.besseli(0, x * ν))
 end
 
-function FastRicianLikelihoods.∇neglogpdf_rician(x::ArbFloat, ν::ArbFloat)
-    x <= 0 && return (ArbFloat(Inf), ν)
+function FastRicianLikelihoods.∇neglogpdf_rician(x::ArbReal, ν::ArbReal)
+    x <= 0 && return (ArbReal(Inf), ν)
     I0, I1 = ArbNumerics.besseli(0, x * ν), ArbNumerics.besseli(1, x * ν)
     ∂x = x - ν * (I1 / I0) - 1/x
     ∂ν = ν - x * (I1 / I0)
     return (∂x, ∂ν)
 end
 
-function ∇²neglogpdf_rician(x::ArbFloat, ν::ArbFloat)
+function ∇²neglogpdf_rician(x::ArbReal, ν::ArbReal)
     I0, I1, I2 = ArbNumerics.besseli(0, x * ν), ArbNumerics.besseli(1, x * ν), ArbNumerics.besseli(2, x * ν)
     ∂²x = 1 + ν^2 * ((I1 / I0)^2 - I2 / 2I0) - ν^2/2 + 1/x^2
     ∂²ν = 1 + x^2 * ((I1 / I0)^2 - I2 / 2I0) - ν^2/2
     return (∂²x, ∂²ν)
 end
-∇²neglogpdf_rician(x, ν) = oftype.(promote(float(x), float(ν))[1], ∇²neglogpdf_rician(ArbFloat(x), ArbFloat(ν)))
+∇²neglogpdf_rician(x, ν) = oftype.(promote(float(x), float(ν))[1], ∇²neglogpdf_rician(ArbReal(x), ArbReal(ν)))
 
-function FastRicianLikelihoods.mode_rician(ν::ArbFloat; tol = √eps(one(ArbFloat)), method = :newton, kwargs...)
+function FastRicianLikelihoods.mode_rician(ν::ArbReal; tol = √eps(one(ArbReal)), method = :newton, kwargs...)
     ν <= 0 && return one(ν)
     ν >= 1e32 && return ν + (1 - 3 / 4ν^2) / 2ν # relative error < 1e-180
     f(x) = FastRicianLikelihoods.∇neglogpdf_rician(x, ν)[1]
@@ -93,7 +93,7 @@ function FastRicianLikelihoods.mode_rician(ν::ArbFloat; tol = √eps(one(ArbFlo
     end
 end
 
-function FastRicianLikelihoods.var_mode_rician(ν::ArbFloat; kwargs...)
+function FastRicianLikelihoods.var_mode_rician(ν::ArbReal; kwargs...)
     ν <= 0 && return one(ν) / 2
     ν >= 1e30 && return 1 - 1 / 2ν^2 # relative error < 1e-120
     μ = FastRicianLikelihoods.mode_rician(ν; kwargs...)
@@ -101,32 +101,20 @@ function FastRicianLikelihoods.var_mode_rician(ν::ArbFloat; kwargs...)
     return 1/∂²x
 end
 
-const ARBFLOAT_QUADGK_RTOL_DIGITS = 30
-const ARBFLOAT_QUADGK_EPS = exp10(-ArbFloat(ARBFLOAT_QUADGK_RTOL_DIGITS))
+neglogpdf_qrician_arbreal_eps() = ArbReal(1e-30)
 
-neglogpdf_qrician_arbfloat_digits() = ARBFLOAT_QUADGK_RTOL_DIGITS
-neglogpdf_qrician_arbfloat_eps() = ARBFLOAT_QUADGK_EPS
-
-const NEGLOGPDF_QRICIAN_CACHE = ThreadSafeDict{Tuple{ArbFloat, ArbFloat, ArbFloat, Int}, ArbFloat}()
-
-@memoize ()->NEGLOGPDF_QRICIAN_CACHE function FastRicianLikelihoods.neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, order::Int)
-    rtol, atol = neglogpdf_qrician_arbfloat_eps(), 0
+function FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, order::Int)
+    rtol, atol = neglogpdf_qrician_arbreal_eps(), ArbReal(0)
     μ = FastRicianLikelihoods.mode_rician(ν)
+    σ = √FastRicianLikelihoods.var_mode_rician(ν)
+    Δσ = 3 * σ
 
-    function integrate(Ω, knots...)
-        # ArbFloat returns NaN for 1/0.0 whereas BigFloat returns +Inf, and quadgk relies on the latter internally for handling (semi-)infinite intervals
-        I, _ = quadgk(BigFloat.(knots)...; rtol, atol, order) do x̃
-            return BigFloat(exp(Ω - neglogpdf_rician(ArbFloat(x̃), ν)))
-        end
-        return ArbFloat(I)
-    end
-
-    if x < μ < x + δ && δ > 3
+    if x < μ < x + δ && μ - x > Δσ && x + δ - μ > Δσ
         Ω2 = neglogpdf_rician(x + δ, ν) # minimum on [x + δ, Inf)
-        I2 = integrate(Ω2, x + δ, Inf)
+        I2 = qrician_integrate(Ω2, x + δ, ArbReal(Inf), ν, rtol, atol, order)
         if x > 0
             Ω1 = neglogpdf_rician(x, ν) # minimum on [0, x]
-            I1 = integrate(Ω1, 0, x)
+            I1 = qrician_integrate(Ω1, ArbReal(0), x, ν, rtol, atol, order)
             out = -log1p(-(exp(-Ω1) * I1 + exp(-Ω2) * I2))
         else
             out = -log1p(-exp(-Ω2) * I2)
@@ -139,36 +127,53 @@ const NEGLOGPDF_QRICIAN_CACHE = ThreadSafeDict{Tuple{ArbFloat, ArbFloat, ArbFloa
         else # x + δ <= μ
             Ω = neglogpdf_rician(x + δ, ν) # minimum on [x, x + δ]
         end
-        I = integrate(Ω, x, x + δ)
+        I = qrician_integrate(Ω, x, x + δ, ν, rtol, atol, order)
         out = Ω - log(I)
     end
 
     return out
 end
-FastRicianLikelihoods.neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, ::Val{order} = Val(15)) where {order} = neglogpdf_qrician(x, ν, δ, order)
+FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, ::Val{order} = Val(15)) where {order} = neglogpdf_qrician(x, ν, δ, order)
 
-function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, order::Int)
-    ϵ = sqrt(neglogpdf_qrician_arbfloat_eps())
+function qrician_integrate(Ω::ArbReal, a::ArbReal, b::ArbReal, ν::ArbReal, rtol::ArbReal, atol::ArbReal, order::Int)
+    if isfinite(b)
+        I, E = quadgk(a, b; rtol, atol, order) do x̃
+            return exp(Ω - neglogpdf_rician(x̃, ν))
+        end
+    else
+        # Change of variables: x = a + (1 - t) / t where t ∈ (0, 1)
+        #   #TODO: quadgk should do this internally, but `ArbReal` arguments cause it to fail?
+        @assert isfinite(a)
+        I, E = quadgk(ArbReal(0), ArbReal(1); rtol, atol, order) do t̃
+            x̃ = a + (1 - t̃) / t̃
+            return exp(Ω - neglogpdf_rician(x̃, ν)) / t̃^2
+        end
+    end
+    return I
+end
+
+function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, order::Int)
+    ϵ = sqrt(neglogpdf_qrician_arbreal_eps())
     ∂x = (neglogpdf_qrician(x + ϵ, ν, δ, order) - neglogpdf_qrician(x - ϵ, ν, δ, order)) / 2ϵ
     ∂ν = (neglogpdf_qrician(x, ν + ϵ, δ, order) - neglogpdf_qrician(x, ν - ϵ, δ, order)) / 2ϵ
     ∂δ = (neglogpdf_qrician(x, ν, δ + ϵ, order) - neglogpdf_qrician(x, ν, δ - ϵ, order)) / 2ϵ
     return (∂x, ∂ν, ∂δ)
 end
-FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, δ::ArbFloat, ::Val{order} = Val(15)) where {order} = ∇neglogpdf_qrician(x, ν, δ, order)
+FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, ::Val{order} = Val(15)) where {order} = ∇neglogpdf_qrician(x, ν, δ, order)
 
-function FastRicianLikelihoods.neglogpdf_rician(x::ArbFloat, ν::ArbFloat, logσ::ArbFloat)
+function FastRicianLikelihoods.neglogpdf_rician(x::ArbReal, ν::ArbReal, logσ::ArbReal)
     σ⁻¹ = exp(-logσ)
     return logσ + neglogpdf_rician(σ⁻¹ * x, σ⁻¹ * ν)
 end
 
-function FastRicianLikelihoods.neglogpdf_qrician(x::ArbFloat, ν::ArbFloat, logσ::ArbFloat, δ::ArbFloat, order::Val)
+function FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, logσ::ArbReal, δ::ArbReal, order::Val)
     σ⁻¹ = exp(-logσ)
     return neglogpdf_qrician(σ⁻¹ * x, σ⁻¹ * ν, σ⁻¹ * δ, order)
 end
 
 #### Helpers
 
-function binary_search_root_find(f, a::T, b::T; tol = eps(T), verbose = false) where {T}
+function binary_search_root_find(f, a::T, b::T; tol = eps(T), verbose = false) where {T <: Real}
     fa, fb = f(a), f(b)
     iter = 0
 
@@ -202,7 +207,7 @@ function binary_search_root_find(f, a::T, b::T; tol = eps(T), verbose = false) w
     return root, iter
 end
 
-function newton_root_find(f, ∇f, x₀::T; ftol = √(eps(T)), xtol = √(eps(T)), dtol = eps(T), verbose = false) where {T <: AbstractFloat}
+function newton_root_find(f, ∇f, x₀::T; ftol = √(eps(T)), xtol = √(eps(T)), dtol = eps(T), verbose = false) where {T <: Real}
     x = x₀
     iter = 0
 

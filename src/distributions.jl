@@ -90,7 +90,9 @@ end
 
 function _mode_rician(ν::T) where {T <: Union{Float32, Float64}}
     low, med1, med2, med3, med4, med5, tail = T.((0.9, 1.2, 1.5, 1.9, 2.4, 3.7, 50.0))
-    if ν < low
+    if ν < mode_rician_coeff_taylor_cutoff(T)
+        return evalpoly(ν^2, mode_rician_coeff_taylor(T))
+    elseif ν < low
         return evalpoly(ν^2, mode_rician_coeff_small(T))
     elseif ν < med1
         return ν + evalpoly(ν, mode_rician_coeff_med1_num(T)) / evalpoly(ν, mode_rician_coeff_med1_den(T))
@@ -111,7 +113,9 @@ end
 
 function _var_mode_rician(ν::T) where {T <: Union{Float32, Float64}}
     low, med1, med2, med3, med4, med5, med6, tail = T.((0.8, 1.1, 1.5, 1.8, 2.45, 3.2, 4.0, 50.0))
-    if ν < low
+    if ν < var_mode_rician_coeff_taylor_cutoff(T)
+        return evalpoly(ν^2, var_mode_rician_coeff_taylor(T))
+    elseif ν < low
         return evalpoly(ν^2, var_mode_rician_coeff_small(T))
     elseif ν < med1
         return evalpoly(ν, var_mode_rician_coeff_med1_num(T)) / evalpoly(ν, var_mode_rician_coeff_med1_den(T))
@@ -131,6 +135,12 @@ function _var_mode_rician(ν::T) where {T <: Union{Float32, Float64}}
         return evalpoly(inv(ν^2), var_mode_rician_coeff_long_tail(T))
     end
 end
+
+mode_rician_coeff_taylor(::Type{T}) where {T} = T.((1//1, 1//4, 1//16, 1//192, -67//12288, -817//245760, -10109//17694720, 210407//495452160, 45860611//126835752960, 185952481//1956894474240))
+mode_rician_coeff_taylor(::Type{Float64}) = (1.0, 0.25, 0.0625, 0.005208333333333333, -0.005452473958333333, -0.0033243815104166668, -0.000571300365306713, 0.0004246767235811425)
+mode_rician_coeff_taylor(::Type{Float32}) = (1.0f0, 0.25f0, 0.0625f0, 0.0052083335f0)
+mode_rician_coeff_taylor_cutoff(::Type{Float64}) = 0.18
+mode_rician_coeff_taylor_cutoff(::Type{Float32}) = 0.26f0
 
 mode_rician_coeff_small(::Type{Float64}) = (1.0, 0.24999999999999983, 0.06250000000004943, 0.005208333328153905, -0.005452473741104163, -0.0033243862764034894, -0.0005712375613787041, 0.00042413748492215375, 0.00036474830466622473, 8.181692412922012e-5, 2.2765516530717507e-7, -0.0001332065886118482, 0.00011517103870107813, -0.000138717972958229, 0.00010619522319742027, -3.539577878713359e-5, 3.9325828224333946e-6)
 mode_rician_coeff_med1_num(::Type{Float64}) = (1.0036501542798688, -2.6141004053929526, 2.8850891040721804, -1.5438153836598543, 0.35156754778068067)
@@ -158,7 +168,13 @@ mode_rician_coeff_med4_den(::Type{Float32}) = (1.0f0, 1.4824599f0, -3.2993996f0,
 mode_rician_coeff_med5_num(::Type{Float32}) = (1.3615276f0, -1.1199051f0, 0.028932165f0, -0.0016617135f0)
 mode_rician_coeff_med5_den(::Type{Float32}) = (1.0f0, 1.3079536f0, -1.834874f0)
 mode_rician_coeff_tail(::Type{Float32}) = (1.0f0, 0.5f0, -0.3749947f0, 0.31192484f0, -0.5797993f0, 0.30167985f0)
-mode_rician_coeff_long_tail(::Type{Float32}) = (1.0, 0.5f0, -0.3748751f0)
+mode_rician_coeff_long_tail(::Type{Float32}) = (1.0f0, 0.5f0, -0.3748751f0)
+
+var_mode_rician_coeff_taylor(::Type{T}) where {T} = T.((1//2, 1//4, 1//16, -1//64, -71//3072, -217//24576, 4357//2949120, 25063//7077888, 27151871//15854469120, -40160509//761014517760))
+var_mode_rician_coeff_taylor(::Type{Float64}) = (0.5, 0.25, 0.0625, -0.015625, -0.023111979166666668, -0.008829752604166666, 0.001477389865451389, 0.003541028058087384)
+var_mode_rician_coeff_taylor(::Type{Float32}) = (0.5f0, 0.25f0, 0.0625f0, -0.015625f0)
+var_mode_rician_coeff_taylor_cutoff(::Type{Float64}) = 0.15
+var_mode_rician_coeff_taylor_cutoff(::Type{Float32}) = 0.19f0
 
 var_mode_rician_coeff_small(::Type{Float64}) = (0.5, 0.25000000000000144, 0.06249999999904324, -0.01562499990166115, -0.02311198313661696, -0.008829669116827891, 0.001476339859924175, 0.003549566532828328, 0.0016655707808988823, 0.00012672227302081484, -0.001058910505103033, 0.00053883530417269, -0.0011251866563915759, 0.0009212644926788002, -0.00022291910144633337)
 var_mode_rician_coeff_med1_num(::Type{Float64}) = (0.4999439772226663, -1.2358720539593997, 1.5337347813500488, -1.2555388691333846, 0.8267330399315418, -0.46232078763245477, 0.21763037776815466, -0.07876616017894338, 0.02088481027285555, -0.0026757344211095816)
