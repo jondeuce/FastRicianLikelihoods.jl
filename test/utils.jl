@@ -5,11 +5,9 @@ using Test
 using ArbNumerics: ArbNumerics, ArbReal
 using FastRicianLikelihoods: FastRicianLikelihoods, neglogpdf_rician, ∇neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician
 using ForwardDiff: ForwardDiff
-using Memoize: @memoize
 using QuadGK: quadgk
 using SpecialFunctions: SpecialFunctions
 using StaticArrays: SVector
-using ThreadSafeDicts: ThreadSafeDict
 using Zygote: Zygote
 
 Base.setprecision(BigFloat, 500)
@@ -103,7 +101,7 @@ end
 
 neglogpdf_qrician_arbreal_eps() = ArbReal(1e-30)
 
-function FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, order::Int)
+function FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, order::Int = 21)
     rtol, atol = neglogpdf_qrician_arbreal_eps(), ArbReal(0)
     μ = FastRicianLikelihoods.mode_rician(ν)
     σ = √FastRicianLikelihoods.var_mode_rician(ν)
@@ -133,7 +131,7 @@ function FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::Ar
 
     return out
 end
-FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, ::Val{order} = Val(15)) where {order} = neglogpdf_qrician(x, ν, δ, order)
+FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, ::Val{order}) where {order} = neglogpdf_qrician(x, ν, δ, order)
 
 function qrician_integrate(Ω::ArbReal, a::ArbReal, b::ArbReal, ν::ArbReal, rtol::ArbReal, atol::ArbReal, order::Int)
     if isfinite(b)
@@ -159,7 +157,7 @@ function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ:
     ∂δ = (neglogpdf_qrician(x, ν, δ + ϵ, order) - neglogpdf_qrician(x, ν, δ - ϵ, order)) / 2ϵ
     return (∂x, ∂ν, ∂δ)
 end
-FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, ::Val{order} = Val(15)) where {order} = ∇neglogpdf_qrician(x, ν, δ, order)
+FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, ::Val{order}) where {order} = ∇neglogpdf_qrician(x, ν, δ, order)
 
 function FastRicianLikelihoods.neglogpdf_rician(x::ArbReal, ν::ArbReal, logσ::ArbReal)
     σ⁻¹ = exp(-logσ)
