@@ -49,4 +49,4 @@ end
 end
 
 # Rescale x from interval [a, b] to [-1, 1]
-clenshaw(x, a, b, c) = clenshaw((2x - a - b) / (b - a), c)
+clenshaw(x, a, b, c) = clenshaw((2x - (a + b)) / (b - a), c)

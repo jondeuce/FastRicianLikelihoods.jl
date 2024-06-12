@@ -150,7 +150,7 @@ function qrician_integrate(Ω::ArbReal, a::ArbReal, b::ArbReal, ν::ArbReal, rto
     return I
 end
 
-function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, order::Int)
+function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, order::Int = 21)
     ϵ = sqrt(neglogpdf_qrician_arbreal_eps())
     ∂x = (neglogpdf_qrician(x + ϵ, ν, δ, order) - neglogpdf_qrician(x - ϵ, ν, δ, order)) / 2ϵ
     ∂ν = (neglogpdf_qrician(x, ν + ϵ, δ, order) - neglogpdf_qrician(x, ν - ϵ, δ, order)) / 2ϵ

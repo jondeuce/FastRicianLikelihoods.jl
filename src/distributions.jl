@@ -88,6 +88,17 @@ end
 
 @inline _var_rician(ν) = 1 - laguerre½²c(ν) # equivalent to: ν^2 + 2σ^2 - π * σ^2 * laguerre½(-(ν / σ)^2 / 2)^2 / 2 where σ = 1
 
+@inline function _mode_rician_crude(ν::T) where {T <: Union{Float32, Float64}}
+    ν² = ν^2
+    twoν⁴ = 2 * ν²^2
+    return √muladd(ν², (1 + twoν⁴) / (2 + twoν⁴), one(T))
+end
+
+@inline function _var_mode_rician_crude(v::T) where {T <: Union{Float32, Float64}}
+    twoν² = 2 * v^2
+    return (1 + twoν²) / (2 + twoν²)
+end
+
 function _mode_rician(ν::T) where {T <: Union{Float32, Float64}}
     tay, low, med1, med2, med3, med4, med5, tail = mode_rician_branches(T)
     if ν < tay

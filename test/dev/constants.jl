@@ -137,7 +137,7 @@ end
 
 function laguerre½_constants(; low=1.0, high=10.0, num=6, den=0)
     L½(x) = exp(x / 2) * ((1 - x) * ArbNumerics.besseli(0, -x/2) - x * ArbNumerics.besseli(1, -x/2))
-    L½scaled(t) = sqrt(ArbFloat(pi) / 2) * L½(-t^2/2)
+    L½scaled(t) = sqrt(ArbReal(pi) / 2) * L½(-t^2/2)
 
     # Small x < low:
     Plow(y) = (t = sqrt(y); L = L½scaled(t); return ((L - t) * (L + t) - 1))
