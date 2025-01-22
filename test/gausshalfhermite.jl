@@ -30,7 +30,7 @@ weight_norm(t, γ) = t^γ * exp(-t^2 / 2) / √(2 * oftype(t, π))
             c = randn(deg + 1) # coefficients for degree `deg` polynomial in Chebyshev basis
             ctup, cbig = (c...,), big.(c)
 
-            I, E = quadgk(t -> weight(t, γ) * p(t, cbig), big"0.0", big"5.0", big"Inf"; order=15, rtol=1e-30)
+            I, E = quadgk(t -> weight(t, γ) * p(t, cbig), big"0.0", big"5.0", big"Inf"; order = 15, rtol = 1e-30)
             Î = sum(w .* p.(x, (ctup,)))
             @test isapprox(Î, I; atol, rtol)
         end
@@ -38,7 +38,7 @@ weight_norm(t, γ) = t^γ * exp(-t^2 / 2) / √(2 * oftype(t, π))
 
     @testset "generic: γ = $γ, f = $f, nrm = $normalize" for γ in [-0.6, 0.8, 1.7, 2.5], f in [sin, exp], normalize in [false, true]
         knot = γ < 0 ? big"1.0" : √(big(γ) / 2)
-        I, E = quadgk(big"0.0", knot, big"Inf"; order=15, rtol=1e-30) do t
+        I, E = quadgk(big"0.0", knot, big"Inf"; order = 15, rtol = 1e-30) do t
             wₜ = !normalize ? weight(t, γ) : weight_norm(t, γ)
             return wₜ * f(t)
         end

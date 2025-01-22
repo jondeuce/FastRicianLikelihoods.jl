@@ -6,8 +6,8 @@ using FastRicianLikelihoods: @define_unary_dual_scalar_rule, @define_binary_dual
 using FiniteDifferences: FiniteDifferences
 using ForwardDiff: ForwardDiff
 
-f_unary(x) = exp(x*cos(x))
-∇f_unary(x) = ((cos(x)-x*sin(x)) * exp(x*cos(x)),)
+f_unary(x) = exp(x * cos(x))
+∇f_unary(x) = ((cos(x) - x * sin(x)) * exp(x * cos(x)),)
 @define_unary_dual_scalar_rule f_unary (f_unary, ∇f_unary)
 
 g_unary(x) = f_unary(x)
@@ -18,23 +18,23 @@ h_unary(x) = f_unary(x)
 h_∇h_unary(x) = (f_unary(x), only(∇f_unary(x)))
 @define_unary_dual_scalar_rule h_unary h_∇h_unary
 
-f_binary(x, y) = exp(x*(y-cos(x*y)))
-∇f_binary(x, y) = (x*y*sin(x*y)-cos(x*y)+y, x^2*sin(x*y)+x) .* exp(x*(y-cos(x*y)))
+f_binary(x, y) = exp(x * (y - cos(x * y)))
+∇f_binary(x, y) = (x * y * sin(x * y) - cos(x * y) + y, x^2 * sin(x * y) + x) .* exp(x * (y - cos(x * y)))
 @define_binary_dual_scalar_rule f_binary (f_binary, ∇f_binary)
 
 g_binary(x, y) = f_binary(x, y)
 g_∇g_binary(x, y) = (f_binary(x, y), ∇f_binary(x, y))
 @define_binary_dual_scalar_rule g_binary g_∇g_binary
 
-f_ternary(x, y, z) = exp(x*z + cos(y-z))
-∇f_ternary(x, y, z) = (z, -sin(y-z), (x + sin(y-z))) .* exp(x*z + cos(y-z))
-@define_ternary_dual_scalar_rule f_ternary (f_ternary, ∇f_ternary)
+f_ternary(x, y, z) = exp(x * z + cos(y - z))
+∇f_ternary(x, y, z) = (z, -sin(y - z), (x + sin(y - z))) .* exp(x * z + cos(y - z))
+@define_ternary_dual_scalar_rule f_ternary ∇f_ternary
 
 g_ternary(x, y, z) = f_ternary(x, y, z)
 g_∇g_ternary(x, y, z) = (f_ternary(x, y, z), ∇f_ternary(x, y, z))
-@define_ternary_dual_scalar_rule g_ternary g_∇g_ternary
+@define_ternary_dual_scalar_rule fused = true g_ternary g_∇g_ternary
 
-const fdm = FiniteDifferences.central_fdm(5, 1)
+const fdm = FiniteDifferences.central_fdm(4, 1)
 
 @testset "unary" begin
     unary1(x) = sin(1 + f_unary(x)^2)

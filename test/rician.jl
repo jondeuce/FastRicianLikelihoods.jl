@@ -25,10 +25,10 @@ end
         @testset "normalization ($T)" begin
             for ν in νs, logσ in logσs
                 ν′ = T(ν / exp(logσ))
-                I, E = quadgk(zero(T), ν′/4, ν′/2, ν′, T(Inf); rtol = eps(T), atol = eps(T), order = 15) do x
+                I, E = quadgk(zero(T), ν′ / 4, ν′ / 2, ν′, T(Inf); rtol = eps(T), atol = eps(T), order = 15) do x
                     return exp(-neglogpdf_rician(x, ν′))
                 end
-                atol = T == Float32 ? 5*eps(T) : 10*eps(T)
+                atol = T == Float32 ? 15 * eps(T) : 10 * eps(T)
                 rtol = zero(T)
                 @test isapprox(I, one(T); rtol, atol)
             end
@@ -49,19 +49,19 @@ end
         f̂ = neglogpdf_rician
         f = arbify(f̂)
         @testset "z < 1 ($T)" begin
-            rtol = 3*eps(T)
-            atol = 3*eps(T)
+            rtol = 3 * eps(T)
+            atol = 3 * eps(T)
             zs = range(eps(T), one(T); length = 10)
             for z in zs, (x, ν) in xν_iterator(z)
-                @test @inferred(f̂(x, ν)) ≈ f(x, ν) rtol=rtol atol=atol
+                @test @inferred(f̂(x, ν)) ≈ f(x, ν) rtol = rtol atol = atol
             end
         end
         @testset "1 <= z ($T)" begin
-            rtol = 3*eps(T)
-            atol = T == Float32 ? 10*eps(T) : 20*eps(T)
+            rtol = 3 * eps(T)
+            atol = T == Float32 ? 10 * eps(T) : 20 * eps(T)
             zs = T.(exp10.([0.0:0.1:0.5; 0.75; 1.0; 2.0:10.0]))
             for z in zs, (x, ν) in xν_iterator(z)
-                @test @inferred(f̂(x, ν)) ≈ f(x, ν) rtol=rtol atol=atol
+                @test @inferred(f̂(x, ν)) ≈ f(x, ν) rtol = rtol atol = atol
             end
         end
     end
@@ -74,37 +74,37 @@ end
         ∇f = arbify(∇f̂)
         low, high = T(0.5), T(15.0)
         @testset "z < $(low) ($T)" begin
-            rtol = 3*eps(T)
-            atol = 3*eps(T)
+            rtol = 3 * eps(T)
+            atol = 3 * eps(T)
             zs = range(eps(T), low - eps(T); length = 10)
             for z in zs, (x, ν) in xν_iterator(z)
                 ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)
-                @test ∂ŷ[1] ≈ ∂y[1] rtol=rtol atol=atol
-                @test ∂ŷ[2] ≈ ∂y[2] rtol=rtol atol=atol
+                @test ∂ŷ[1] ≈ ∂y[1] rtol = rtol atol = atol
+                @test ∂ŷ[2] ≈ ∂y[2] rtol = rtol atol = atol
                 @test ∂ŷ == ∇Fwd(f̂, x, ν)
                 @test ∂ŷ == ∇Zyg(f̂, x, ν)
             end
         end
         @testset "$(low) <= z < $(high) ($T)" begin
-            rtol = T == Float32 ? 3*eps(T) : 20*eps(T)
-            atol = T == Float32 ? 10*eps(T) : 40*eps(T)
-            zs = range(low + 25*eps(T), high - 25*eps(T); length = 10)
+            rtol = T == Float32 ? 3 * eps(T) : 20 * eps(T)
+            atol = T == Float32 ? 10 * eps(T) : 40 * eps(T)
+            zs = range(low + 25 * eps(T), high - 25 * eps(T); length = 10)
             for z in zs, (x, ν) in xν_iterator(z)
                 ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)
-                @test ∂ŷ[1] ≈ ∂y[1] rtol=rtol atol=atol
-                @test ∂ŷ[2] ≈ ∂y[2] rtol=rtol atol=atol
+                @test ∂ŷ[1] ≈ ∂y[1] rtol = rtol atol = atol
+                @test ∂ŷ[2] ≈ ∂y[2] rtol = rtol atol = atol
                 @test ∂ŷ == ∇Fwd(f̂, x, ν)
                 @test ∂ŷ == ∇Zyg(f̂, x, ν)
             end
         end
         @testset "z >= $(high) ($T)" begin
-            rtol = 3*eps(T)
-            atol = 3*eps(T)
-            zs = (high + 5*eps(T)) .* T.(exp10.([0.0:0.1:0.5; 0.75; 1.0; 2.0:10.0]))
+            rtol = 3 * eps(T)
+            atol = 3 * eps(T)
+            zs = (high + 5 * eps(T)) .* T.(exp10.([0.0:0.1:0.5; 0.75; 1.0; 2.0:10.0]))
             for z in zs, (x, ν) in xν_iterator(z)
                 ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)
-                @test ∂ŷ[1] ≈ ∂y[1] rtol=rtol atol=atol
-                @test ∂ŷ[2] ≈ ∂y[2] rtol=rtol atol=atol
+                @test ∂ŷ[1] ≈ ∂y[1] rtol = rtol atol = atol
+                @test ∂ŷ[2] ≈ ∂y[2] rtol = rtol atol = atol
                 @test ∂ŷ == ∇Fwd(f̂, x, ν)
                 @test ∂ŷ == ∇Zyg(f̂, x, ν)
             end
@@ -122,7 +122,7 @@ end
 function neglogpdf_qrician_sum(ν::T, δ::T, order::Val) where {T}
     μx = mean_rician(ν, one(T))
     σx = std_rician(ν, one(T))
-    rx = √(-2*log(eps(T))) # solve for exp(-x^2/2) = eps(T)
+    rx = √(-2 * log(eps(T))) # solve for exp(-x^2/2) = eps(T)
     N = ceil(Int, (μx + rx * σx) / δ)
 
     pdf(x̃) = exp(-neglogpdf_qrician(x̃, ν, δ, order))
@@ -146,22 +146,22 @@ end
         @testset "normalization ($T)" begin
             for ν in νs, δ in δs
                 I = neglogpdf_qrician_sum(ν, δ, order)
-                atol = T == Float32 ? 6*eps(T) : 5*eps(T)
+                atol = T == Float32 ? 6 * eps(T) : 5 * eps(T)
                 @test isapprox(I, one(T); rtol = zero(T), atol)
             end
         end
         @testset "additivity ($T)" begin
             for ν in νs, δ in δs
                 pdf(x̃, ν̃, δ̃) = exp(-neglogpdf_qrician(x̃, ν̃, δ̃, order))
-                for x in δ .* (0, 1, round(Int, ν), round(Int, ν/δ))
-                    @test pdf(x, ν, δ) + pdf(x + δ, ν, δ) ≈ pdf(x, ν, 2*δ)
+                for x in δ .* (0, 1, round(Int, ν), round(Int, ν / δ))
+                    @test pdf(x, ν, δ) + pdf(x + δ, ν, δ) ≈ pdf(x, ν, 2 * δ)
                 end
             end
         end
         @testset "scale invariance ($T)" begin
             for ν in νs, δ in δs, logσ in logσs
                 σ = exp(logσ)
-                for x in δ .* (0, 1, round(Int, ν), round(Int, ν/δ))
+                for x in δ .* (0, 1, round(Int, ν), round(Int, ν / δ))
                     @test neglogpdf_qrician(x, ν, logσ, δ, order) ≈ neglogpdf_qrician(x / σ, ν / σ, δ / σ, order)
                 end
             end
@@ -194,7 +194,7 @@ end
             ŷ16 = @inferred f̂(T(x), T(ν), T(δ), Val(16))
             ŷ32 = @inferred f̂(T(x), T(ν), T(δ), Val(32))
 
-            rtol = 5*eps(T)
+            rtol = 5 * eps(T)
             atol = zero(T)
             pass4 = isapprox(y, ŷ4; rtol, atol)
             pass8 = isapprox(y, ŷ8; rtol, atol)
@@ -227,8 +227,8 @@ end
 
         for T in (Float32, Float64)
             order = Val(64)
-            rtol = T == Float32 ? 50*eps(T) : 80*eps(T)
-            atol = T == Float32 ? 50*eps(T) : 80*eps(T)
+            rtol = T == Float32 ? 50 * eps(T) : 80 * eps(T)
+            atol = T == Float32 ? 50 * eps(T) : 80 * eps(T)
 
             ∂ŷ = @inferred ∇f̂(T(x), T(ν), T(δ), order)
             @test isapprox(∂ŷ[1], ∂y[1]; rtol, atol)

@@ -48,7 +48,7 @@ FastRicianLikelihoods.logbesseli1(x::ArbReal) = log(ArbNumerics.besseli(1, x))
 FastRicianLikelihoods.logbesseli1x(x::ArbReal) = log(ArbNumerics.besseli(1, x)) - abs(x)
 FastRicianLikelihoods.logbesseli2(x::ArbReal) = log(ArbNumerics.besseli(2, x))
 FastRicianLikelihoods.logbesseli2x(x::ArbReal) = log(ArbNumerics.besseli(2, x)) - abs(x)
-FastRicianLikelihoods.laguerre½(x::ArbReal) = exp(x / 2) * ((1 - x) * ArbNumerics.besseli(0, -x/2) - x * ArbNumerics.besseli(1, -x/2))
+FastRicianLikelihoods.laguerre½(x::ArbReal) = exp(x / 2) * ((1 - x) * ArbNumerics.besseli(0, -x / 2) - x * ArbNumerics.besseli(1, -x / 2))
 FastRicianLikelihoods.besseli1i0(x::ArbReal) = ArbNumerics.besseli(1, x) / ArbNumerics.besseli(0, x)
 FastRicianLikelihoods.mean_rician(ν::ArbReal, σ::ArbReal) = σ * √(ArbReal(π) / 2) * FastRicianLikelihoods.laguerre½(-(ν / σ)^2 / 2)
 FastRicianLikelihoods.std_rician(ν::ArbReal, σ::ArbReal) = sqrt(ν^2 + 2σ^2 - ArbReal(π) * σ^2 * FastRicianLikelihoods.laguerre½(-(ν / σ)^2 / 2)^2 / 2)
@@ -64,15 +64,15 @@ end
 function FastRicianLikelihoods.∇neglogpdf_rician(x::ArbReal, ν::ArbReal)
     x <= 0 && return (ArbReal(Inf), ν)
     I0, I1 = ArbNumerics.besseli(0, x * ν), ArbNumerics.besseli(1, x * ν)
-    ∂x = x - ν * (I1 / I0) - 1/x
+    ∂x = x - ν * (I1 / I0) - 1 / x
     ∂ν = ν - x * (I1 / I0)
     return (∂x, ∂ν)
 end
 
 function ∇²neglogpdf_rician(x::ArbReal, ν::ArbReal)
     I0, I1, I2 = ArbNumerics.besseli(0, x * ν), ArbNumerics.besseli(1, x * ν), ArbNumerics.besseli(2, x * ν)
-    ∂²x = 1 + ν^2 * ((I1 / I0)^2 - I2 / 2I0) - ν^2/2 + 1/x^2
-    ∂²ν = 1 + x^2 * ((I1 / I0)^2 - I2 / 2I0) - ν^2/2
+    ∂²x = 1 + ν^2 * ((I1 / I0)^2 - I2 / 2I0) - ν^2 / 2 + 1 / x^2
+    ∂²ν = 1 + x^2 * ((I1 / I0)^2 - I2 / 2I0) - ν^2 / 2
     return (∂²x, ∂²ν)
 end
 ∇²neglogpdf_rician(x, ν) = oftype.(promote(float(x), float(ν))[1], ∇²neglogpdf_rician(ArbReal(x), ArbReal(ν)))
@@ -96,7 +96,7 @@ function FastRicianLikelihoods.var_mode_rician(ν::ArbReal; kwargs...)
     ν >= 1e30 && return 1 - 1 / 2ν^2 # relative error < 1e-120
     μ = FastRicianLikelihoods.mode_rician(ν; kwargs...)
     ∂²x = ∇²neglogpdf_rician(μ, ν)[1]
-    return 1/∂²x
+    return 1 / ∂²x
 end
 
 neglogpdf_qrician_arbreal_eps() = ArbReal(1e-30)

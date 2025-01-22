@@ -4,14 +4,14 @@ using Base: BroadcastFunction
 using Bessels: Bessels
 using ChainRulesCore: ChainRulesCore, @scalar_rule, NoTangent
 using Distributions: Distributions, normlogccdf, normlogcdf
-using FastGaussQuadrature: gausslegendre, gausslaguerre
+using FastGaussQuadrature: FastGaussQuadrature, gausslegendre, gausslaguerre
 using ForwardDiff: ForwardDiff, Dual
 using GenericLinearAlgebra: GenericLinearAlgebra # need to load this package to extend `LinearAlgebra.eigen` to matrices of `BigFloat`s
-using IrrationalConstants: invsqrt2, sqrt2, invsqrt2π, sqrt2π, sqrthalfπ, logtwo, log2π
-using LinearAlgebra: dot
-using MacroTools: @capture, combinedef, prettify, splitdef
+using IrrationalConstants: IrrationalConstants, invsqrt2, sqrt2, invsqrt2π, sqrt2π, sqrthalfπ, logtwo, log2π
+using LinearAlgebra: LinearAlgebra, dot
+using MacroTools: MacroTools, @capture, combinedef, prettify, splitdef
 using Random: Random
-using SpecialFunctions: erf, erfc, erfcinv, erfcx
+using SpecialFunctions: SpecialFunctions, erf, erfc, erfcinv, erfcx
 using StaticArrays: StaticArrays, SVector, SMatrix
 
 export Rice, neglogpdf_rician, neglogpdf_qrician

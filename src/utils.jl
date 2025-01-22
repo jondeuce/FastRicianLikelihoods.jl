@@ -1,3 +1,22 @@
+# Floating point utilities
+
+@inline promote_float(x...) = promote(map(float, x)...)
+
+@inline basefloattype(::Type{T}) where {T} = error("Argument is not a floating-point type: $T.")
+@inline basefloattype(::Type{T}) where {T <: AbstractFloat} = T
+@inline basefloattype(::Type{D}) where {T, D <: ForwardDiff.Dual{<:Any, T}} = basefloattype(T)
+
+@generated function checkedfloattype(::Ts) where {Ts <: Tuple}
+    Tbases = map(basefloattype, Ts.types)
+    Tunique = unique(Tbases)
+    if length(Tunique) == 1 && (T = Tunique[1]) <: Union{Float32, Float64}
+        return T
+    else
+        error("Incompatible types: $Ts.\nBase float types must all be Float32 or Float64, but found the following types: $Tunique.")
+    end
+end
+checkedfloattype(xs::Number...) = checkedfloattype(xs)
+
 # Clenshaw scheme for evaluating scalar-valued Chebyshev polynomials
 #   See: https://github.com/chebfun/chebfun/blob/18f759287b6b88e3c3e0cf7885f559791a483127/%40chebtech/clenshaw.m#L94
 

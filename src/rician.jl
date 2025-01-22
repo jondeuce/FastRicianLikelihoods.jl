@@ -1,24 +1,14 @@
 ####
-#### Rician negative log-pdf
-####
-
-#### Utilities
-
-@inline promote_float(x...) = promote(map(float, x)...)
-
-####
 #### Rician negative log-likelihood
 ####
 
-@inline function neglogpdf_rician(x::T, ν::T, logσ::T) where {T <: Real}
+@inline function neglogpdf_rician(x::Real, ν::Real, logσ::Real)
     σ⁻¹ = exp(-logσ)
     return logσ + neglogpdf_rician(σ⁻¹ * x, σ⁻¹ * ν)
 end
-@inline neglogpdf_rician(x::Real, ν::Real, logσ::Real) = neglogpdf_rician(promote_float(x, ν, logσ)...)
+@inline neglogpdf_rician(x::Real, ν::Real) = (x - ν)^2 / 2 - log(x) - logbesseli0x(x * ν) # negative Rician log-likelihood `-logp(x | ν, σ = 1)`
 
-@inline neglogpdf_rician(x::T, ν::T) where {T <: Union{Float32, Float64}} = (x - ν)^2 / 2 - log(x) - logbesseli0x(x * ν) # negative Rician log-likelihood `-logp(x | ν, σ = 1)`
-
-@inline function ∇neglogpdf_rician(x::T, ν::T) where {T <: Union{Float32, Float64}}
+@inline function ∇neglogpdf_rician(x::Real, ν::Real)
     # Define the univariate normalized Bessel function `Î₀` as
     #
     #   Î₀(z) = I₀(z) / (exp(z) / √2πz).
@@ -39,6 +29,7 @@ end
 
     # Note: there are really three relevant limits: z << 1, z >> 1, and x ≈ ν.
     # Could plausibly better account for the latter case, though it is tested quite robustly
+    T = checkedfloattype(x, ν)
     z = x * ν
     if z < besseli1i0_low_cutoff(T)
         z² = z^2
@@ -66,7 +57,7 @@ end
 end
 
 @inline pdf_rician(args...) = exp(-neglogpdf_rician(args...))
-@inline ∇pdf_rician(x::T, ν::T) where {T <: Union{Float32, Float64}} = -exp(-neglogpdf_rician(x, ν)) .* ∇neglogpdf_rician(x, ν)
+@inline ∇pdf_rician(x::Real, ν::Real) = -exp(-neglogpdf_rician(x, ν)) .* ∇neglogpdf_rician(x, ν)
 
 @scalar_rule neglogpdf_rician(x, ν) (∇neglogpdf_rician(x, ν)...,)
 @dual_rule_from_frule neglogpdf_rician(x, ν)
@@ -78,12 +69,30 @@ end
 # Quantized Rician PDF is the integral of the Rician PDF over `(x, x+δ)`.
 # This integral is approximated using Gauss-Legendre quadrature.
 # Note: Rician PDF is never evaluated at the interval endpoints.
-@inline function neglogpdf_qrician(x::T, ν::T, logσ::T, δ::T, order::Val) where {T <: Real}
+@inline function neglogpdf_qrician(x::Real, ν::Real, logσ::Real, δ::Real, order::Val)
     σ⁻¹ = exp(-logσ)
     return neglogpdf_qrician(σ⁻¹ * x, σ⁻¹ * ν, σ⁻¹ * δ, order)
 end
-@inline neglogpdf_qrician(x::Real, ν::Real, logσ::Real, δ::Real, order::Val) = neglogpdf_qrician(promote_float(x, ν, logσ, δ)..., order)
 @inline neglogpdf_qrician(n::Int, ν::Real, logσ::Real, δ::Real, order::Val) = neglogpdf_qrician(n * δ, ν, logσ, δ, order)
+
+@inline neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = neglogf_quadrature(Base.Fix2(neglogpdf_rician, ν), x, δ, order)
+@inline ∇neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = ∇neglogpdf_qrician_with_primal(x, ν, δ, order)[2]
+
+@inline function ∇neglogpdf_qrician_with_primal(Ω::Real, x::Real, ν::Real, δ::Real, order::Val)
+    ∂x, ∂ν = f_quadrature(x, δ, order) do y
+        ∇ = ∇neglogpdf_rician(y, ν) # differentiate the integrand
+        ∇ = SVector(promote(∇...))
+        return exp(Ω - neglogpdf_rician(y, ν)) * ∇
+    end
+    ∂δ = -exp(Ω - neglogpdf_rician(x + δ, ν)) # by fundamental theorem of calculus
+    return Ω, (∂x, ∂ν, ∂δ)
+end
+@inline ∇neglogpdf_qrician_with_primal(x::Real, ν::Real, δ::Real, order::Val) = ∇neglogpdf_qrician_with_primal(neglogpdf_qrician(x, ν, δ, order), x, ν, δ, order)
+
+@scalar_rule neglogpdf_qrician(x, ν, δ, order::Val) (∇neglogpdf_qrician_with_primal(Ω, x, ν, δ, order)[2]..., NoTangent())
+@dual_rule_from_frule neglogpdf_qrician(x, ν, δ, !(order::Val))
+
+#### Specialized quadrature rules
 
 function neglogpdf_qrician_direct(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}}
     Δ = x - ν
@@ -248,23 +257,6 @@ function neglogpdf_qrician_left_halfhermite_tail(x::T, ν::T, δ::T, order::Val)
     return I
 end
 
-@inline neglogpdf_qrician(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = neglogf_quadrature(Base.Fix2(neglogpdf_rician, ν), x, δ, order)
-@inline ∇neglogpdf_qrician(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = ∇neglogpdf_qrician_with_primal(x, ν, δ, order)[2]
-
-@inline function ∇neglogpdf_qrician_with_primal(Ω::T, x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}}
-    ∂x, ∂ν = f_quadrature(x, δ, order) do y
-        ∇ = ∇neglogpdf_rician(y, ν) # differentiate the integrand
-        ∇ = SVector{2, T}(∇)
-        return exp(Ω - neglogpdf_rician(y, ν)) * ∇
-    end
-    ∂δ = -exp(Ω - neglogpdf_rician(x + δ, ν)) # by fundamental theorem of calculus
-    return Ω, (∂x, ∂ν, ∂δ)
-end
-@inline ∇neglogpdf_qrician_with_primal(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}} = ∇neglogpdf_qrician_with_primal(neglogpdf_qrician(x, ν, δ, order), x, ν, δ, order)
-
-@scalar_rule neglogpdf_qrician(x, ν, δ, order::Val) (∇neglogpdf_qrician_with_primal(Ω, x, ν, δ, order)[2]..., NoTangent())
-@dual_rule_from_frule neglogpdf_qrician(x, ν, δ, !order)
-
 #### Gaussian quadrature
 
 const DEFAULT_GAUSSLEGENDRE_ORDER = 16
@@ -292,22 +284,25 @@ end
     return :($x, $w)
 end
 
-@inline function f_quadrature(f::F, x₀::T, δ::T, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, order, T <: AbstractFloat}
+@inline function f_quadrature(f::F, x₀::Real, δ::Real, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, order}
     # I = ∫_{0}^{δ} [f(t)] dt
+    T = checkedfloattype(x₀, δ)
     x, w = gausslegendre_unit_interval(Val(order), T)
     y = @. f(x₀ + δ * x)
     return vecdot(w, y) * δ
 end
 
-@inline function neglogf_quadrature(neglogf::F, x₀::T, δ::T, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, order, T <: AbstractFloat}
+@inline function neglogf_quadrature(neglogf::F, x₀::Real, δ::Real, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, order}
     # I = ∫_{0}^{δ} [f(t)] dt, where f(t) = exp(-neglogf(t))
+    T = checkedfloattype(x₀, δ)
     x, w = gausslegendre_unit_interval(Val(order), T)
     logy = @. -neglogf(x₀ + δ * x)
     return -weighted_logsumexp(w, logy) .- log(δ)
 end
 
-@inline function f_laguerre_tail_quadrature(f::F, λ::T, ::Val{order} = Val(DEFAULT_GAUSSLAGUERRE_ORDER)) where {F, order, T <: AbstractFloat}
+@inline function f_laguerre_tail_quadrature(f::F, λ::Real, ::Val{order} = Val(DEFAULT_GAUSSLAGUERRE_ORDER)) where {F, order}
     # I = ∫_{0}^{∞} [exp(-λt) f(t)] dt
+    T = checkedfloattype(λ)
     x, w = gausslaguerre_positive_real_axis(Val(order), T)
     y = @. f(x / λ)
     return vecdot(w, y) / λ
@@ -315,25 +310,25 @@ end
 
 @inline function f_halfhermite_tail_quadrature(f::F, ::Val{γ}, ::Val{order} = Val(DEFAULT_GAUSSLAGUERRE_ORDER)) where {F, order, γ}
     # I = ∫_{0}^{∞} [x^γ exp(-t^2/2) f(t)] / √(2π) dt
-    T = typeof(float(γ))
+    T = checkedfloattype(γ)
     x, w = gausshalfhermite_positive_real_axis(Val(order), T, Val(γ))
     y = @. f(x)
     return vecdot(w, y)
 end
 
-@inline function weighted_logsumexp(w::SVector{N, T}, logy::SVector{N, T}) where {N, T <: AbstractFloat}
+@inline function weighted_logsumexp(w::SVector{N}, logy::SVector{N}) where {N}
     max_ = maximum(logy)
     ȳ = exp.(logy .- max_)
     return log(vecdot(w, ȳ)) + max_
 end
 
-@inline function weighted_logsumexp(w::SVector{N, T}, logy::SVector{N, SVector{M, T}}) where {N, M, T <: AbstractFloat}
+@inline function weighted_logsumexp(w::SVector{N}, logy::SVector{N, <:SVector{M}}) where {N, M}
     max_ = reduce(BroadcastFunction(max), logy) # elementwise maximum
     logy = reduce(hcat, logy) # stack as columns
     ȳ = exp.(logy .- max_)
     return log.(vecdot(w, ȳ)) .+ max_
 end
 
-@inline vecdot(w::SVector{N, T}, y::SVector{N, T}) where {N, T <: AbstractFloat} = dot(w, y)
-@inline vecdot(w::SVector{N, T}, y::SVector{N, SVector{M, T}}) where {N, M, T <: AbstractFloat} = vecdot(w, reduce(hcat, y))
-@inline vecdot(w::SVector{N, T}, y::SMatrix{M, N, T}) where {N, M, T <: AbstractFloat} = y * w
+@inline vecdot(w::SVector{N}, y::SVector{N}) where {N} = dot(w, y)
+@inline vecdot(w::SVector{N}, y::SVector{N, <:SVector{M}}) where {N, M} = vecdot(w, reduce(hcat, y))
+@inline vecdot(w::SVector{N}, y::SMatrix{M, N}) where {N, M} = y * w

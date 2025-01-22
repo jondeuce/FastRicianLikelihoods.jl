@@ -18,7 +18,7 @@ for T in (Float32, Float64)
         @testset "$f̂ ($T)" begin
             f = arbify(f̂)
             for x in pos_range_iterator(T)
-                @test f̂(x) ≈ f(x) rtol=rtol atol=atol
+                @test f̂(x) ≈ f(x) rtol = rtol atol = atol
             end
         end
     end
@@ -32,7 +32,7 @@ for T in (Float32, Float64)
         for x in xsmall
             rtol = 3 * eps(T)
             atol = 3 * eps(T)
-            @test f̂(x) ≈ f(x) rtol=rtol atol=atol
+            @test f̂(x) ≈ f(x) rtol = rtol atol = atol
         end
     end
 
@@ -44,7 +44,7 @@ for T in (Float32, Float64)
             rtol = f̂ === mean_rician ? 2 * eps(T) : T == Float32 ? 8 * eps(T) : 5e-13
             atol = f̂ === mean_rician ? 2 * eps(T) : T == Float32 ? 8 * eps(T) : 5e-13
             for ν in νs, σ in σs
-                @test f̂(ν, σ) ≈ f(ν, σ) rtol=rtol atol=atol
+                @test f̂(ν, σ) ≈ f(ν, σ) rtol = rtol atol = atol
             end
         end
     end
@@ -53,9 +53,9 @@ for T in (Float32, Float64)
         f̂ = besseli1i0
         f = arbify(f̂)
         for x in pos_range_iterator(T)
-            rtol = T == Float32 ? 2*eps(T) : 5*eps(T)
-            atol = T == Float32 ? 2*eps(T) : 15*eps(T)
-            @test f̂(x) ≈ f(x) rtol=rtol atol=atol
+            rtol = T == Float32 ? 2 * eps(T) : 5 * eps(T)
+            atol = T == Float32 ? 2 * eps(T) : 15 * eps(T)
+            @test f̂(x) ≈ f(x) rtol = rtol atol = atol
         end
     end
 end
