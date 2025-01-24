@@ -109,10 +109,10 @@ function FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::Ar
 
     if x < μ < x + δ && μ - x > Δσ && x + δ - μ > Δσ
         Ω2 = neglogpdf_rician(x + δ, ν) # minimum on [x + δ, Inf)
-        I2 = qrician_integrate(Ω2, x + δ, ArbReal(Inf), ν, rtol, atol, order)
+        I2 = qrician_integrate(Ω2, x + δ, ArbReal(Inf), ν; rtol, atol, order)
         if x > 0
             Ω1 = neglogpdf_rician(x, ν) # minimum on [0, x]
-            I1 = qrician_integrate(Ω1, ArbReal(0), x, ν, rtol, atol, order)
+            I1 = qrician_integrate(Ω1, ArbReal(0), x, ν; rtol, atol, order)
             out = -log1p(-(exp(-Ω1) * I1 + exp(-Ω2) * I2))
         else
             out = -log1p(-exp(-Ω2) * I2)
@@ -125,7 +125,7 @@ function FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::Ar
         else # x + δ <= μ
             Ω = neglogpdf_rician(x + δ, ν) # minimum on [x, x + δ]
         end
-        I = qrician_integrate(Ω, x, x + δ, ν, rtol, atol, order)
+        I = qrician_integrate(Ω, x, x + δ, ν; rtol, atol, order)
         out = Ω - log(I)
     end
 
@@ -133,10 +133,10 @@ function FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::Ar
 end
 FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, ::Val{order}) where {order} = neglogpdf_qrician(x, ν, δ, order)
 
-function qrician_integrate(Ω::ArbReal, a::ArbReal, b::ArbReal, ν::ArbReal, rtol::ArbReal, atol::ArbReal, order::Int)
+function qrician_integrate(f::Function, Ω::ArbReal, a::ArbReal, b::ArbReal, ν::ArbReal; rtol::ArbReal, atol::ArbReal, order::Int)
     if isfinite(b)
         I, E = quadgk(a, b; rtol, atol, order) do x̃
-            return exp(Ω - neglogpdf_rician(x̃, ν))
+            return exp(Ω - neglogpdf_rician(x̃, ν)) * f(x̃)
         end
     else
         # Change of variables: x = a + (1 - t) / t where t ∈ (0, 1)
@@ -144,17 +144,26 @@ function qrician_integrate(Ω::ArbReal, a::ArbReal, b::ArbReal, ν::ArbReal, rto
         @assert isfinite(a)
         I, E = quadgk(ArbReal(0), ArbReal(1); rtol, atol, order) do t̃
             x̃ = a + (1 - t̃) / t̃
-            return exp(Ω - neglogpdf_rician(x̃, ν)) / t̃^2
+            return exp(Ω - neglogpdf_rician(x̃, ν)) * f(x̃) / t̃^2
         end
     end
     return I
 end
+qrician_integrate(Ω::ArbReal, args...; kwargs...) = qrician_integrate(Returns(ArbReal(1)), Ω, args...; kwargs...)
 
-function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, order::Int = 21)
-    ϵ = sqrt(neglogpdf_qrician_arbreal_eps())
-    ∂x = (neglogpdf_qrician(x + ϵ, ν, δ, order) - neglogpdf_qrician(x - ϵ, ν, δ, order)) / 2ϵ
-    ∂ν = (neglogpdf_qrician(x, ν + ϵ, δ, order) - neglogpdf_qrician(x, ν - ϵ, δ, order)) / 2ϵ
-    ∂δ = (neglogpdf_qrician(x, ν, δ + ϵ, order) - neglogpdf_qrician(x, ν, δ - ϵ, order)) / 2ϵ
+function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, order::Int = 21, method = :analytic)
+    if method === :analytic
+        rtol, atol = neglogpdf_qrician_arbreal_eps(), ArbReal(0)
+        Ω = neglogpdf_qrician(x, ν, δ, order)
+        ∂ν = qrician_integrate(x̃ -> ∇neglogpdf_rician(x̃, ν)[2], Ω, x, x + δ, ν; rtol, atol, order)
+        ∂δ = -exp(Ω - neglogpdf_rician(x + δ, ν))
+        ∂x = ∂δ + exp(Ω - neglogpdf_rician(x, ν))
+    else # method === :numeric
+        ϵ = sqrt(neglogpdf_qrician_arbreal_eps())
+        ∂x = (neglogpdf_qrician(x + ϵ, ν, δ, order) - neglogpdf_qrician(x - ϵ, ν, δ, order)) / 2ϵ
+        ∂ν = (neglogpdf_qrician(x, ν + ϵ, δ, order) - neglogpdf_qrician(x, ν - ϵ, δ, order)) / 2ϵ
+        ∂δ = (neglogpdf_qrician(x, ν, δ + ϵ, order) - neglogpdf_qrician(x, ν, δ - ϵ, order)) / 2ϵ
+    end
     return (∂x, ∂ν, ∂δ)
 end
 FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, ::Val{order}) where {order} = ∇neglogpdf_qrician(x, ν, δ, order)

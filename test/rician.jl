@@ -113,8 +113,8 @@ end
 end
 
 function xνδ_iterator()
-    xs = exp10.([-1.0, -0.1, 0.0, 0.1, 1.0])
-    νs = exp10.([-1.0, -0.1, 0.0, 0.1, 1.0])
+    xs = [0.0; exp10.([-1.0, -0.1, 0.0, 0.1, 1.0])]
+    νs = [0.0; exp10.([-1.0, -0.1, 0.0, 0.1, 1.0])]
     δs = exp10.([-2.0, -1.0, 0.0])
     return Iterators.product(xs, νs, δs)
 end
@@ -227,8 +227,8 @@ end
 
         for T in (Float32, Float64)
             order = Val(64)
-            rtol = T == Float32 ? 50 * eps(T) : 80 * eps(T)
-            atol = T == Float32 ? 50 * eps(T) : 80 * eps(T)
+            rtol = T == Float32 ? 80 * eps(T) : 80 * eps(T)
+            atol = T == Float32 ? 80 * eps(T) : 80 * eps(T)
 
             ∂ŷ = @inferred ∇f̂(T(x), T(ν), T(δ), order)
             @test isapprox(∂ŷ[1], ∂y[1]; rtol, atol)

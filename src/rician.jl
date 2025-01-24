@@ -6,9 +6,17 @@
     σ⁻¹ = exp(-logσ)
     return logσ + neglogpdf_rician(σ⁻¹ * x, σ⁻¹ * ν)
 end
-@inline neglogpdf_rician(x::Real, ν::Real) = (x - ν)^2 / 2 - log(x) - logbesseli0x(x * ν) # negative Rician log-likelihood `-logp(x | ν, σ = 1)`
+@inline neglogpdf_rician(x::Real, ν::Real) = _neglogpdf_rician(promote(x, ν)...)
+@inline ∇neglogpdf_rician(x::Real, ν::Real) = _∇neglogpdf_rician(promote(x, ν)...)
 
-@inline function ∇neglogpdf_rician(x::Real, ν::Real)
+@inline pdf_rician(args...) = exp(-neglogpdf_rician(args...))
+@inline ∇pdf_rician(args...) = -exp(-neglogpdf_rician(args...)) .* ∇neglogpdf_rician(args...)
+
+#### Internal methods with strict type signatures (enables dual number overloads with single method)
+
+@inline _neglogpdf_rician(x::D, ν::D) where {D} = (x - ν)^2 / 2 - log(x) - logbesseli0x(x * ν) # negative Rician log-likelihood `-logp(x | ν, σ = 1)`
+
+@inline function _∇neglogpdf_rician(x::D, ν::D) where {D}
     # Define the univariate normalized Bessel function `Î₀` as
     #
     #   Î₀(z) = I₀(z) / (exp(z) / √2πz).
@@ -56,11 +64,8 @@ end
     return (∂x, ∂ν)
 end
 
-@inline pdf_rician(args...) = exp(-neglogpdf_rician(args...))
-@inline ∇pdf_rician(x::Real, ν::Real) = -exp(-neglogpdf_rician(x, ν)) .* ∇neglogpdf_rician(x, ν)
-
-@scalar_rule neglogpdf_rician(x, ν) (∇neglogpdf_rician(x, ν)...,)
-@dual_rule_from_frule neglogpdf_rician(x, ν)
+@scalar_rule _neglogpdf_rician(x, ν) (_∇neglogpdf_rician(x, ν)...,)
+@dual_rule_from_frule _neglogpdf_rician(x, ν)
 
 ####
 #### Quantized Rician negative log-pdf
@@ -75,22 +80,28 @@ end
 end
 @inline neglogpdf_qrician(n::Int, ν::Real, logσ::Real, δ::Real, order::Val) = neglogpdf_qrician(n * δ, ν, logσ, δ, order)
 
-@inline neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = neglogf_quadrature(Base.Fix2(neglogpdf_rician, ν), x, δ, order)
-@inline ∇neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = ∇neglogpdf_qrician_with_primal(x, ν, δ, order)[2]
+@inline neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = _neglogpdf_qrician(promote(x, ν, δ)..., order)
+@inline ∇neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = _∇neglogpdf_qrician(promote(x, ν, δ)..., order)
 
-@inline function ∇neglogpdf_qrician_with_primal(Ω::Real, x::Real, ν::Real, δ::Real, order::Val)
+#### Internal methods with strict type signatures (enables dual number overloads with single method)
+
+@inline _neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = neglogf_quadrature(Base.Fix2(_neglogpdf_rician, ν), x, δ, order)
+@inline _∇neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = _∇neglogpdf_qrician_with_primal(x, ν, δ, order)[2]
+
+@inline function _∇neglogpdf_qrician_with_primal(Ω::D, x::D, ν::D, δ::D, order::Val) where {D}
     ∂x, ∂ν = f_quadrature(x, δ, order) do y
-        ∇ = ∇neglogpdf_rician(y, ν) # differentiate the integrand
-        ∇ = SVector(promote(∇...))
-        return exp(Ω - neglogpdf_rician(y, ν)) * ∇
+        ∇ = _∇neglogpdf_rician(y, ν) # differentiate the integrand
+        ∇ = SVector{2, D}(∇)
+        return exp(Ω - _neglogpdf_rician(y, ν)) * ∇
     end
-    ∂δ = -exp(Ω - neglogpdf_rician(x + δ, ν)) # by fundamental theorem of calculus
+    ∂δ = -exp(Ω - _neglogpdf_rician(x + δ, ν)) # by fundamental theorem of calculus
+    # ∂x = ∂δ + exp(Ω - neglogpdf_rician(x, ν)) # by fundamental theorem of calculus (note: catestrophic cancellation for small δ, but more accurate for large δ)
     return Ω, (∂x, ∂ν, ∂δ)
 end
-@inline ∇neglogpdf_qrician_with_primal(x::Real, ν::Real, δ::Real, order::Val) = ∇neglogpdf_qrician_with_primal(neglogpdf_qrician(x, ν, δ, order), x, ν, δ, order)
+@inline _∇neglogpdf_qrician_with_primal(x::D, ν::D, δ::D, order::Val) where {D} = _∇neglogpdf_qrician_with_primal(_neglogpdf_qrician(x, ν, δ, order), x, ν, δ, order)
 
-@scalar_rule neglogpdf_qrician(x, ν, δ, order::Val) (∇neglogpdf_qrician_with_primal(Ω, x, ν, δ, order)[2]..., NoTangent())
-@dual_rule_from_frule neglogpdf_qrician(x, ν, δ, !(order::Val))
+@scalar_rule _neglogpdf_qrician(x, ν, δ, order::Val) (_∇neglogpdf_qrician_with_primal(Ω, x, ν, δ, order)[2]..., NoTangent())
+@dual_rule_from_frule _neglogpdf_qrician(x, ν, δ, !(order::Val))
 
 #### Specialized quadrature rules
 

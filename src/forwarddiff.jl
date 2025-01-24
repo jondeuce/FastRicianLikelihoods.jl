@@ -18,97 +18,60 @@
 
 @inline unpack_dual(x) = (ForwardDiff.value(x), ForwardDiff.partials(x))
 
-@inline primal_and_partials(fdf::F, args::TA) where {F, TA <: Tuple} = fdf(args...)
-@inline primal_and_partials(fdf::F, args::TA) where {F <: Tuple{Any, Any}, TA <: Tuple} = primal_and_partials(fdf[1], fdf[2], args)
-@inline primal_and_partials(f::F, df::DF, args::TA) where {F, DF, TA <: Tuple} = f(args...), df(args...)
-
 @inline untuple_scalar(x::Tuple) = only(x)
-@inline untuple_scalar(x) = x
+@inline untuple_scalar(x::Number) = x
 
 #### Pushforwards
 
-@inline function unary_dual_pushforward(fdf::F, x::Dual{T}) where {F, T}
+@inline function unary_dual_pushforward(fdf::F, x::Dual{Tag}) where {F, Tag}
     vx, px = unpack_dual(x)
-    Ω, dΩ_dx = primal_and_partials(fdf, (vx,))
+    Ω, dΩ_dx = fdf(vx)
     dΩ = untuple_scalar(dΩ_dx) * px
-    return Dual{T}(Ω, dΩ)
+    return Dual{Tag}(Ω, dΩ)
 end
 
-@inline function binary_dual_pushforward(fdf::F, x, y, ::Type{T}) where {F, T}
+@inline function unary_dual_pushforward(f::F, df::DF, x::Dual{Tag}) where {F, DF, Tag}
+    vx, px = unpack_dual(x)
+    Ω, dΩ_dx = f(vx), df(vx)
+    dΩ = untuple_scalar(dΩ_dx) * px
+    return Dual{Tag}(Ω, dΩ)
+end
+
+@inline function binary_dual_pushforward(fdf::F, x, y, ::Type{Tag}) where {F, Tag}
     vx, px = unpack_dual(x)
     vy, py = unpack_dual(y)
-    Ω, (dΩ_dx, dΩ_dy) = primal_and_partials(fdf, (vx, vy))
+    Ω, (dΩ_dx, dΩ_dy) = fdf(vx, vy)
     dΩ = dΩ_dx * px + dΩ_dy * py
-    return Dual{T}(Ω, dΩ)
+    return Dual{Tag}(Ω, dΩ)
 end
 
-@inline function ternary_dual_pushforward(fdf::F, x, y, z, ::Type{T}) where {F, T}
+@inline function binary_dual_pushforward(f::F, df::DF, x, y, ::Type{Tag}) where {F, DF, Tag}
+    vx, px = unpack_dual(x)
+    vy, py = unpack_dual(y)
+    Ω, (dΩ_dx, dΩ_dy) = f(vx, vy), df(vx, vy)
+    dΩ = dΩ_dx * px + dΩ_dy * py
+    return Dual{Tag}(Ω, dΩ)
+end
+
+@inline function ternary_dual_pushforward(fdf::F, x, y, z, ::Type{Tag}) where {F, Tag}
     vx, px = unpack_dual(x)
     vy, py = unpack_dual(y)
     vz, pz = unpack_dual(z)
     Ω, (dΩ_dx, dΩ_dy, dΩ_dz) = fdf(vx, vy, vz)
     dΩ = dΩ_dx * px + dΩ_dy * py + dΩ_dz * pz
-    return Dual{T}(Ω, dΩ)
+    return Dual{Tag}(Ω, dΩ)
 end
 
-@inline function ternary_dual_pushforward(f::F, df::DF, x, y, z, ::Type{T}) where {F, DF, T}
+@inline function ternary_dual_pushforward(f::F, df::DF, x, y, z, ::Type{Tag}) where {F, DF, Tag}
     vx, px = unpack_dual(x)
     vy, py = unpack_dual(y)
     vz, pz = unpack_dual(z)
     Ω, (dΩ_dx, dΩ_dy, dΩ_dz) = f(vx, vy, vz), df(vx, vy, vz)
     dΩ = dΩ_dx * px + dΩ_dy * py + dΩ_dz * pz
-    return Dual{T}(Ω, dΩ)
+    return Dual{Tag}(Ω, dΩ)
 end
 
-macro define_unary_dual_scalar_rule(f, fdf)
-    local M = @__MODULE__
-    local FD = ForwardDiff
-    local _f, _fdf = esc(f), esc(fdf)
-    quote
-        $(_f)(x::$(FD).Dual) = $(M).unary_dual_pushforward($(_fdf), x)
-    end
-end
-
-macro define_binary_dual_scalar_rule(f, df)
-    local M = @__MODULE__
-    local FD = ForwardDiff
-    local _f, _df = esc(f), esc(df)
-    quote
-        # See: https://github.com/JuliaDiff/ForwardDiff.jl/blob/2ff680824249ad71f55615467bd570c6c29fa673/src/dual.jl#L136
-        $(FD).@define_binary_dual_op(
-            $(_f),
-            $(M).binary_dual_pushforward($(_df), x, y, Txy),
-            $(M).binary_dual_pushforward($(_df), x, y, Tx),
-            $(M).binary_dual_pushforward($(_df), x, y, Ty),
-        )
-    end
-end
-
-macro define_ternary_dual_scalar_rule(ex...)
-    args, kwargs = split_args_kwargs(ex...)
-    return define_ternary_dual_scalar_rule(args...; kwargs...)
-end
-
-function define_ternary_dual_scalar_rule(f, df; fused = false)
-    local M = @__MODULE__
-    local FD = ForwardDiff
-    local fdf = fused ? (df,) : (f, df)
-    quote
-        # See: https://github.com/JuliaDiff/ForwardDiff.jl/blob/2ff680824249ad71f55615467bd570c6c29fa673/src/dual.jl#L152
-        $(FD).@define_ternary_dual_op(
-            $(f),
-            $(M).ternary_dual_pushforward($(fdf...), x, y, z, Txyz),
-            $(M).ternary_dual_pushforward($(fdf...), x, y, z, Txy),
-            $(M).ternary_dual_pushforward($(fdf...), x, y, z, Txz),
-            $(M).ternary_dual_pushforward($(fdf...), x, y, z, Tyz),
-            $(M).ternary_dual_pushforward($(fdf...), x, y, z, Tx),
-            $(M).ternary_dual_pushforward($(fdf...), x, y, z, Ty),
-            $(M).ternary_dual_pushforward($(fdf...), x, y, z, Tz),
-        )
-    end
-end
-
-#### Macros
+#### Macros which define overloads for `Dual` arguments using macros from `ForwardDiff`
 
 function split_args_kwargs(ex...)
     kws = Pair{Symbol, Any}[]
@@ -122,31 +85,106 @@ function split_args_kwargs(ex...)
             break
         end
     end
-    return esc.(ex[i:end]), kws
+    return ex[i:end], kws
 end
+
+macro define_unary_dual_scalar_rule(ex...)
+    args, kwargs = split_args_kwargs(ex...)
+    return define_unary_dual_scalar_rule(args...; kwargs...)
+end
+
+function define_unary_dual_scalar_rule(f, df; fused = false)
+    local M = @__MODULE__
+    local FD = ForwardDiff
+    local fdf
+    if @capture(f, fobj_::Tfobj_)
+        fdf = fused ? (df,) : (fobj, df)
+    else
+        fdf = fused ? (df,) : (f, df)
+    end
+    quote
+        $(esc(f))(x::$(FD).Dual) = $(M).unary_dual_pushforward($(esc.(fdf)...), x)
+    end
+end
+
+macro define_binary_dual_scalar_rule(ex...)
+    args, kwargs = split_args_kwargs(ex...)
+    return define_binary_dual_scalar_rule(args...; kwargs...)
+end
+
+function define_binary_dual_scalar_rule(f, df; fused = false)
+    local M = @__MODULE__
+    local FD = ForwardDiff
+    local fdf
+    if @capture(f, fobj_::Tfobj_)
+        fdf = fused ? (df,) : (fobj, df)
+    else
+        fdf = fused ? (df,) : (f, df)
+    end
+    quote
+        # See: https://github.com/JuliaDiff/ForwardDiff.jl/blob/2ff680824249ad71f55615467bd570c6c29fa673/src/dual.jl#L136
+        $(FD).@define_binary_dual_op(
+            $(esc(f)),
+            $(M).binary_dual_pushforward($(esc.(fdf)...), x, y, Txy),
+            $(M).binary_dual_pushforward($(esc.(fdf)...), x, y, Tx),
+            $(M).binary_dual_pushforward($(esc.(fdf)...), x, y, Ty),
+        )
+    end
+end
+
+macro define_ternary_dual_scalar_rule(ex...)
+    args, kwargs = split_args_kwargs(ex...)
+    return define_ternary_dual_scalar_rule(args...; kwargs...)
+end
+
+function define_ternary_dual_scalar_rule(f, df; fused = false)
+    local M = @__MODULE__
+    local FD = ForwardDiff
+    local fdf
+    if @capture(f, fobj_::Tfobj_)
+        fdf = fused ? (df,) : (fobj, df)
+    else
+        fdf = fused ? (df,) : (f, df)
+    end
+    quote
+        # See: https://github.com/JuliaDiff/ForwardDiff.jl/blob/2ff680824249ad71f55615467bd570c6c29fa673/src/dual.jl#L152
+        $(FD).@define_ternary_dual_op(
+            $(esc(f)),
+            $(M).ternary_dual_pushforward($(esc.(fdf)...), x, y, z, Txyz),
+            $(M).ternary_dual_pushforward($(esc.(fdf)...), x, y, z, Txy),
+            $(M).ternary_dual_pushforward($(esc.(fdf)...), x, y, z, Txz),
+            $(M).ternary_dual_pushforward($(esc.(fdf)...), x, y, z, Tyz),
+            $(M).ternary_dual_pushforward($(esc.(fdf)...), x, y, z, Tx),
+            $(M).ternary_dual_pushforward($(esc.(fdf)...), x, y, z, Ty),
+            $(M).ternary_dual_pushforward($(esc.(fdf)...), x, y, z, Tz),
+        )
+    end
+end
+
+#### Experimental macros which define overloads for `Dual` arguments in terms of `ChainRulesCore.frule`; requires all inputs be promoted to the same `Dual` type
 
 macro uniform_dual_rule_from_frule(f)
-    return uniform_dual_rule_from_frule_inner(f)
+    return uniform_dual_rule_from_frule(f)
 end
 
-function uniform_dual_rule_from_frule_inner(f)
+function uniform_dual_rule_from_frule(f)
     local CRC = ChainRulesCore
     local FD = ForwardDiff
     local _f = esc(f)
     quote
-        @inline function $(_f)(x::$(FD).Dual{T}...) where {T}
+        @inline function $(_f)(x::$(FD).Dual{Tag}...) where {Tag}
             vx, px = $(FD).value.(x), $(FD).partials.(x)
             y, dy = $(CRC).frule(($(CRC).NoTangent(), px...), $(_f), vx...)
-            return $(FD).Dual{T}(y, dy)
+            return $(FD).Dual{Tag}(y, dy)
         end
     end
 end
 
 macro dual_rule_from_frule(ex)
-    return dual_rule_from_frule_inner(ex)
+    return dual_rule_from_frule(ex)
 end
 
-function dual_rule_from_frule_inner(ex)
+function dual_rule_from_frule(ex)
     local CRC = ChainRulesCore
     local FD = ForwardDiff
 
@@ -155,12 +193,12 @@ function dual_rule_from_frule_inner(ex)
         error("Expected `call` expression; e.g. `f(x, y, !(z::T))`")
     end
 
-    local T = esc(gensym(:T))
+    local Tag = esc(gensym(:Tag))
     local inputs, primals, tangents = Any[], Any[], Any[]
     for arg in args
         if arg isa Symbol
             x = esc(arg)
-            push!(inputs, :($(x)::$(FD).Dual{$(T)}))
+            push!(inputs, :($(x)::$(FD).Dual{$(Tag)}))
             push!(primals, :($(FD).value($(x))))
             push!(tangents, :($(FD).partials($(x))))
         elseif @capture(arg, !(notarg_::Tnotarg_))
@@ -179,12 +217,12 @@ function dual_rule_from_frule_inner(ex)
         :name        => fname,
         :args        => inputs,
         :kwargs      => Any[],
-        :whereparams => (T,),
+        :whereparams => (Tag,),
         :body        => quote
             vx = ($(primals...),)
             px = ($(tangents...),)
             y, dy = $(CRC).frule(($(CRC).NoTangent(), px...), $(fname), vx...)
-            return $(FD).Dual{$T}(y, dy)
+            return $(FD).Dual{$(Tag)}(y, dy)
         end,
     )
 

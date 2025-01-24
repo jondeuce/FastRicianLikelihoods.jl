@@ -15,7 +15,7 @@
         error("Incompatible types: $Ts.\nBase float types must all be Float32 or Float64, but found the following types: $Tunique.")
     end
 end
-checkedfloattype(xs::Number...) = checkedfloattype(xs)
+@inline checkedfloattype(xs::Number...) = checkedfloattype(xs)
 
 # Clenshaw scheme for evaluating scalar-valued Chebyshev polynomials
 #   See: https://github.com/chebfun/chebfun/blob/18f759287b6b88e3c3e0cf7885f559791a483127/%40chebtech/clenshaw.m#L94

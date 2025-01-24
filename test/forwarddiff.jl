@@ -8,23 +8,23 @@ using ForwardDiff: ForwardDiff
 
 f_unary(x) = exp(x * cos(x))
 ∇f_unary(x) = ((cos(x) - x * sin(x)) * exp(x * cos(x)),)
-@define_unary_dual_scalar_rule f_unary (f_unary, ∇f_unary)
+@define_unary_dual_scalar_rule f_unary ∇f_unary
 
 g_unary(x) = f_unary(x)
 g_∇g_unary(x) = (f_unary(x), ∇f_unary(x))
-@define_unary_dual_scalar_rule g_unary g_∇g_unary
+@define_unary_dual_scalar_rule fused = true g_unary g_∇g_unary
 
 h_unary(x) = f_unary(x)
 h_∇h_unary(x) = (f_unary(x), only(∇f_unary(x)))
-@define_unary_dual_scalar_rule h_unary h_∇h_unary
+@define_unary_dual_scalar_rule fused = true h_unary h_∇h_unary
 
 f_binary(x, y) = exp(x * (y - cos(x * y)))
 ∇f_binary(x, y) = (x * y * sin(x * y) - cos(x * y) + y, x^2 * sin(x * y) + x) .* exp(x * (y - cos(x * y)))
-@define_binary_dual_scalar_rule f_binary (f_binary, ∇f_binary)
+@define_binary_dual_scalar_rule f_binary ∇f_binary
 
 g_binary(x, y) = f_binary(x, y)
 g_∇g_binary(x, y) = (f_binary(x, y), ∇f_binary(x, y))
-@define_binary_dual_scalar_rule g_binary g_∇g_binary
+@define_binary_dual_scalar_rule fused = true g_binary g_∇g_binary
 
 f_ternary(x, y, z) = exp(x * z + cos(y - z))
 ∇f_ternary(x, y, z) = (z, -sin(y - z), (x + sin(y - z))) .* exp(x * z + cos(y - z))
