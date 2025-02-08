@@ -4,6 +4,7 @@ using Test
 
 using ArbNumerics: ArbNumerics, ArbReal
 using FastRicianLikelihoods: FastRicianLikelihoods, neglogpdf_rician, ∇neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician
+using FiniteDifferences: FiniteDifferences
 using ForwardDiff: ForwardDiff
 using QuadGK: quadgk
 using SpecialFunctions: SpecialFunctions
@@ -32,8 +33,14 @@ arbify(f::Function) = function f_arbified(args...)
     return convert.(T, y)
 end
 
-∇Zyg(f, args::Real...) = @inferred Zygote.gradient(f, args...)
+const DEFAULT_CENTRAL_FDM = FiniteDifferences.central_fdm(4, 1)
+const DEFAULT_FORWARD_FDM = FiniteDifferences.forward_fdm(4, 1)
+∇FD_central(f, args::Real...) = ∇FD(DEFAULT_CENTRAL_FDM, f, args...)
+∇FD_forward(f, args::Real...) = ∇FD(DEFAULT_FORWARD_FDM, f, args...)
+∇FD(fdm, f, args::Real...) = (FiniteDifferences.grad(fdm, Base.splat(f), [args...])[1]...,)
+
 ∇Fwd(f, args::Real...) = @inferred Tuple(ForwardDiff.gradient(Base.splat(f), SVector(args)))
+∇Zyg(f, args::Real...) = @inferred Zygote.gradient(f, args...)
 
 #### ArbReal extensions
 

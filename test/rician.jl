@@ -1,7 +1,7 @@
 module RicianTests
 
 using Test
-using ..Utils: arbify, ∇Zyg, ∇Fwd
+using ..Utils: arbify, ∇FD_central, ∇FD_forward, ∇Fwd, ∇Zyg
 
 using Distributions: Normal, logpdf, cdf
 using FastRicianLikelihoods: FastRicianLikelihoods, neglogpdf_rician, ∇neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician, mean_rician, std_rician, f_quadrature, neglogf_quadrature
@@ -189,6 +189,7 @@ end
         y = f(x, ν, δ)
 
         for T in (Float32, Float64)
+            ŷ1 = @inferred f̂(T(x), T(ν), T(δ), Val(1))
             ŷ4 = @inferred f̂(T(x), T(ν), T(δ), Val(4))
             ŷ8 = @inferred f̂(T(x), T(ν), T(δ), Val(8))
             ŷ16 = @inferred f̂(T(x), T(ν), T(δ), Val(16))
@@ -196,23 +197,27 @@ end
 
             rtol = 5 * eps(T)
             atol = zero(T)
+            pass1 = isapprox(y, ŷ1; rtol, atol)
             pass4 = isapprox(y, ŷ4; rtol, atol)
             pass8 = isapprox(y, ŷ8; rtol, atol)
             pass16 = isapprox(y, ŷ16; rtol, atol)
             pass32 = isapprox(y, ŷ32; rtol, atol)
 
-            @test pass4 || pass8 || pass16 || pass32
+            @test pass1 || pass4 || pass8 || pass16 || pass32
 
-            if pass4
+            if pass1
+                @test pass4 && pass8 && pass16 && pass32
+            elseif pass4
                 @test pass8 && pass16 && pass32
+                @test abs(y - ŷ4) < abs(y - ŷ1)
             elseif pass8
                 @test pass16 && pass32
-                @test abs(y - ŷ8) < abs(y - ŷ4)
+                @test abs(y - ŷ8) < abs(y - ŷ4) < abs(y - ŷ1)
             elseif pass16
                 @test pass32
-                @test abs(y - ŷ16) < abs(y - ŷ8) < abs(y - ŷ4)
+                @test abs(y - ŷ16) < abs(y - ŷ8) < abs(y - ŷ4) < abs(y - ŷ1)
             else # pass32
-                @test abs(y - ŷ32) < abs(y - ŷ16) < abs(y - ŷ8) < abs(y - ŷ4)
+                @test abs(y - ŷ32) < abs(y - ŷ16) < abs(y - ŷ8) < abs(y - ŷ4) < abs(y - ŷ1)
             end
         end
     end
@@ -226,17 +231,29 @@ end
         ∂y = ∇f(x, ν, δ)
 
         for T in (Float32, Float64)
-            order = Val(64)
+            # Compare gradient of high-order approximate integral with true gradient of the exact integral
+            high_order = Val(64)
             rtol = T == Float32 ? 80 * eps(T) : 80 * eps(T)
             atol = T == Float32 ? 80 * eps(T) : 80 * eps(T)
 
-            ∂ŷ = @inferred ∇f̂(T(x), T(ν), T(δ), order)
+            ∂ŷ = @inferred ∇f̂(T(x), T(ν), T(δ), high_order)
             @test isapprox(∂ŷ[1], ∂y[1]; rtol, atol)
             @test isapprox(∂ŷ[2], ∂y[2]; rtol, atol)
             @test isapprox(∂ŷ[3], ∂y[3]; rtol, atol)
 
-            @test ∂ŷ == ∇Fwd((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))
-            @test ∂ŷ == ∇Zyg((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))
+            # Test gradient of low-order approximate integral
+            for order in (Val(1), Val(2), Val(3), Val(4), Val(8))
+                ∂ŷ = @inferred ∇f̂(T(x), T(ν), T(δ), order)
+                @test ∂ŷ == ∇Fwd((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))
+                @test ∂ŷ == ∇Zyg((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))
+
+                #= TODO: These seem to be right, but the tolerance depends on the order
+                fd = ∇FD_forward((args...,) -> f̂(args[1], args[2], exp(args[3]), order), T(x), T(ν), T(log(δ)))
+                @test isapprox(∂ŷ[1], fd[1]; rtol, atol)
+                @test isapprox(∂ŷ[2], fd[2]; rtol, atol)
+                @test isapprox(∂ŷ[3], fd[3] / δ; rtol, atol)
+                =#
+            end
         end
     end
 end

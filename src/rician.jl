@@ -83,6 +83,13 @@ end
 @inline neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = _neglogpdf_qrician(promote(x, ν, δ)..., order)
 @inline ∇neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = _∇neglogpdf_qrician(promote(x, ν, δ)..., order)
 
+# Fast-path for single point quadrature, which reduces to the midpoint rule
+@inline neglogpdf_qrician(x::Real, ν::Real, δ::Real, ::Val{1}) = _neglogpdf_rician(x + δ / 2, ν) - log(δ)
+@inline function ∇neglogpdf_qrician(x::Real, ν::Real, δ::Real, ::Val{1})
+    ∂x, ∂ν = _∇neglogpdf_rician(x + δ / 2, ν)
+    return ∂x, ∂ν, ∂x / 2 - inv(δ)
+end
+
 #### Internal methods with strict type signatures (enables dual number overloads with single method)
 
 @inline _neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = neglogf_quadrature(Base.Fix2(_neglogpdf_rician, ν), x, δ, order)
@@ -335,11 +342,14 @@ end
 
 @inline function weighted_logsumexp(w::SVector{N}, logy::SVector{N, <:SVector{M}}) where {N, M}
     max_ = reduce(BroadcastFunction(max), logy) # elementwise maximum
-    logy = reduce(hcat, logy) # stack as columns
+    logy = reducehcat(logy) # stack as columns
     ȳ = exp.(logy .- max_)
     return log.(vecdot(w, ȳ)) .+ max_
 end
 
+# Convert vector of vectors in flat matrix. Note that `init` is necessary to get the correct type when `N = 1`, otherwise you get an SVector{M} instead of an SMatrix{M, 1}
+@inline reducehcat(y::SVector{N, <:SVector{M, T}}) where {N, M, T} = reduce(hcat, y; init = SMatrix{M, 0, T}())
+
 @inline vecdot(w::SVector{N}, y::SVector{N}) where {N} = dot(w, y)
-@inline vecdot(w::SVector{N}, y::SVector{N, <:SVector{M}}) where {N, M} = vecdot(w, reduce(hcat, y))
+@inline vecdot(w::SVector{N}, y::SVector{N, <:SVector{M}}) where {N, M} = vecdot(w, reducehcat(y))
 @inline vecdot(w::SVector{N}, y::SMatrix{M, N}) where {N, M} = y * w
