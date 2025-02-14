@@ -4,6 +4,7 @@
 /Manifest.toml
 /docs/Manifest.toml
 /docs/build/
+/test/Manifest.toml
 /test/dev/Manifest.toml
 /test/matlab/Manifest.toml
 /test/matlab/jlcall.m

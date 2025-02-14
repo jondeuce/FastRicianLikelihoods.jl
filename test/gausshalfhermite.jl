@@ -2,11 +2,11 @@ module GaussHalfHermiteTests
 
 using Test
 
-using FastRicianLikelihoods: GaussHalfHermite, clenshaw
-using QuadGK: quadgk
-
+using FastRicianLikelihoods: FastRicianLikelihoods, GaussHalfHermite, clenshaw
 using .GaussHalfHermite: gausshalfhermite_rec_coeffs, gausshalfhermite_gw
 include("gausshalfhermite_tables.jl")
+
+using QuadGK: quadgk
 
 matchingdigits(x, y) = x == y ? oftype(x / y, Inf) : -log10(abs((x - y) / y))
 

@@ -3,13 +3,13 @@ module Utils
 using Test
 
 using ArbNumerics: ArbNumerics, ArbReal
-using FastRicianLikelihoods: FastRicianLikelihoods, neglogpdf_rician, ∇neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician
 using FiniteDifferences: FiniteDifferences
-using ForwardDiff: ForwardDiff
 using QuadGK: quadgk
-using SpecialFunctions: SpecialFunctions
-using StaticArrays: SVector
 using Zygote: Zygote
+
+using FastRicianLikelihoods: FastRicianLikelihoods, ForwardDiff, SpecialFunctions, StaticArrays
+using FastRicianLikelihoods: neglogpdf_rician, ∇neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician
+using .StaticArrays: SVector
 
 Base.setprecision(BigFloat, 500)
 ArbNumerics.setworkingprecision(ArbReal; digits = 500, base = 2)
@@ -57,6 +57,8 @@ FastRicianLikelihoods.logbesseli2(x::ArbReal) = log(ArbNumerics.besseli(2, x))
 FastRicianLikelihoods.logbesseli2x(x::ArbReal) = log(ArbNumerics.besseli(2, x)) - abs(x)
 FastRicianLikelihoods.laguerre½(x::ArbReal) = exp(x / 2) * ((1 - x) * ArbNumerics.besseli(0, -x / 2) - x * ArbNumerics.besseli(1, -x / 2))
 FastRicianLikelihoods.besseli1i0(x::ArbReal) = ArbNumerics.besseli(1, x) / ArbNumerics.besseli(0, x)
+FastRicianLikelihoods.besseli1i0m1(x::ArbReal) = ArbNumerics.besseli(1, x) / ArbNumerics.besseli(0, x) - 1
+FastRicianLikelihoods.besseli1i0x(x::ArbReal) = ArbNumerics.besseli(1, x) / ArbNumerics.besseli(0, x) / x
 FastRicianLikelihoods.mean_rician(ν::ArbReal, σ::ArbReal) = σ * √(ArbReal(π) / 2) * FastRicianLikelihoods.laguerre½(-(ν / σ)^2 / 2)
 FastRicianLikelihoods.std_rician(ν::ArbReal, σ::ArbReal) = sqrt(ν^2 + 2σ^2 - ArbReal(π) * σ^2 * FastRicianLikelihoods.laguerre½(-(ν / σ)^2 / 2)^2 / 2)
 # FastRicianLikelihoods.∂x_laguerre½(x::ArbReal)
@@ -76,33 +78,29 @@ function FastRicianLikelihoods.∇neglogpdf_rician(x::ArbReal, ν::ArbReal)
     return (∂x, ∂ν)
 end
 
-function ∇²neglogpdf_rician(x::ArbReal, ν::ArbReal)
-    I0, I1, I2 = ArbNumerics.besseli(0, x * ν), ArbNumerics.besseli(1, x * ν), ArbNumerics.besseli(2, x * ν)
-    ∂²x = 1 + ν^2 * ((I1 / I0)^2 - I2 / 2I0) - ν^2 / 2 + 1 / x^2
-    ∂²ν = 1 + x^2 * ((I1 / I0)^2 - I2 / 2I0) - ν^2 / 2
-    return (∂²x, ∂²ν)
+function FastRicianLikelihoods.∇²neglogpdf_rician(x::ArbReal, ν::ArbReal)
+    I0, I1 = ArbNumerics.besseli(0, x * ν), ArbNumerics.besseli(1, x * ν)
+    ∂²x = 1 - ν^2 + 1 / x^2 + (ν / x) * (I1 / I0) * (1 + ν * x * (I1 / I0))
+    ∂²ν = 1 - x^2 + (x / ν) * (I1 / I0) * (1 + ν * x * (I1 / I0))
+    ∂x∂ν = x * ν * ((I1 / I0)^2 - 1)
+    return (∂²x, ∂x∂ν, ∂²ν)
 end
-∇²neglogpdf_rician(x, ν) = oftype.(promote(float(x), float(ν))[1], ∇²neglogpdf_rician(ArbReal(x), ArbReal(ν)))
+FastRicianLikelihoods.∇²neglogpdf_rician(x, ν) = oftype.(promote(float(x), float(ν))[1], FastRicianLikelihoods.∇²neglogpdf_rician(ArbReal(x), ArbReal(ν)))
 
-function FastRicianLikelihoods.mode_rician(ν::ArbReal; tol = √eps(one(ArbReal)), method = :newton, kwargs...)
+function FastRicianLikelihoods.mode_rician(ν::ArbReal; tol = √eps(one(ArbReal)), kwargs...)
     ν <= 0 && return one(ν)
     ν >= 1e32 && return ν + (1 - 3 / 4ν^2) / 2ν # relative error < 1e-180
     f(x) = FastRicianLikelihoods.∇neglogpdf_rician(x, ν)[1]
-    ∇f(x) = ∇²neglogpdf_rician(x, ν)[1]
-    if method === :binary
-        a, b = (ν < 2 ? one(ν) : ν - 1 / ν), (ν < 1 ? 1 + ν : ν + 1 / ν) # empirical range
-        return binary_search_root_find(f, a, b; tol, kwargs...)[1]
-    else # :newton
-        x₀ = ν < 1.2 ? sqrt(1 + ν^2 / 2) : ν + (1 - 3 / 4ν^2) / 2ν # empirical initial guess
-        return newton_root_find(f, ∇f, x₀; ftol = 0, xtol = tol, dtol = 0, kwargs...)[1]
-    end
+    ∇f(x) = FastRicianLikelihoods.∇²neglogpdf_rician(x, ν)[1]
+    x₀ = ArbReal(FastRicianLikelihoods.mode_rician(Float64(ν)))
+    return newton_root_find(f, ∇f, x₀; ftol = 0, xtol = tol, dtol = 0, kwargs...)[1]
 end
 
 function FastRicianLikelihoods.var_mode_rician(ν::ArbReal; kwargs...)
     ν <= 0 && return one(ν) / 2
     ν >= 1e30 && return 1 - 1 / 2ν^2 # relative error < 1e-120
     μ = FastRicianLikelihoods.mode_rician(ν; kwargs...)
-    ∂²x = ∇²neglogpdf_rician(μ, ν)[1]
+    ∂²x = FastRicianLikelihoods.∇²neglogpdf_rician(μ, ν)[1]
     return 1 / ∂²x
 end
 

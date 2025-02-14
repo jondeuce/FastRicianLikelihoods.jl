@@ -2,6 +2,7 @@
 
 module GaussHalfHermite
 
+using FastRicianLikelihoods: SpecialFunctions, IrrationalConstants
 using LinearAlgebra: SymTridiagonal, Tridiagonal, eigen, norm
 using SpecialFunctions: gamma, loggamma
 using IrrationalConstants: sqrtπ, invsqrtπ

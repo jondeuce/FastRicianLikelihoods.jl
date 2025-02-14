@@ -3,8 +3,9 @@ module RicianTests
 using Test
 using ..Utils: arbify, ∇FD_central, ∇FD_forward, ∇Fwd, ∇Zyg
 
-using Distributions: Normal, logpdf, cdf
-using FastRicianLikelihoods: FastRicianLikelihoods, neglogpdf_rician, ∇neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician, mean_rician, std_rician, f_quadrature, neglogf_quadrature
+using FastRicianLikelihoods: FastRicianLikelihoods, Distributions
+using FastRicianLikelihoods: neglogpdf_rician, ∇neglogpdf_rician, ∇²neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician, mean_rician, std_rician, f_quadrature, neglogf_quadrature
+using .Distributions: Normal, logpdf, cdf
 using QuadGK: quadgk
 
 function xν_iterator(z::T) where {T <: Union{Float32, Float64}}
@@ -88,7 +89,7 @@ end
         @testset "$(low) <= z < $(high) ($T)" begin
             rtol = T == Float32 ? 3 * eps(T) : 20 * eps(T)
             atol = T == Float32 ? 10 * eps(T) : 40 * eps(T)
-            zs = range(low + 25 * eps(T), high - 25 * eps(T); length = 10)
+            zs = range(low + eps(T), high * (1 - eps(T)); length = 10)
             for z in zs, (x, ν) in xν_iterator(z)
                 ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)
                 @test ∂ŷ[1] ≈ ∂y[1] rtol = rtol atol = atol
@@ -100,7 +101,7 @@ end
         @testset "z >= $(high) ($T)" begin
             rtol = 3 * eps(T)
             atol = 3 * eps(T)
-            zs = (high + 5 * eps(T)) .* T.(exp10.([0.0:0.1:0.5; 0.75; 1.0; 2.0:10.0]))
+            zs = high .* (1 + eps(T)) .* T.(exp10.([0.0:0.1:0.5; 0.75; 1.0; 2.0:10.0]))
             for z in zs, (x, ν) in xν_iterator(z)
                 ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)
                 @test ∂ŷ[1] ≈ ∂y[1] rtol = rtol atol = atol
@@ -108,6 +109,24 @@ end
                 @test ∂ŷ == ∇Fwd(f̂, x, ν)
                 @test ∂ŷ == ∇Zyg(f̂, x, ν)
             end
+        end
+    end
+end
+
+@testset "∇²neglogpdf_rician" begin
+    for T in (Float32, Float64)
+        f̂ = neglogpdf_rician
+        ∇²f̂ = ∇²neglogpdf_rician
+        ∇²f = arbify(∇²f̂)
+
+        rtol = T == Float32 ? 5.0f-5 : 5e-12
+        atol = T == Float32 ? 5.0f-5 : 5e-12
+        zs = T.(exp10.(-5:5))
+        for z in zs, (x, ν) in xν_iterator(z)
+            ∂ŷ, ∂y = @inferred(∇²f̂(x, ν)), ∇²f(x, ν)
+            @test ∂ŷ[1] ≈ ∂y[1] rtol = rtol atol = atol
+            @test ∂ŷ[2] ≈ ∂y[2] rtol = rtol atol = atol
+            @test ∂ŷ[3] ≈ ∂y[3] rtol = rtol atol = atol
         end
     end
 end
@@ -247,12 +266,10 @@ end
                 @test ∂ŷ == ∇Fwd((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))
                 @test ∂ŷ == ∇Zyg((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))
 
-                #= TODO: These seem to be right, but the tolerance depends on the order
-                fd = ∇FD_forward((args...,) -> f̂(args[1], args[2], exp(args[3]), order), T(x), T(ν), T(log(δ)))
-                @test isapprox(∂ŷ[1], fd[1]; rtol, atol)
-                @test isapprox(∂ŷ[2], fd[2]; rtol, atol)
-                @test isapprox(∂ŷ[3], fd[3] / δ; rtol, atol)
-                =#
+                fd = ∇FD_forward((args...,) -> f̂(args[1], args[2], exp(args[3]), order), x, ν, log(δ))
+                @test isapprox(∂ŷ[1], fd[1]; rtol = √eps(T), atol = √eps(T))
+                @test isapprox(∂ŷ[2], fd[2]; rtol = √eps(T), atol = √eps(T))
+                @test isapprox(∂ŷ[3], fd[3] / δ; rtol = √eps(T), atol = √eps(T))
             end
         end
     end
@@ -260,15 +277,16 @@ end
 
 @testset "gauss legendre quadrature" begin
     for T in (Float32, Float64)
+        order = Val(16)
         d = Normal(randn(T) / 5, 1 + rand(T))
         a, δ = randn(T) / 5, (1 + rand(T)) / 10
-        Ω = @inferred f_quadrature(x -> exp(logpdf(d, x)), a, δ)
-        logΩ = @inferred -neglogf_quadrature(x -> -logpdf(d, x), a, δ)
+        Ω = @inferred f_quadrature(x -> exp(logpdf(d, x)), a, δ, order)
+        logΩ = @inferred -neglogf_quadrature(x -> -logpdf(d, x), a, δ, order)
         Ωtrue = cdf(d, a + δ) - cdf(d, a)
         @test Ω isa T
         @test logΩ isa T
-        @test Ω ≈ Ωtrue rtol = sqrt(eps(T))
-        @test logΩ ≈ log(Ωtrue) rtol = sqrt(eps(T))
+        @test Ω ≈ Ωtrue atol = 10 * eps(T) rtol = 10 * eps(T)
+        @test logΩ ≈ log(Ωtrue) atol = 10 * eps(T) rtol = 10 * eps(T)
     end
 end
 
