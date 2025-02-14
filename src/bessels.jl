@@ -158,6 +158,29 @@ Ratio of modified Bessel functions of the first kind of orders one and zero, ``I
     end
 end
 
+"""
+    besseli1i0x(x::T) where {T <: Union{Float32, Float64}}
+
+Ratio of modified Bessel functions of the first kind of orders one and zero divided by x, ``I_1(x) / I_0(x) / x``.
+"""
+@inline function besseli1i0x(x::Real)
+    T = checkedfloattype(x)
+    if x < besseli1i0_low_cutoff(T)
+        x² = x^2
+        return evalpoly(x², besseli1i0_low_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) = x/2 + 𝒪(x^3)
+    elseif x < besseli1i0_mid_cutoff(T)
+        x² = x^2
+        return evalpoly(x², besseli1i0_mid_num_coefs(T)) / evalpoly(x², besseli1i0_mid_den_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) / Q(x^2)
+    elseif x < besseli1i0_high_cutoff(T)
+        x² = x^2
+        return evalpoly(x², besseli1i0_high_num_coefs(T)) / evalpoly(x², besseli1i0_high_den_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) / Q(x^2)
+    else
+        x⁻¹ = inv(x)
+        P = evalpoly(x⁻¹, besseli1i0c_tail_coefs(T)) # P(1/x) = x * (-1/2 + x * (1 - I₁(x) / I₀(x))) = 1/8 + 1/8x + 𝒪(1/x^2)
+        return x⁻¹ * evalpoly(x⁻¹, (T(1.0), T(-0.5), -P)) # I₁(x) / I₀(x) / x = 1/x - 1/2x^2 - P(1/x)/x^3
+    end
+end
+
 @inline besseli1i0_low_cutoff(::Type{T}) where {T} = T(0.5)
 @inline besseli1i0_mid_cutoff(::Type{T}) where {T} = T(7.75)
 @inline besseli1i0_high_cutoff(::Type{T}) where {T} = T(15.0)
