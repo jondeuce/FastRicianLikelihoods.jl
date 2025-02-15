@@ -154,7 +154,7 @@ function qrician_integrate(f::Function, Ω::ArbReal, a::ArbReal, b::ArbReal, ν:
     end
     return I
 end
-qrician_integrate(Ω::ArbReal, args...; kwargs...) = qrician_integrate(Returns(ArbReal(1)), Ω, args...; kwargs...)
+qrician_integrate(Ω::ArbReal, args...; kwargs...) = qrician_integrate(_ -> ArbReal(1), Ω, args...; kwargs...)
 
 function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, order::Int = 21, method = :analytic)
     if method === :analytic

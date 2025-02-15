@@ -1,6 +1,6 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-FastRicianLikelihoods = "e5d2e90d-178f-44ca-b451-862405e5e996"
+FastRicianLikelihoods = "055965c9-ba11-4dd1-a5dd-741b25c2e658"
 
 [sources]
 FastRicianLikelihoods = {path = ".."}
