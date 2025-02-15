@@ -39,8 +39,8 @@ const DEFAULT_FORWARD_FDM = FiniteDifferences.forward_fdm(4, 1)
 ∇FD_forward(f, args::Real...) = ∇FD(DEFAULT_FORWARD_FDM, f, args...)
 ∇FD(fdm, f, args::Real...) = (FiniteDifferences.grad(fdm, Base.splat(f), [args...])[1]...,)
 
-∇Fwd(f, args::Real...) = @inferred Tuple(ForwardDiff.gradient(Base.splat(f), SVector(args)))
-∇Zyg(f, args::Real...) = @inferred Zygote.gradient(f, args...)
+∇Fwd(f, args::Real...) = Tuple(ForwardDiff.gradient(Base.splat(f), SVector(args)))
+∇Zyg(f, args::Real...) = Zygote.gradient(f, args...)
 
 #### ArbReal extensions
 
@@ -57,8 +57,8 @@ FastRicianLikelihoods.logbesseli2(x::ArbReal) = log(ArbNumerics.besseli(2, x))
 FastRicianLikelihoods.logbesseli2x(x::ArbReal) = log(ArbNumerics.besseli(2, x)) - abs(x)
 FastRicianLikelihoods.laguerre½(x::ArbReal) = exp(x / 2) * ((1 - x) * ArbNumerics.besseli(0, -x / 2) - x * ArbNumerics.besseli(1, -x / 2))
 FastRicianLikelihoods.besseli1i0(x::ArbReal) = ArbNumerics.besseli(1, x) / ArbNumerics.besseli(0, x)
-FastRicianLikelihoods.besseli1i0m1(x::ArbReal) = ArbNumerics.besseli(1, x) / ArbNumerics.besseli(0, x) - 1
 FastRicianLikelihoods.besseli1i0x(x::ArbReal) = ArbNumerics.besseli(1, x) / ArbNumerics.besseli(0, x) / x
+FastRicianLikelihoods.besseli1i0m1(x::ArbReal) = ArbNumerics.besseli(1, x) / ArbNumerics.besseli(0, x) - 1
 FastRicianLikelihoods.mean_rician(ν::ArbReal, σ::ArbReal) = σ * √(ArbReal(π) / 2) * FastRicianLikelihoods.laguerre½(-(ν / σ)^2 / 2)
 FastRicianLikelihoods.std_rician(ν::ArbReal, σ::ArbReal) = sqrt(ν^2 + 2σ^2 - ArbReal(π) * σ^2 * FastRicianLikelihoods.laguerre½(-(ν / σ)^2 / 2)^2 / 2)
 # FastRicianLikelihoods.∂x_laguerre½(x::ArbReal)

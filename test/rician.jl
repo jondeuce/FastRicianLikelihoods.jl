@@ -82,8 +82,8 @@ end
                 ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)
                 @test ∂ŷ[1] ≈ ∂y[1] rtol = rtol atol = atol
                 @test ∂ŷ[2] ≈ ∂y[2] rtol = rtol atol = atol
-                @test ∂ŷ == ∇Fwd(f̂, x, ν)
-                @test ∂ŷ == ∇Zyg(f̂, x, ν)
+                @test ∂ŷ == @inferred ∇Fwd(f̂, x, ν)
+                @test ∂ŷ == @inferred ∇Zyg(f̂, x, ν)
             end
         end
         @testset "$(low) <= z < $(high) ($T)" begin
@@ -94,8 +94,8 @@ end
                 ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)
                 @test ∂ŷ[1] ≈ ∂y[1] rtol = rtol atol = atol
                 @test ∂ŷ[2] ≈ ∂y[2] rtol = rtol atol = atol
-                @test ∂ŷ == ∇Fwd(f̂, x, ν)
-                @test ∂ŷ == ∇Zyg(f̂, x, ν)
+                @test ∂ŷ == @inferred ∇Fwd(f̂, x, ν)
+                @test ∂ŷ == @inferred ∇Zyg(f̂, x, ν)
             end
         end
         @testset "z >= $(high) ($T)" begin
@@ -106,8 +106,8 @@ end
                 ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)
                 @test ∂ŷ[1] ≈ ∂y[1] rtol = rtol atol = atol
                 @test ∂ŷ[2] ≈ ∂y[2] rtol = rtol atol = atol
-                @test ∂ŷ == ∇Fwd(f̂, x, ν)
-                @test ∂ŷ == ∇Zyg(f̂, x, ν)
+                @test ∂ŷ == @inferred ∇Fwd(f̂, x, ν)
+                @test ∂ŷ == @inferred ∇Zyg(f̂, x, ν)
             end
         end
     end
@@ -194,6 +194,21 @@ end
                 @test neglogpdf_qrician(x, ν, logσ, δ, order) == neglogpdf_qrician(n, ν, logσ, δ, order)
             end
         end
+        @testset "midpoint rule fastpath" begin
+            for (f1, f2) in [
+                FastRicianLikelihoods._neglogpdf_qrician_midpoint => FastRicianLikelihoods._neglogpdf_qrician,
+                FastRicianLikelihoods._∇neglogpdf_qrician_midpoint => FastRicianLikelihoods._∇neglogpdf_qrician,
+                FastRicianLikelihoods._∇²neglogpdf_qrician_midpoint => FastRicianLikelihoods._∇²neglogpdf_qrician,
+                FastRicianLikelihoods._∇²neglogpdf_qrician_midpoint_with_gradient => FastRicianLikelihoods._∇²neglogpdf_qrician_with_gradient,
+            ]
+                for ν in νs, δ in δs, x in δ .* (0, 1, round(Int, ν), round(Int, ν / δ))
+                    y1 = f1(x, ν, δ, Val(1))
+                    y2 = f2(Float64.((x, ν, δ))..., Val(1))
+                    atol = rtol = T == Float32 ? 5.0f-5 : 5e-11
+                    @test all(map((out1, out2) -> all(isapprox.(out1, out2; atol, rtol)), y1, y2))
+                end
+            end
+        end
     end
 end
 
@@ -263,8 +278,9 @@ end
             # Test gradient of low-order approximate integral
             for order in (Val(1), Val(2), Val(3), Val(4), Val(8))
                 ∂ŷ = @inferred ∇f̂(T(x), T(ν), T(δ), order)
-                @test ∂ŷ == ∇Fwd((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))
+                @test ∂ŷ == @inferred ∇Fwd((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))
                 @test ∂ŷ == ∇Zyg((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))
+                @test_throws ErrorException @inferred ∇Zyg((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))
 
                 fd = ∇FD_forward((args...,) -> f̂(args[1], args[2], exp(args[3]), order), x, ν, log(δ))
                 @test isapprox(∂ŷ[1], fd[1]; rtol = √eps(T), atol = √eps(T))

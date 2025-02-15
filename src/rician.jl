@@ -70,7 +70,7 @@ end
 
 @inline function _∇²neglogpdf_rician(x::D, ν::D) where {D}
     z = x * ν
-    r, rm1, rx, r²m1, r²m1prx = _besseli1i0_parts(z) # (r, r - 1, r / z, r^2 - 1 + r / z) where r = I₁(z) / I₀(z)
+    r, rx, rm1, r²m1, r²m1prx = _besseli1i0_parts(z) # (r, r / z, r - 1, r^2 - 1, r^2 - 1 + r / z) where r = I₁(z) / I₀(z)
     ∂²x = 1 + 1 / x^2 + ν^2 * r²m1prx # ∂²/∂x²
     ∂²ν = 1 + x^2 * r²m1prx # ∂²/∂ν²
     ∂x∂ν = z * r²m1 # ∂²/∂x∂ν
@@ -91,10 +91,10 @@ end
 @inline neglogpdf_qrician(n::Int, ν::Real, logσ::Real, δ::Real, order::Val) = neglogpdf_qrician(n * δ, ν, logσ, δ, order)
 
 # Generated is overkill, but Zygote fails to infer the output type otherwise
-@generated neglogpdf_qrician(x::Real, ν::Real, δ::Real, ::Val{order}) where {order} = :($(order == 1 ? _neglogpdf_qrician_midpoint : _neglogpdf_qrician)(promote(x, ν, δ)..., $(Val(order))))
-@generated ∇neglogpdf_qrician(x::Real, ν::Real, δ::Real, ::Val{order}) where {order} = :($(order == 1 ? _∇neglogpdf_qrician_midpoint : _∇neglogpdf_qrician)(promote(x, ν, δ)..., $(Val(order))))
-@generated ∇²neglogpdf_qrician(x::Real, ν::Real, δ::Real, ::Val{order}) where {order} = :($(order == 1 ? _∇²neglogpdf_qrician_midpoint : _∇²neglogpdf_qrician)(promote(x, ν, δ)..., $(Val(order))))
-@generated ∇²neglogpdf_qrician_with_gradient(x::Real, ν::Real, δ::Real, ::Val{order}) where {order} = :($(order == 1 ? _∇²neglogpdf_qrician_midpoint_with_gradient : _∇²neglogpdf_qrician_with_gradient)(promote(x, ν, δ)..., $(Val(order))))
+@inline neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _neglogpdf_qrician_midpoint(promote(x, ν, δ)..., order) : _neglogpdf_qrician(promote(x, ν, δ)..., order)
+@inline ∇neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇neglogpdf_qrician_midpoint(promote(x, ν, δ)..., order) : _∇neglogpdf_qrician(promote(x, ν, δ)..., order)
+@inline ∇²neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇²neglogpdf_qrician_midpoint(promote(x, ν, δ)..., order) : _∇²neglogpdf_qrician(promote(x, ν, δ)..., order)
+@inline ∇²neglogpdf_qrician_with_gradient(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇²neglogpdf_qrician_midpoint_with_gradient(promote(x, ν, δ)..., order) : _∇²neglogpdf_qrician_with_gradient(promote(x, ν, δ)..., order)
 
 # Fast-path for single point quadrature which avoids computing the primal; equivalent to using the midpoint rule approximations for the integrals
 @inline _neglogpdf_qrician_midpoint(x::D, ν::D, δ::D, ::Val{1}) where {D} = _neglogpdf_rician(x + δ / 2, ν) - log(δ)
@@ -157,7 +157,7 @@ end
 @scalar_rule _neglogpdf_qrician(x, ν, δ, order::Val) (_∇neglogpdf_qrician_with_primal(Ω, x, ν, δ, order)[2]..., NoTangent())
 @dual_rule_from_frule _neglogpdf_qrician(x, ν, δ, !(order::Val))
 
-function _∇²neglogpdf_qrician_with_gradient(Ω::D, x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇²neglogpdf_qrician_with_gradient(Ω::D, x::D, ν::D, δ::D, order::Val) where {D}
     # Differentiate the approximation, i.e. differentiate through the quadrature:
     #     Ω = -logI = -log(∫_{x}^{x+δ} exp(-neglogpdf_rician(y, ν)) dy) = -log(∫_{0}^{1} exp(-neglogpdf_rician(x + δ * t, ν)) * δ dt)
     #    ∂Ω = -∂(logI) = -∂I / I = ∫_{0}^{1} ∂(-exp(Ω - neglogpdf_rician(x + δ * t, ν)) * δ) dt
@@ -202,8 +202,8 @@ function _∇²neglogpdf_qrician_with_gradient(Ω::D, x::D, ν::D, δ::D, order:
     return (∂x, ∂ν, ∂δ), (∂²xx, ∂²xν, ∂²xδ, ∂²νν, ∂²νδ, ∂²δδ)
     =#
 end
-_∇²neglogpdf_qrician_with_gradient(x::D, ν::D, δ::D, order::Val) where {D} = _∇²neglogpdf_qrician_with_gradient(_neglogpdf_qrician(x, ν, δ, order), x, ν, δ, order)
-_∇²neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = _∇²neglogpdf_qrician_with_gradient(x, ν, δ, order)[2]
+@inline _∇²neglogpdf_qrician_with_gradient(x::D, ν::D, δ::D, order::Val) where {D} = _∇²neglogpdf_qrician_with_gradient(_neglogpdf_qrician(x, ν, δ, order), x, ν, δ, order)
+@inline _∇²neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = _∇²neglogpdf_qrician_with_gradient(x, ν, δ, order)[2]
 
 #### Specialized quadrature rules
 

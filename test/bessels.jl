@@ -5,7 +5,7 @@ using ..Utils: arbify
 
 using FastRicianLikelihoods: FastRicianLikelihoods,
     besseli2, besseli2x, logbesseli0, logbesseli0x, logbesseli1, logbesseli1x, logbesseli2, logbesseli2x,
-    laguerre½, mean_rician, std_rician, besseli1i0, besseli1i0m1, besseli1i0x, ∂x_laguerre½, ∂x_besseli0x, ∂x_besseli1x
+    laguerre½, mean_rician, std_rician, besseli1i0, besseli1i0x, besseli1i0m1, ∂x_laguerre½, ∂x_besseli0x, ∂x_besseli1x
 
 function pos_range_iterator(::Type{T}; scale = 10, step = 0.05) where {T <: Union{Float32, Float64}}
     return exp10.(-T(scale):T(step):T(scale))
@@ -49,7 +49,7 @@ for T in (Float32, Float64)
         end
     end
 
-    for f̂ in (besseli1i0, besseli1i0m1, besseli1i0x)
+    for f̂ in (besseli1i0, besseli1i0x, besseli1i0m1)
         @testset "$(f̂) ($T)" begin
             f = arbify(f̂)
             for x in pos_range_iterator(T)

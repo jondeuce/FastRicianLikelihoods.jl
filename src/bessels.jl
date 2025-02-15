@@ -141,8 +141,8 @@ end
 Ratio of modified Bessel functions of the first kind of orders one and zero, ``I_1(x) / I_0(x)``.
 """
 @inline besseli1i0(x::Real) = _besseli1i0_parts(x)[1]
-@inline besseli1i0m1(x::Real) = _besseli1i0_parts(x)[2]
-@inline besseli1i0x(x::Real) = _besseli1i0_parts(x)[3]
+@inline besseli1i0x(x::Real) = _besseli1i0_parts(x)[2]
+@inline besseli1i0m1(x::Real) = _besseli1i0_parts(x)[3]
 
 @inline function _besseli1i0_parts(x::Real)
     T = checkedfloattype(x)
@@ -153,7 +153,7 @@ Ratio of modified Bessel functions of the first kind of orders one and zero, ``I
         rm1 = r - one(T) # I₁(x) / I₀(x) - 1 = -1 + x/2 + 𝒪(x^3)
         r²m1 = rm1 * (one(T) + r) # (I₁(x) / I₀(x))^2 - 1
         r²m1prx = r²m1 + rx
-        return r, rm1, rx, r²m1, r²m1prx
+        return r, rx, rm1, r²m1, r²m1prx
     elseif x < besseli1i0_mid_cutoff(T)
         x² = x^2
         rx = evalpoly(x², besseli1i0_mid_num_coefs(T)) / evalpoly(x², besseli1i0_mid_den_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) / Q(x^2)
@@ -161,7 +161,7 @@ Ratio of modified Bessel functions of the first kind of orders one and zero, ``I
         rm1 = r - one(T) # I₁(x) / I₀(x) - 1 = -1 + x * P(x^2) / Q(x^2)
         r²m1 = rm1 * (one(T) + r) # (I₁(x) / I₀(x))^2 - 1
         r²m1prx = r²m1 + rx
-        return r, rm1, rx, r²m1, r²m1prx
+        return r, rx, rm1, r²m1, r²m1prx
     elseif x < besseli1i0_high_cutoff(T)
         x² = x^2
         rx = evalpoly(x², besseli1i0_high_num_coefs(T)) / evalpoly(x², besseli1i0_high_den_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) / Q(x^2)
@@ -169,7 +169,7 @@ Ratio of modified Bessel functions of the first kind of orders one and zero, ``I
         rm1 = r - one(T) # I₁(x) / I₀(x) - 1 = -1 + x * P(x^2) / Q(x^2)
         r²m1 = rm1 * (one(T) + r) # (I₁(x) / I₀(x))^2 - 1
         r²m1prx = r²m1 + rx
-        return r, rm1, rx, r²m1, r²m1prx
+        return r, rx, rm1, r²m1, r²m1prx
     else
         x⁻¹ = inv(x)
         P = evalpoly(x⁻¹, besseli1i0c_tail_coefs(T)) # P(1/x) = x * (-1/2 + x * (1 - I₁(x) / I₀(x))) = 1/8 + 1/8x + 𝒪(1/x^2)
@@ -178,7 +178,7 @@ Ratio of modified Bessel functions of the first kind of orders one and zero, ``I
         rx = r / x
         r²m1 = rm1 * (one(T) + r) # (I₁(x) / I₀(x))^2 - 1
         r²m1prx = -x⁻¹^2 * evalpoly(x⁻¹, besseli1i0sqm1pi1i0x_tail_coefs(T))
-        return r, rm1, rx, r²m1, r²m1prx
+        return r, rx, rm1, r²m1, r²m1prx
     end
 end
 
@@ -192,7 +192,7 @@ end
 @inline besseli1i0_high_num_coefs(::Type{Float32}) = (0.4427933f0, 0.018132959f0, 9.000428f-5, 3.4805463f-8)
 @inline besseli1i0_high_den_coefs(::Type{Float32}) = (1.0f0, 0.12933768f0, 0.0016975396f0, 2.7292274f-6)
 @inline besseli1i0c_tail_coefs(::Type{Float32}) = (0.12500001f0, 0.12498587f0, 0.19689824f0, 0.34546292f0, 1.9343305f0)
-@inline besseli1i0sqm1pi1i0x_tail_coefs(::Type{Float32}) = (0.50000006f0, 0.24997225f0, 0.3781122f0, 0.66200954f0, 3.7685757f0)
+@inline besseli1i0sqm1pi1i0x_tail_coefs(::Type{Float32}) = (0.5f0, 0.24999799f0, 0.37589848f0, 0.7194863f0, 3.314864f0)
 
 @inline besseli1i0_low_coefs(::Type{Float64}) = (0.4999999999999999, -0.06249999999994528, 0.010416666662044488, -0.001790364434468454, 0.0003092424332731733, -5.344192059352683e-5, 9.146096503297768e-6, -1.3486016148802727e-6)
 @inline besseli1i0_mid_num_coefs(::Type{Float64}) = (0.4999999999999992, 0.044100170014814616, 0.0005862073670888185, -9.126630084614697e-6, -1.78058166465628e-7, -7.469543568561091e-10, -5.864802850333419e-13, 2.722655649153202e-16, -2.161520376487376e-19, 1.2603329375211949e-22)
@@ -200,7 +200,7 @@ end
 @inline besseli1i0_high_num_coefs(::Type{Float64}) = (0.49995309847544056, 0.05097481736469462, 0.0013209911878074828, 1.1867021758543425e-5, 3.844970338974902e-8, 3.8730062593663346e-11, 6.345341208204658e-15, -3.9223192697507965e-19)
 @inline besseli1i0_high_den_coefs(::Type{Float64}) = (1.0, 0.22691601767357894, 0.010180573965603021, 0.0001482335760070065, 7.903111440196504e-7, 1.4596724371417906e-9, 6.883865347029874e-13)
 @inline besseli1i0c_tail_coefs(::Type{Float64}) = (0.12500000000000017, 0.12499999999879169, 0.19531250150899987, 0.4062492562129355, 1.0480435526081948, 3.1889066971543234, 14.493937314937872, -164.07408273123662, 10554.06604261355, -363473.6613975362, 9.257867756487811e6, -1.6750893375624812e8, 2.1100222176196077e9, -1.752346161183495e10, 8.611676733884451e10, -1.88444663825226e11)
-@inline besseli1i0sqm1pi1i0x_tail_coefs(::Type{Float64}) = (0.5000000000000003, 0.2499999999975866, 0.3750000030140739, 0.7812485143050504, 2.031633509653731, 6.227493643819341, 28.57924498983948, -328.9060377607361, 21081.74188050699, -726212.8856050207, 1.849737016312545e7, -3.3470137500038964e8, 4.21624304589359e9, -3.5017062058175514e10, 1.7209582910664124e11, -3.766118906296537e11)
+@inline besseli1i0sqm1pi1i0x_tail_coefs(::Type{Float64}) = (0.5, 0.2499999999999825, 0.3750000001133996, 0.7812498783135609, 2.0313014280464547, 6.275768992331634, 24.02891060147205, -36.365864710484914, 7851.660819477075, -298270.1067039183, 8.553233669167161e6, -1.700724633945048e8, 2.3217879175168443e9, -2.062020838810521e10, 1.071478837016934e11, -2.449163614206135e11)
 
 #### ChainRules and ForwardDiff
 
