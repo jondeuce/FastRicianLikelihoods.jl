@@ -67,4 +67,4 @@ jobs:
           using Documenter: DocMeta, doctest
           using FastRicianLikelihoods
           DocMeta.setdocmeta!(FastRicianLikelihoods, :DocTestSetup, :(using FastRicianLikelihoods); recursive=true)
-          doctest(FastRicianLikelihoods)'
+          doctest(FastRicianLikelihoods)
