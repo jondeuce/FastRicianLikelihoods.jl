@@ -151,34 +151,37 @@ Ratio of modified Bessel functions of the first kind of orders one and zero, ``I
         rx = evalpoly(x², besseli1i0_low_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) = 1/2 + 𝒪(x^2)
         r = x * rx # I₁(x) / I₀(x) = x * P(x^2) = x/2 + 𝒪(x^3)
         rm1 = r - one(T) # I₁(x) / I₀(x) - 1 = -1 + x/2 + 𝒪(x^3)
+        rm1_tail = T(NaN) # unused
         r²m1 = rm1 * (one(T) + r) # (I₁(x) / I₀(x))^2 - 1
         r²m1prx = r²m1 + rx
-        return r, rx, rm1, r²m1, r²m1prx
+        return r, rx, rm1, rm1_tail, r²m1, r²m1prx
     elseif x < besseli1i0_mid_cutoff(T)
         x² = x^2
         rx = evalpoly(x², besseli1i0_mid_num_coefs(T)) / evalpoly(x², besseli1i0_mid_den_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) / Q(x^2)
         r = x * rx # I₁(x) / I₀(x) = x * P(x^2) / Q(x^2)
         rm1 = r - one(T) # I₁(x) / I₀(x) - 1 = -1 + x * P(x^2) / Q(x^2)
+        rm1_tail = T(NaN) # unused
         r²m1 = rm1 * (one(T) + r) # (I₁(x) / I₀(x))^2 - 1
         r²m1prx = r²m1 + rx
-        return r, rx, rm1, r²m1, r²m1prx
+        return r, rx, rm1, rm1_tail, r²m1, r²m1prx
     elseif x < besseli1i0_high_cutoff(T)
         x² = x^2
         rx = evalpoly(x², besseli1i0_high_num_coefs(T)) / evalpoly(x², besseli1i0_high_den_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) / Q(x^2)
         r = x * rx # I₁(x) / I₀(x) = x * P(x^2) / Q(x^2)
         rm1 = r - one(T) # I₁(x) / I₀(x) - 1 = -1 + x * P(x^2) / Q(x^2)
+        rm1_tail = T(NaN) # unused
         r²m1 = rm1 * (one(T) + r) # (I₁(x) / I₀(x))^2 - 1
         r²m1prx = r²m1 + rx
-        return r, rx, rm1, r²m1, r²m1prx
+        return r, rx, rm1, rm1_tail, r²m1, r²m1prx
     else
         x⁻¹ = inv(x)
-        P = evalpoly(x⁻¹, besseli1i0c_tail_coefs(T)) # P(1/x) = x * (-1/2 + x * (1 - I₁(x) / I₀(x))) = 1/8 + 1/8x + 𝒪(1/x^2)
-        rm1 = x⁻¹ * evalpoly(x⁻¹, (T(-0.5), -P)) # I₁(x) / I₀(x) - 1 = -1/2x - P(1/x)/x^2
+        rm1_tail = x⁻¹ * evalpoly(x⁻¹, besseli1i0c_tail_coefs(T)) # P(1/x) / x = -1/2 + x * (1 - I₁(x) / I₀(x)) = 1/8x + 1/8x^2 + 𝒪(1/x^3)
+        rm1 = x⁻¹ * (T(-0.5) - rm1_tail) # I₁(x) / I₀(x) - 1 = -1/2x - P(1/x)/x^2
         r = rm1 + one(T)
-        rx = r / x
+        rx = x⁻¹ * r
         r²m1 = rm1 * (one(T) + r) # (I₁(x) / I₀(x))^2 - 1
         r²m1prx = -x⁻¹^2 * evalpoly(x⁻¹, besseli1i0sqm1pi1i0x_tail_coefs(T))
-        return r, rx, rm1, r²m1, r²m1prx
+        return r, rx, rm1, rm1_tail, r²m1, r²m1prx
     end
 end
 

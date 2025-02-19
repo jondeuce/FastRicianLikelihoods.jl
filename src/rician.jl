@@ -9,6 +9,7 @@ end
 @inline neglogpdf_rician(x::Real, ν::Real) = _neglogpdf_rician(promote(x, ν)...)
 @inline ∇neglogpdf_rician(x::Real, ν::Real) = _∇neglogpdf_rician(promote(x, ν)...)
 @inline ∇²neglogpdf_rician(x::Real, ν::Real) = _∇²neglogpdf_rician(promote(x, ν)...)
+@inline ∇²neglogpdf_rician_with_gradient(x::Real, ν::Real) = _∇²neglogpdf_rician_with_gradient(promote(x, ν)...)
 
 @inline pdf_rician(args...) = exp(-neglogpdf_rician(args...))
 @inline ∇pdf_rician(args...) = -exp(-neglogpdf_rician(args...)) .* ∇neglogpdf_rician(args...)
@@ -38,28 +39,28 @@ end
 
     # Note: there are really three relevant limits: z << 1, z >> 1, and x ≈ ν.
     # Could plausibly better account for the latter case, though it is tested quite robustly
-    T = checkedfloattype(x, ν)
     z = x * ν
+    T = checkedfloattype(z)
     if z < besseli1i0_low_cutoff(T)
         z² = z^2
         r = z * evalpoly(z², besseli1i0_low_coefs(T)) # r = logÎ₀′(z) + 1 - 1/2z = I₁(z) / I₀(z) ≈ z/2 + 𝒪(z^3)
-        ∂x = x - ν * r - inv(x)
-        ∂ν = ν - x * r
+        ∂x = muladd(-r, ν, x) - inv(x)
+        ∂ν = muladd(-r, x, ν)
     elseif z < besseli1i0_mid_cutoff(T)
         z² = z^2
         r = z * evalpoly(z², besseli1i0_mid_num_coefs(T)) / evalpoly(z², besseli1i0_mid_den_coefs(T)) # r = I₁(z) / I₀(z)
-        ∂x = x - ν * r - inv(x)
-        ∂ν = ν - x * r
+        ∂x = muladd(-r, ν, x) - inv(x)
+        ∂ν = muladd(-r, x, ν)
     elseif z < besseli1i0_high_cutoff(T)
         z² = z^2
         r = z * evalpoly(z², besseli1i0_high_num_coefs(T)) / evalpoly(z², besseli1i0_high_den_coefs(T)) # r = I₁(z) / I₀(z)
-        ∂x = x - ν * r - inv(x)
-        ∂ν = ν - x * r
+        ∂x = muladd(-r, ν, x) - inv(x)
+        ∂ν = muladd(-r, x, ν)
     else
         z⁻¹ = inv(z)
-        tmp = z⁻¹ * evalpoly(z⁻¹, besseli1i0c_tail_coefs(T)) # -z * logÎ₀′(z) = -1/2 - z * (I₁(z) / I₀(z) - 1) ≈ 1/8z + 𝒪(1/z^2)
-        ∂x = x - ν + (T(-0.5) + tmp) / x
-        ∂ν = ν - x + (T(+0.5) + tmp) / ν
+        rm1_tail = z⁻¹ * evalpoly(z⁻¹, besseli1i0c_tail_coefs(T)) # -z * logÎ₀′(z) = -1/2 - z * (I₁(z) / I₀(z) - 1) ≈ 1/8z + 𝒪(1/z^2)
+        ∂x = muladd(inv(x), T(-0.5) + rm1_tail, x - ν)
+        ∂ν = muladd(inv(ν), T(+0.5) + rm1_tail, ν - x)
     end
 
     return (∂x, ∂ν)
@@ -70,11 +71,33 @@ end
 
 @inline function _∇²neglogpdf_rician(x::D, ν::D) where {D}
     z = x * ν
-    r, rx, rm1, r²m1, r²m1prx = _besseli1i0_parts(z) # (r, r / z, r - 1, r^2 - 1, r^2 - 1 + r / z) where r = I₁(z) / I₀(z)
-    ∂²x = 1 + 1 / x^2 + ν^2 * r²m1prx # ∂²/∂x²
-    ∂²ν = 1 + x^2 * r²m1prx # ∂²/∂ν²
+    r, rx, rm1, rm1_tail, r²m1, r²m1prx = _besseli1i0_parts(z) # (r, r / z, r - 1, -1/2 - z * (r - 1), r^2 - 1, r^2 - 1 + r / z) where r = I₁(z) / I₀(z)
+
+    T = checkedfloattype(z)
+    ∂²x = one(T) + inv(x)^2 + ν^2 * r²m1prx # ∂²/∂x²
+    ∂²ν = one(T) + x^2 * r²m1prx # ∂²/∂ν²
     ∂x∂ν = z * r²m1 # ∂²/∂x∂ν
+
     return (∂²x, ∂x∂ν, ∂²ν)
+end
+
+@inline function _∇²neglogpdf_rician_with_gradient(x::D, ν::D) where {D}
+    z = x * ν
+    r, rx, rm1, rm1_tail, r²m1, r²m1prx = _besseli1i0_parts(z) # (r, r / z, r - 1, -1/2 - z * (r - 1), r^2 - 1, r^2 - 1 + r / z) where r = I₁(z) / I₀(z)
+
+    T = checkedfloattype(z)
+    if z < besseli1i0_high_cutoff(T)
+        ∂x = muladd(-r, ν, x) - inv(x)
+        ∂ν = muladd(-r, x, ν)
+    else
+        ∂x = muladd(inv(x), T(-0.5) + rm1_tail, x - ν)
+        ∂ν = muladd(inv(ν), T(+0.5) + rm1_tail, ν - x)
+    end
+    ∂²x = one(T) + inv(x)^2 + ν^2 * r²m1prx # ∂²/∂x²
+    ∂²ν = one(T) + x^2 * r²m1prx # ∂²/∂ν²
+    ∂x∂ν = z * r²m1 # ∂²/∂x∂ν
+
+    return (∂x, ∂ν), (∂²x, ∂x∂ν, ∂²ν)
 end
 
 ####
@@ -104,9 +127,8 @@ end
 end
 @inline function _∇²neglogpdf_qrician_midpoint_with_gradient(x::D, ν::D, δ::D, ::Val{1}) where {D}
     y = x + δ / 2
-    ∇x, ∇ν = _∇neglogpdf_rician(y, ν)
-    ∇xx, ∇xν, ∇νν = _∇²neglogpdf_rician(y, ν)
-    return (∇x, ∇ν, ∇x / 2 - inv(δ)), (∇xx, ∇xν, ∇xx / 2, ∇νν, ∇xν / 2, ∇xx / 4 + 1 / δ^2)
+    (∇x, ∇ν), (∇xx, ∇xν, ∇νν) = _∇²neglogpdf_rician_with_gradient(y, ν)
+    return (∇x, ∇ν, ∇x / 2 - inv(δ)), (∇xx, ∇xν, ∇xx / 2, ∇νν, ∇xν / 2, ∇xx / 4 + inv(δ)^2)
 end
 _∇²neglogpdf_qrician_midpoint(x::D, ν::D, δ::D, ::Val{1}) where {D} = _∇²neglogpdf_qrician_midpoint_with_gradient(x, ν, δ, Val(1))[2]
 
@@ -167,8 +189,7 @@ end
     (∂x, ∂ν, ∂δ, ∂x∂x, ∂x∂ν, ∂x∂δ, ∂ν∂ν, ∂ν∂δ, ∂δ∂δ) = f_quadrature(zero(x), one(x), order) do t
         δt = δ * t
         y = x + δt
-        ∇x, ∇ν = _∇neglogpdf_rician(y, ν)
-        ∇xx, ∇xν, ∇νν = _∇²neglogpdf_rician(y, ν)
+        (∇x, ∇ν), (∇xx, ∇xν, ∇νν) = _∇²neglogpdf_rician_with_gradient(y, ν)
         dx, dν, dδ = ∇x * δ, ∇ν * δ, ∇x * δt - one(x)
         dxdx, dxdν, dνdν = (∇xx - ∇x * ∇x) * δ, (∇xν - ∇x * ∇ν) * δ, (∇νν - ∇ν * ∇ν) * δ
         dxdδ, dνdδ, dδdδ = ∇x - δt * (∇x * ∇x - ∇xx), ∇ν - δt * (∇x * ∇ν - ∇xν), t * (2 * ∇x - δt * (∇x * ∇x - ∇xx))
@@ -181,8 +202,7 @@ end
     #=
     # Differentiate the approximation for (∂x, ∂ν, ∂²xx, ∂²xν, ∂²νν) and use FTC for (∂δ, ∂²xδ, ∂²νδ, ∂²δδ):
     (∂x, ∂ν, ∂²xx, ∂²xν, ∂²νν) = f_quadrature(x, δ, order) do y
-        ∇ = _∇neglogpdf_rician(y, ν)
-        ∇² = _∇²neglogpdf_rician(y, ν)
+        ∇, ∇² = _∇²neglogpdf_rician_with_gradient(y, ν)
         integrands = SVector{5, D}(∇[1], ∇[2], ∇[1]^2 - ∇²[1], ∇[1] * ∇[2] - ∇²[2], ∇[2]^2 - ∇²[3]) # ∇ and ∇∇ᵀ - ∇²
         return exp(Ω - _neglogpdf_rician(y, ν)) * integrands
     end
