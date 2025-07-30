@@ -200,9 +200,10 @@ end
                 FastRicianLikelihoods._∇neglogpdf_qrician_midpoint => FastRicianLikelihoods._∇neglogpdf_qrician,
                 FastRicianLikelihoods._∇²neglogpdf_qrician_midpoint => FastRicianLikelihoods._∇²neglogpdf_qrician,
                 FastRicianLikelihoods._∇²neglogpdf_qrician_midpoint_with_gradient => FastRicianLikelihoods._∇²neglogpdf_qrician_with_gradient,
+                FastRicianLikelihoods._∇²neglogpdf_qrician_midpoint_with_primal_and_gradient => FastRicianLikelihoods._∇²neglogpdf_qrician_with_primal_and_gradient,
             ]
                 for ν in νs, δ in δs, x in δ .* (0, 1, round(Int, ν), round(Int, ν / δ))
-                    y1 = f1(x, ν, δ, Val(1))
+                    y1 = f1(x, ν, δ)
                     y2 = f2(Float64.((x, ν, δ))..., Val(1))
                     atol = rtol = T == Float32 ? 5.0f-5 : 5e-11
                     @test all(map((out1, out2) -> all(isapprox.(out1, out2; atol, rtol)), y1, y2))

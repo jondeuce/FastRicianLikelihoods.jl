@@ -113,59 +113,76 @@ end
 end
 @inline neglogpdf_qrician(n::Int, ν::Real, logσ::Real, δ::Real, order::Val) = neglogpdf_qrician(n * δ, ν, logσ, δ, order)
 
-# Generated is overkill, but Zygote fails to infer the output type otherwise
-@inline neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _neglogpdf_qrician_midpoint(promote(x, ν, δ)..., order) : _neglogpdf_qrician(promote(x, ν, δ)..., order)
-@inline ∇neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇neglogpdf_qrician_midpoint(promote(x, ν, δ)..., order) : _∇neglogpdf_qrician(promote(x, ν, δ)..., order)
-@inline ∇²neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇²neglogpdf_qrician_midpoint(promote(x, ν, δ)..., order) : _∇²neglogpdf_qrician(promote(x, ν, δ)..., order)
-@inline ∇²neglogpdf_qrician_with_gradient(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇²neglogpdf_qrician_midpoint_with_gradient(promote(x, ν, δ)..., order) : _∇²neglogpdf_qrician_with_gradient(promote(x, ν, δ)..., order)
+# Wrapper functions that dispatch to fast path for single point quadrature
+@inline neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _neglogpdf_qrician_midpoint(promote(x, ν, δ)...) : _neglogpdf_qrician(promote(x, ν, δ)..., order)
+@inline ∇neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇neglogpdf_qrician_midpoint(promote(x, ν, δ)...) : _∇neglogpdf_qrician(promote(x, ν, δ)..., order)
+@inline ∇²neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇²neglogpdf_qrician_midpoint(promote(x, ν, δ)...) : _∇²neglogpdf_qrician(promote(x, ν, δ)..., order)
+@inline ∇²neglogpdf_qrician_with_gradient(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇²neglogpdf_qrician_midpoint_with_gradient(promote(x, ν, δ)...) : _∇²neglogpdf_qrician_with_gradient(promote(x, ν, δ)..., order)
+@inline ∇²neglogpdf_qrician_with_primal_and_gradient(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇²neglogpdf_qrician_midpoint_with_primal_and_gradient(promote(x, ν, δ)...) : _∇²neglogpdf_qrician_with_primal_and_gradient(promote(x, ν, δ)..., order)
 
 # Fast-path for single point quadrature which avoids computing the primal; equivalent to using the midpoint rule approximations for the integrals
-@inline _neglogpdf_qrician_midpoint(x::D, ν::D, δ::D, ::Val{1}) where {D} = _neglogpdf_rician(x + δ / 2, ν) - log(δ)
-@inline function _∇neglogpdf_qrician_midpoint(x::D, ν::D, δ::D, ::Val{1}) where {D}
+@inline _neglogpdf_qrician_midpoint(x::D, ν::D, δ::D) where {D} = _neglogpdf_rician(x + δ / 2, ν) - log(δ)
+@inline function _∇neglogpdf_qrician_midpoint(x::D, ν::D, δ::D) where {D}
     ∂x, ∂ν = _∇neglogpdf_rician(x + δ / 2, ν)
     return ∂x, ∂ν, ∂x / 2 - inv(δ)
 end
-@inline function _∇²neglogpdf_qrician_midpoint_with_gradient(x::D, ν::D, δ::D, ::Val{1}) where {D}
-    y = x + δ / 2
-    (∇x, ∇ν), (∇xx, ∇xν, ∇νν) = _∇²neglogpdf_rician_with_gradient(y, ν)
+@inline function _∇²neglogpdf_qrician_midpoint_with_gradient(x::D, ν::D, δ::D) where {D}
+    x′ = x + δ / 2
+    (∇x, ∇ν), (∇xx, ∇xν, ∇νν) = _∇²neglogpdf_rician_with_gradient(x′, ν)
     return (∇x, ∇ν, ∇x / 2 - inv(δ)), (∇xx, ∇xν, ∇xx / 2, ∇νν, ∇xν / 2, ∇xx / 4 + inv(δ)^2)
 end
-_∇²neglogpdf_qrician_midpoint(x::D, ν::D, δ::D, ::Val{1}) where {D} = _∇²neglogpdf_qrician_midpoint_with_gradient(x, ν, δ, Val(1))[2]
+@inline function _∇²neglogpdf_qrician_midpoint_with_primal_and_gradient(x::D, ν::D, δ::D) where {D}
+    Ω = _neglogpdf_qrician_midpoint(x, ν, δ)
+    ∇, ∇² = _∇²neglogpdf_qrician_midpoint_with_gradient(x, ν, δ)
+    return Ω, ∇, ∇²
+end
+@inline _∇²neglogpdf_qrician_midpoint(x::D, ν::D, δ::D) where {D} = last(_∇²neglogpdf_qrician_midpoint_with_gradient(x, ν, δ))
 
 #### Internal methods with strict type signatures (enables dual number overloads with single method)
 
 @inline _neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = neglogf_quadrature(Base.Fix2(_neglogpdf_rician, ν), x, δ, order)
-@inline _∇neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = _∇neglogpdf_qrician_with_primal(x, ν, δ, order)[2]
+@inline _∇neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = last(_∇neglogpdf_qrician_with_primal(x, ν, δ, order))
 
-@inline function _∇neglogpdf_qrician_with_primal(Ω::D, x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇neglogpdf_qrician_with_primal(x::D, ν::D, δ::D, order::Val) where {D}
     # Differentiate the approximation:
-    #   Ω = -logI = -log(∫_{x}^{x+δ} exp(-neglogpdf_rician(y, ν)) dy) = -log(∫_{0}^{1} exp(-neglogpdf_rician(x + δ * t, ν)) * δ dt)
+    #   Ω = -logI = -log(∫_{x}^{x+δ} exp(-neglogpdf_rician(x′, ν)) dx′) = -log(∫_{0}^{1} exp(-neglogpdf_rician(x + δ * t, ν)) * δ dt)
     #  ∂Ω = -∂(logI) = -∂I / I = ∫_{0}^{1} ∂(-exp(Ω - neglogpdf_rician(x + δ * t, ν)) * δ) dt
     # where Ω = -logI is constant w.r.t. ∂.
+    Ω₀, (∂x, ∂ν, ∂δ) = f_quadrature_weighted_unit_interval(D, order) do t
+        x′ = muladd(δ, t, x)
+        ∇x, ∇ν = _∇neglogpdf_rician(x′, ν)
+        ∇δ = ∇x * t - inv(δ)
+        return _neglogpdf_rician(x′, ν), SVector{3, D}((∇x, ∇ν, ∇δ))
+    end
+    Ω = Ω₀ - log(δ)
+
+    #=
+    # Differentiate the approximation (using precomputed Ω)
     ∂x, ∂ν, ∂δ = f_quadrature(zero(x), one(x), order) do t
         δt = δ * t
-        y = x + δt
-        ∇x, ∇ν = _∇neglogpdf_rician(y, ν)
+        x′ = x + δt
+        ∇x, ∇ν = _∇neglogpdf_rician(x′, ν)
         dx, dν, dδ = ∇x * δ, ∇ν * δ, ∇x * δt - one(x)
         ∇ = SVector{3, D}((dx, dν, dδ))
-        return exp(Ω - _neglogpdf_rician(y, ν)) * ∇
+        return exp(Ω - _neglogpdf_rician(x′, ν)) * ∇
     end
+    =#
 
     #=
     # Differentiate the approximation for (∂x, ∂ν) and use FTC for ∂δ:
-    ∂x, ∂ν = f_quadrature(x, δ, order) do y
-        ∇ = _∇neglogpdf_rician(y, ν) # differentiate the integrand
+    ∂x, ∂ν = f_quadrature(x, δ, order) do x′
+        ∇ = _∇neglogpdf_rician(x′, ν) # differentiate the integrand
         ∇ = SVector{2, D}(∇)
-        return exp(Ω - _neglogpdf_rician(y, ν)) * ∇
+        return exp(Ω - _neglogpdf_rician(x′, ν)) * ∇
     end
     ∂δ = -exp(Ω - _neglogpdf_rician(x + δ, ν)) # by fundamental theorem of calculus
     =#
 
     #=
     # Differentiate the approximation for ∂ν and use FTC for (∂x, ∂δ):
-    ∂ν = f_quadrature(x, δ, order) do y
-        _, ∇ν = _∇neglogpdf_rician(y, ν) # differentiate the integrand
-        return exp(Ω - _neglogpdf_rician(y, ν)) * ∇ν
+    ∂ν = f_quadrature(x, δ, order) do x′
+        _, ∇ν = _∇neglogpdf_rician(x′, ν) # differentiate the integrand
+        return exp(Ω - _neglogpdf_rician(x′, ν)) * ∇ν
     end
     lo, hi = _neglogpdf_rician(x, ν), _neglogpdf_rician(x + δ, ν)
     ∂δ = -exp(Ω - hi) # by fundamental theorem of calculus
@@ -174,37 +191,64 @@ _∇²neglogpdf_qrician_midpoint(x::D, ν::D, δ::D, ::Val{1}) where {D} = _∇�
 
     return Ω, (∂x, ∂ν, ∂δ)
 end
-@inline _∇neglogpdf_qrician_with_primal(x::D, ν::D, δ::D, order::Val) where {D} = _∇neglogpdf_qrician_with_primal(_neglogpdf_qrician(x, ν, δ, order), x, ν, δ, order)
 
-@scalar_rule _neglogpdf_qrician(x, ν, δ, order::Val) (_∇neglogpdf_qrician_with_primal(Ω, x, ν, δ, order)[2]..., NoTangent())
+@scalar_rule _neglogpdf_qrician(x, ν, δ, order::Val) (_∇neglogpdf_qrician_with_primal(x, ν, δ, order)[2]..., NoTangent())
 @dual_rule_from_frule _neglogpdf_qrician(x, ν, δ, !(order::Val))
 
-@inline function _∇²neglogpdf_qrician_with_gradient(Ω::D, x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇²neglogpdf_qrician_with_primal_and_gradient(x::D, ν::D, δ::D, order::Val) where {D}
     # Differentiate the approximation, i.e. differentiate through the quadrature:
-    #     Ω = -logI = -log(∫_{x}^{x+δ} exp(-neglogpdf_rician(y, ν)) dy) = -log(∫_{0}^{1} exp(-neglogpdf_rician(x + δ * t, ν)) * δ dt)
+    #     Ω = -logI = -log(∫_{x}^{x+δ} exp(-neglogpdf_rician(x′, ν)) dx′) = -log(∫_{0}^{1} exp(-neglogpdf_rician(x + δ * t, ν)) * δ dt)
     #    ∂Ω = -∂(logI) = -∂I / I = ∫_{0}^{1} ∂(-exp(Ω - neglogpdf_rician(x + δ * t, ν)) * δ) dt
     # ∂₁∂₂Ω = -∂₁∂₂(logI) = -∂₁(∂₂I / I) = (∂₁I)(∂₂I) / I² - ∂₁∂₂I / I
     #       = (∂₁Ω)(∂₂Ω) + ∫_{0}^{1} ∂₁∂₂(-exp(Ω - neglogpdf_rician(x + δ * t, ν)) * δ) dt
     # where Ω = -logI is constant w.r.t. ∂₁ and ∂₂.
+    Ω₀, (∂x, ∂ν, ∂δ, ∂x∂x, ∂x∂ν, ∂x∂δ, ∂ν∂ν, ∂ν∂δ, ∂δ∂δ) = f_quadrature_weighted_unit_interval(D, order) do t
+        x′ = muladd(δ, t, x)
+        (∇x, ∇ν), (∇xx, ∇xν, ∇νν) = _∇²neglogpdf_rician_with_gradient(x′, ν)
+        ∇δ = ∇x * t - inv(δ)
+        dxdx, dxdν, dνdν = ∇xx - ∇x * ∇x, ∇xν - ∇x * ∇ν, ∇νν - ∇ν * ∇ν
+        dxdδ, dνdδ, dδdδ = ∇x / δ + t * dxdx, ∇ν / δ + t * dxdν, t * (2 * ∇x / δ + t * dxdx)
+        return _neglogpdf_rician(x′, ν), SVector{9, D}((∇x, ∇ν, ∇δ, dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ))
+    end
+    Ω = Ω₀ - log(δ)
+
+    return Ω, (∂x, ∂ν, ∂δ), (∂x * ∂x + ∂x∂x, ∂x * ∂ν + ∂x∂ν, ∂x * ∂δ + ∂x∂δ, ∂ν * ∂ν + ∂ν∂ν, ∂ν * ∂δ + ∂ν∂δ, ∂δ * ∂δ + ∂δ∂δ)
+
+    #=
+    # Differentiate the approximation (using precomputed Ω)
     (∂x, ∂ν, ∂δ, ∂x∂x, ∂x∂ν, ∂x∂δ, ∂ν∂ν, ∂ν∂δ, ∂δ∂δ) = f_quadrature(zero(x), one(x), order) do t
         δt = δ * t
-        y = x + δt
-        (∇x, ∇ν), (∇xx, ∇xν, ∇νν) = _∇²neglogpdf_rician_with_gradient(y, ν)
+        x′ = x + δt
+        (∇x, ∇ν), (∇xx, ∇xν, ∇νν) = _∇²neglogpdf_rician_with_gradient(x′, ν)
         dx, dν, dδ = ∇x * δ, ∇ν * δ, ∇x * δt - one(x)
         dxdx, dxdν, dνdν = (∇xx - ∇x * ∇x) * δ, (∇xν - ∇x * ∇ν) * δ, (∇νν - ∇ν * ∇ν) * δ
         dxdδ, dνdδ, dδdδ = ∇x - δt * (∇x * ∇x - ∇xx), ∇ν - δt * (∇x * ∇ν - ∇xν), t * (2 * ∇x - δt * (∇x * ∇x - ∇xx))
         integrands = SVector{9, D}((dx, dν, dδ, dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ))
-        return exp(Ω - _neglogpdf_rician(y, ν)) * integrands
+        return exp(Ω - _neglogpdf_rician(x′, ν)) * integrands
     end
 
-    return (∂x, ∂ν, ∂δ), (∂x * ∂x + ∂x∂x, ∂x * ∂ν + ∂x∂ν, ∂x * ∂δ + ∂x∂δ, ∂ν * ∂ν + ∂ν∂ν, ∂ν * ∂δ + ∂ν∂δ, ∂δ * ∂δ + ∂δ∂δ)
+    return Ω, (∂x, ∂ν, ∂δ), (∂x * ∂x + ∂x∂x, ∂x * ∂ν + ∂x∂ν, ∂x * ∂δ + ∂x∂δ, ∂ν * ∂ν + ∂ν∂ν, ∂ν * ∂δ + ∂ν∂δ, ∂δ * ∂δ + ∂δ∂δ)
+    =#
 
     #=
     # Differentiate the approximation for (∂x, ∂ν, ∂²xx, ∂²xν, ∂²νν) and use FTC for (∂δ, ∂²xδ, ∂²νδ, ∂²δδ):
-    (∂x, ∂ν, ∂²xx, ∂²xν, ∂²νν) = f_quadrature(x, δ, order) do y
-        ∇, ∇² = _∇²neglogpdf_rician_with_gradient(y, ν)
+    # Derivatives of Ω w.r.t. (x, ν, δ) where Ω = -logI = -log ∫_{x}^{x+δ} F(x′,ν) dx′ = -log ∫_{0}^{δ} F(x+δt,ν) dϵ = -log ∫_{0}^{1} F(x+δt,ν) δ dt,
+    # F(x′,ν) = exp(-f(x′,ν)), f(x′,ν) = neglogpdf_rician(x′,ν), and x′ = x+ϵ = x+δt.
+    # First derivatives ∂Ω/∂x, ∂Ω/∂ν via quadrature:
+    #      ∂Ω/∂α = -∂/∂α (logI) = -∂I/∂α / I = ∫_{0}^{δ} exp(Ω - f(x+ϵ,ν)) ∂/∂α f(x+ϵ,ν) dϵ
+    # First derivative ∂Ω/∂δ via quadrature:
+    #      ∂Ω/∂δ = ∂/∂δ (-log ∫_{0}^{1} F(x+δt,ν) δ dt) = -∂/∂δ (∫_{0}^{1} F(x+δt,ν) δ dt) / I = -(∫_{0}^{1} F(x+δt,ν) + F_y(x+δt,ν) * δt dt) / I = -(∫_{0}^{δ} F(x+ϵ,ν) + F_y(x+ϵ,ν) * ϵ dϵ) / I / δ
+    #            = -(∫_{0}^{δ} exp(Ω - f(x+ϵ,ν)) * (1 - f_y(x+ϵ,ν) * ϵ) dϵ) / δ
+    # Second derivatives ∂²Ω/∂x², ∂²Ω/∂x∂ν, ∂²Ω/∂ν² via quadrature:
+    #   ∂²Ω/∂α∂β = -∂²/∂α∂β (logI) = -∂/∂α (∂I/∂β / I) = (∂I/∂α)(∂I/∂β) / I^2 - ∂²I/∂α∂β / I
+    #      ∂I/∂α = ∫_{0}^{δ} ∂/∂α exp(-f(x+ϵ,ν)) dϵ = ∫_{0}^{δ} exp(-f(x+ϵ,ν)) -∂/∂α f(x+ϵ,ν) dϵ
+    #   ∂²I/∂α∂β = ∫_{0}^{δ} ∂²/∂α∂β exp(-f(x+ϵ,ν)) dϵ = ∫_{0}^{δ} exp(-f(x+ϵ,ν)) (∂/∂α f(x+ϵ,ν))(∂/∂β f(x+ϵ,ν)) - ∂²/∂α∂β f(x+ϵ,ν) dϵ
+    # Second derivative ∂Ω/∂δ via quadrature:
+    # This allows us to integrate the gradient essentially for free, since we need it for the Hessian anyways.
+    (∂x, ∂ν, ∂²xx, ∂²xν, ∂²νν) = f_quadrature(x, δ, order) do x′
+        ∇, ∇² = _∇²neglogpdf_rician_with_gradient(x′, ν)
         integrands = SVector{5, D}(∇[1], ∇[2], ∇[1]^2 - ∇²[1], ∇[1] * ∇[2] - ∇²[2], ∇[2]^2 - ∇²[3]) # ∇ and ∇∇ᵀ - ∇²
-        return exp(Ω - _neglogpdf_rician(y, ν)) * integrands
+        return exp(Ω - _neglogpdf_rician(x′, ν)) * integrands
     end
     ∂²xx = ∂x * ∂x - ∂²xx # d²Ω/dx² = (∂I/∂x)² - ∂²I/∂x²
     ∂²xν = ∂x * ∂ν - ∂²xν # d²Ω/dxdν = (∂I/∂x)(∂I/∂ν) - ∂²I/∂x∂ν
@@ -219,11 +263,11 @@ end
     ∂²νδ = ∂δ * (∂ν - ∂ν⁺) # d²Ω/dν∂δ = ∂Ω/∂δ * (∂Ω/∂ν - ∂ν⁺)
     ∂²δδ = ∂δ * (∂δ - ∂x⁺) # d²Ω/dδ² = ∂Ω/∂δ * (∂Ω/∂δ - ∂δ⁺)
 
-    return (∂x, ∂ν, ∂δ), (∂²xx, ∂²xν, ∂²xδ, ∂²νν, ∂²νδ, ∂²δδ)
+    return Ω, (∂x, ∂ν, ∂δ), (∂²xx, ∂²xν, ∂²xδ, ∂²νν, ∂²νδ, ∂²δδ)
     =#
 end
-@inline _∇²neglogpdf_qrician_with_gradient(x::D, ν::D, δ::D, order::Val) where {D} = _∇²neglogpdf_qrician_with_gradient(_neglogpdf_qrician(x, ν, δ, order), x, ν, δ, order)
-@inline _∇²neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = _∇²neglogpdf_qrician_with_gradient(x, ν, δ, order)[2]
+@inline _∇²neglogpdf_qrician_with_gradient(x::D, ν::D, δ::D, order::Val) where {D} = Base.tail(_∇²neglogpdf_qrician_with_primal_and_gradient(x, ν, δ, order))
+@inline _∇²neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = last(_∇²neglogpdf_qrician_with_primal_and_gradient(x, ν, δ, order))
 
 #### Specialized quadrature rules
 
@@ -418,19 +462,29 @@ end
 end
 
 @inline function f_quadrature(f::F, x₀::Real, δ::Real, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, order}
-    # I = ∫_{0}^{δ} [f(t)] dt
+    # I = ∫_{x₀}^{x₀ + δ} [f(t)] dt
     T = checkedfloattype(x₀, δ)
     x, w = gausslegendre_unit_interval(Val(order), T)
     y = @. f(muladd(δ, x, x₀))
     return vecdot(w, y) * δ
 end
 
+@inline function f_quadrature_weighted_unit_interval(f::F, ::Type{T}, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, T, order}
+    # I = ∫_{0}^{1} [exp(Ω - ω(t)) f(t)] dt where Ω = -log(∫_{0}^{1} exp(-ω(t)) dt)
+    x, w = gausslegendre_unit_interval(Val(order), T)
+    ω_and_y = @. f(x)
+    ω, y = first.(ω_and_y), last.(ω_and_y)
+    Ω = weighted_neglogsumexp(w, ω)
+    I = vecdot(w, @. exp(Ω - ω) * y)
+    return Ω, I
+end
+
 @inline function neglogf_quadrature(neglogf::F, x₀::Real, δ::Real, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, order}
-    # I = ∫_{0}^{δ} [f(t)] dt, where f(t) = exp(-neglogf(t))
+    # I = ∫_{x₀}^{x₀ + δ} [f(t)] dt, where f(t) = exp(-neglogf(t))
     T = checkedfloattype(x₀, δ)
     x, w = gausslegendre_unit_interval(Val(order), T)
-    logy = @. -neglogf(muladd(δ, x, x₀))
-    return -weighted_logsumexp(w, logy) .- log(δ)
+    neglogy = @. neglogf(muladd(δ, x, x₀))
+    return weighted_neglogsumexp(w, neglogy) .- log(δ)
 end
 
 @inline function f_laguerre_tail_quadrature(f::F, λ::Real, ::Val{order} = Val(DEFAULT_GAUSSLAGUERRE_ORDER)) where {F, order}
@@ -449,17 +503,17 @@ end
     return vecdot(w, y)
 end
 
-@inline function weighted_logsumexp(w::SVector{N}, logy::SVector{N}) where {N}
-    max_ = maximum(logy)
-    ȳ = exp.(logy .- max_)
-    return log(vecdot(w, ȳ)) + max_
+@inline function weighted_neglogsumexp(w::SVector{N}, y::SVector{N}) where {N}
+    min_y = minimum(y)
+    ȳ = exp.(min_y .- y)
+    return min_y - log(vecdot(w, ȳ))
 end
 
-@inline function weighted_logsumexp(w::SVector{N}, logy::SVector{N, <:SVector{M}}) where {N, M}
-    max_ = reduce(BroadcastFunction(max), logy) # elementwise maximum
-    logy = reducehcat(logy) # stack as columns
-    ȳ = exp.(logy .- max_)
-    return log.(vecdot(w, ȳ)) .+ max_
+@inline function weighted_neglogsumexp(w::SVector{N}, y::SVector{N, <:SVector{M}}) where {N, M}
+    min_y = reduce(BroadcastFunction(min), y) # elementwise minimum
+    y = reducehcat(y) # stack as columns
+    ȳ = exp.(min_y .- y)
+    return min_y .- log.(vecdot(w, ȳ))
 end
 
 # Convert vector of vectors in flat matrix. Note that `init` is necessary to get the correct type when `N = 1`, otherwise you get an SVector{M} instead of an SMatrix{M, 1}
