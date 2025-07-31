@@ -102,12 +102,70 @@ end
 
 #### Derived special functions
 
-@inline logbesseli0(x::Real) = abs(x) < one(x) ? logbesseli0_small(x) : log(besseli0x(x)) + abs(x) # log(besselix(0, x)) = log(I0(x)) - |x|
-@inline logbesseli0x(x::Real) = abs(x) < one(x) ? logbesseli0_small(x) - abs(x) : log(besseli0x(x))
+"""
+    logbesseli0x(x::T) where T <: Union{Float32, Float64}
 
-@inline logbesseli0_small(x::Real) = (T = checkedfloattype(x); x² = abs2(x); return x² * evalpoly(x², logbesseli0_small_coefs(T))) # log(besselix(0, x)) loses accuracy near x = 0 since besselix(0, x) -> 1 as x -> 0
-@inline logbesseli0_small_coefs(::Type{Float32}) = (0.24999999426684533f0, -0.015624705149866972f0, 0.0017336759629143878f0, -0.00021666015596172704f0, 2.2059316402289948f-5)
-@inline logbesseli0_small_coefs(::Type{Float64}) = (0.25, -0.015624999999997167, 0.0017361111109961576, -0.0002237955710956064, 3.092446434101836e-5, -4.455118991727041e-6, 6.600804196191383e-7, -9.949296105322181e-8, 1.483764672332753e-8, -1.968806398401359e-9, 1.6562710526172217e-10)
+Log of scaled modified Bessel function of the first kind of order zero, ``log(I_0(x)*e^{-x})``.
+"""
+@inline function logbesseli0x(x::Float32)
+    T = Float32
+    branch1, branch2, branch3, branch4 = logbesseli0x_branches(T)
+    x = abs(x)
+    if x < 1
+        return logbesseli0_taylor(x) - x
+    elseif x < branch1
+        return x * evalpoly(x, logbesseli0x_branch1_coefs(T))
+    elseif x < branch2
+        return x * evalpoly(x, logbesseli0x_branch2_coefs(T))
+    elseif x < branch3
+        return x * evalpoly(x, logbesseli0x_branch3_coefs(T))
+    elseif x < branch4
+        return x * evalpoly(x, logbesseli0x_branch4_coefs(T))
+    else
+        return evalpoly(inv(x), logbesseli0x_tail_coefs(T)) - log(x) / 2
+    end
+end
+@inline function logbesseli0x(x::Float64)
+    T = Float64
+    branch1, branch2, branch3, branch4 = logbesseli0x_branches(T)
+    x = abs(x)
+    if x < 1
+        return logbesseli0_taylor(x) - x
+    elseif x < branch1
+        return x * evalpoly(x, logbesseli0x_branch1_num_coefs(T)) / evalpoly(x, logbesseli0x_branch1_den_coefs(T))
+    elseif x < branch2
+        return x * evalpoly(x, logbesseli0x_branch2_num_coefs(T)) / evalpoly(x, logbesseli0x_branch2_den_coefs(T))
+    elseif x < branch3
+        return x * evalpoly(x, logbesseli0x_branch3_num_coefs(T)) / evalpoly(x, logbesseli0x_branch3_den_coefs(T))
+    elseif x < branch4
+        return x * evalpoly(x, logbesseli0x_branch4_num_coefs(T)) / evalpoly(x, logbesseli0x_branch4_den_coefs(T))
+    else
+        return evalpoly(inv(x), logbesseli0x_tail_coefs(T)) - log(x) / 2
+    end
+end
+@inline logbesseli0(x::Real) = abs(x) < one(x) ? logbesseli0_taylor(x) : logbesseli0x(x) + abs(x) # log(I0(x)) = log(besselix(0, x)) + |x|
+
+logbesseli0x_branches(::Type{Float32}) = (2.0f0, 3.0f0, 4.5f0, 6.25f0)
+logbesseli0x_branch1_coefs(::Type{Float32}) = (-0.9994487f0, 0.24674983f0, 0.007880564f0, -0.02573334f0, 0.007163849f0, -0.0006978541f0)
+logbesseli0x_branch2_coefs(::Type{Float32}) = (-1.0187888f0, 0.29313418f0, -0.037066877f0, -0.003718994f0, 0.001711131f0, -0.00015129537f0)
+logbesseli0x_branch3_coefs(::Type{Float32}) = (-1.0552132f0, 0.35522184f0, -0.07971522f0, 0.011032459f0, -0.000856916f0, 2.8618902f-5)
+logbesseli0x_branch4_coefs(::Type{Float32}) = (-1.0204555f0, 0.31935093f0, -0.06491181f0, 0.007980039f0, -0.0005426071f0, 1.5698264f-5)
+logbesseli0x_tail_coefs(::Type{Float32}) = (-0.9189385f0, 0.12500004f0, 0.06251328f0, 0.06340634f0, 0.1567791f0, -0.4903952f0, 3.8373048f0)
+
+logbesseli0x_branches(::Type{Float64}) = (2.0, 3.25, 5.0, 9.0)
+logbesseli0x_branch1_num_coefs(::Type{Float64}) = (-0.999999583120092, -0.29014047213447114, -0.39736271732758155, -0.08588147980086669, -0.03237626537907129, -0.004974271652449432, -5.556627549008132e-5)
+logbesseli0x_branch1_den_coefs(::Type{Float64}) = (1.0, 0.5401364144817467, 0.5324149799563537, 0.20331083501027733, 0.07485514008307156, 0.01698675965644882, 0.0021746610380462936)
+logbesseli0x_branch2_num_coefs(::Type{Float64}) = (-0.9999353256135443, -0.2722412308582146, -0.11292177835689929, -0.032528368383928814, 0.00030382545025762017, -0.0010141994682156873, -6.4711206283102365e-6)
+logbesseli0x_branch2_den_coefs(::Type{Float64}) = (1.0, 0.5218789555967246, 0.24432070766138303, 0.07654991556809776, 0.012142788791123238, 0.0009534245109375208, 0.00041679630031355927)
+logbesseli0x_branch3_num_coefs(::Type{Float64}) = (-1.0009452748298309, -0.011327281044590451, -0.12146320544136592, 0.006024767096478824, -0.002434365653126344, 0.00024240550222782585, 1.0119682492473649e-6)
+logbesseli0x_branch3_den_coefs(::Type{Float64}) = (1.0, 0.26483858319922615, 0.18176906263003073, 0.029622874557209883, 0.002076350050709619, 0.0005369824734025731, -9.515200972041569e-5)
+logbesseli0x_branch4_num_coefs(::Type{Float64}) = (-1.0134548793484943, -0.04809351298992965, -0.16990476185557626, 0.000854632825008215, -0.005080277098134271, -0.0002441769568189205, -2.42738849558008e-7)
+logbesseli0x_branch4_den_coefs(::Type{Float64}) = (1.0, 0.3330697949534713, 0.2119569922180127, 0.06485846738742465, 0.004126388294682845, 0.0024780499456405454, 7.310909443124124e-5)
+logbesseli0x_tail_coefs(::Type{Float64}) = (-0.9189385332046728, 0.12500000000000208, 0.06249999998635532, 0.06510418148686051, 0.10155612551537994, 0.21101443760192773, 0.3377647017909049, 19.689505081763166, -1136.29236468287, 52138.794249036684, -1.7545055923722377e6, 4.418531972967025e7, -8.372391516442511e8, 1.192357263625284e10, -1.2649126846844589e11, 9.811859382815109e11, -5.386620434336986e12, 1.9769950390805406e13, -4.34373774274377e13, 4.316209616303967e13)
+
+@inline logbesseli0_taylor(x::Real) = (T = checkedfloattype(x); x² = abs2(x); return x² * evalpoly(x², logbesseli0_taylor_coefs(T))) # log(besselix(0, x)) loses accuracy near x = 0 since besselix(0, x) -> 1 as x -> 0
+@inline logbesseli0_taylor_coefs(::Type{Float32}) = (0.24999982f0, -0.015619294f0, 0.001706377f0, -0.00017272498f0)
+@inline logbesseli0_taylor_coefs(::Type{Float64}) = (0.2499999999999997, -0.015624999999935855, 0.0017361111089610494, -0.00022379554491982028, 3.092429350323536e-5, -4.454478972909776e-6, 6.586214501590037e-7, -9.74353921543892e-8, 1.3084669243468824e-8, -1.1421842982899083e-9)
 
 @inline logbesseli1(x::Real) = logbesseli1x(x) + abs(x) # log(besselix(1, x)) = log(I1(x)) - |x|
 @inline logbesseli1x(x::Real) = log(besseli1x(x))
