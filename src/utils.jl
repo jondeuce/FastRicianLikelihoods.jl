@@ -2,20 +2,28 @@
 
 @inline promote_float(x...) = promote(map(float, x)...)
 
-@inline basefloattype(::Type{T}) where {T} = error("Argument is not a floating-point type: $T.")
+@inline basefloattype(::Type{T}) where {T} = error("Argument is not a floating-point type: T = $T.")
 @inline basefloattype(::Type{T}) where {T <: AbstractFloat} = T
 @inline basefloattype(::Type{D}) where {T, D <: ForwardDiff.Dual{<:Any, T}} = basefloattype(T)
 
 @generated function checkedfloattype(::Ts) where {Ts <: Tuple}
-    Tbases = map(basefloattype, Ts.types)
-    Tunique = unique(Tbases)
-    if length(Tunique) == 1 && (T = Tunique[1]) <: Union{Float32, Float64}
-        return T
+    Tfs = unique(map(basefloattype, Ts.types))
+    if length(Tfs) == 1 && (Tf = Tfs[1]) <: Union{Float32, Float64}
+        return Tf
     else
-        error("Incompatible types: $Ts.\nBase float types must all be Float32 or Float64, but found the following types: $Tunique.")
+        error("Incompatible types: $Ts.\nBase float types must all be Float32 or Float64, but found the following types: $((Tfs...,)).")
     end
 end
 @inline checkedfloattype(xs::Number...) = checkedfloattype(xs)
+
+@inline function checkedfloattype(::Type{T}) where {T}
+    Tf = basefloattype(T)
+    if Tf <: Union{Float32, Float64}
+        return Tf
+    else
+        error("Base float type is not Float32 or Float64; found T = $T.")
+    end
+end
 
 # Clenshaw scheme for evaluating scalar-valued Chebyshev polynomials
 #   See: https://github.com/chebfun/chebfun/blob/18f759287b6b88e3c3e0cf7885f559791a483127/%40chebtech/clenshaw.m#L94

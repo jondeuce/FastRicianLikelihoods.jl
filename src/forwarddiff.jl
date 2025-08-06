@@ -21,6 +21,25 @@
 @inline untuple_scalar(x::Tuple) = only(x)
 @inline untuple_scalar(x::Number) = x
 
+# See: https://github.com/JuliaDiff/ForwardDiff.jl/pull/735
+const ForwardDiffStaticArraysExt = Base.get_extension(ForwardDiff, :ForwardDiffStaticArraysExt)
+
+@inline function withgradient(::Type{T}, f::F, x::StaticArray) where {T, F}
+    ydual = ForwardDiffStaticArraysExt.static_dual_eval(T, f, x)
+    y = ForwardDiff.value(T, ydual)
+    ∇y = ForwardDiffStaticArraysExt.extract_gradient(T, ydual, x)
+    return y, ∇y
+end
+@inline withgradient(f::F, x::StaticArray) where {F} = withgradient(typeof(ForwardDiff.Tag(f, eltype(x))), f, x)
+
+@inline function withjacobian(::Type{T}, f::F, x::StaticArray) where {T, F}
+    ydual = ForwardDiffStaticArraysExt.static_dual_eval(T, f, x)
+    y = map(Base.Fix1(ForwardDiff.value, T), ydual)
+    J = ForwardDiffStaticArraysExt.extract_jacobian(T, ydual, x)
+    return y, J
+end
+@inline withjacobian(f::F, x::StaticArray) where {F} = withjacobian(typeof(ForwardDiff.Tag(f, eltype(x))), f, x)
+
 #### Pushforwards
 
 @inline function unary_dual_pushforward(fdf::F, x::Dual{Tag}) where {F, Tag}

@@ -30,8 +30,10 @@ arbify(f::Function) = function f_arbified(args...)
     T = common_float_type(args)
     xs = arbify.(args)
     y = f(xs...)
-    return convert.(T, y)
+    return dearbify(T, y)
 end
+dearbify(::Type{T}, x::Number) where {T} = convert(T, x)
+dearbify(::Type{T}, x::Union{Tuple, NamedTuple, AbstractArray}) where {T} = map(Base.Fix1(dearbify, T), x)
 
 const DEFAULT_CENTRAL_FDM = FiniteDifferences.central_fdm(4, 1)
 const DEFAULT_FORWARD_FDM = FiniteDifferences.forward_fdm(4, 1)
@@ -73,19 +75,42 @@ end
 function FastRicianLikelihoods.∇neglogpdf_rician(x::ArbReal, ν::ArbReal)
     x <= 0 && return (ArbReal(Inf), ν)
     I0, I1 = ArbNumerics.besseli(0, x * ν), ArbNumerics.besseli(1, x * ν)
-    ∂x = x - ν * (I1 / I0) - 1 / x
-    ∂ν = ν - x * (I1 / I0)
+    r = I1 / I0
+    ∂x = x - ν * r - 1 / x
+    ∂ν = ν - x * r
     return (∂x, ∂ν)
 end
 
 function FastRicianLikelihoods.∇²neglogpdf_rician(x::ArbReal, ν::ArbReal)
-    I0, I1 = ArbNumerics.besseli(0, x * ν), ArbNumerics.besseli(1, x * ν)
-    ∂²x = 1 - ν^2 + 1 / x^2 + (ν / x) * (I1 / I0) * (1 + ν * x * (I1 / I0))
-    ∂²ν = 1 - x^2 + (x / ν) * (I1 / I0) * (1 + ν * x * (I1 / I0))
-    ∂x∂ν = x * ν * ((I1 / I0)^2 - 1)
+    x <= 0 && return (ArbReal(Inf), ArbReal(Inf), ArbReal(Inf))
+    z = x * ν
+    I0, I1 = ArbNumerics.besseli(0, z), ArbNumerics.besseli(1, z)
+    r = I1 / I0
+    r′ = 1 - r / z - r^2
+    ∂²x = 1 + 1 / x^2 - ν^2 * r′
+    ∂x∂ν = -r - z * r′
+    ∂²ν = 1 - x^2 * r′
     return (∂²x, ∂x∂ν, ∂²ν)
 end
-FastRicianLikelihoods.∇²neglogpdf_rician(x, ν) = oftype.(promote(float(x), float(ν))[1], FastRicianLikelihoods.∇²neglogpdf_rician(ArbReal(x), ArbReal(ν)))
+
+function FastRicianLikelihoods.∇³neglogpdf_rician_with_gradient_and_hessian(x::ArbReal, ν::ArbReal)
+    x <= 0 && return (ArbReal(Inf), ArbReal(Inf), ArbReal(Inf), ArbReal(Inf))
+    z = x * ν
+    I0, I1 = ArbNumerics.besseli(0, z), ArbNumerics.besseli(1, z)
+    r = I1 / I0
+    r′ = 1 - r / z - r^2
+    r′′ = -r′ / z + r / z^2 - 2 * r * r′
+    ∂x = x - ν * r - 1 / x
+    ∂ν = ν - x * r
+    ∂²x = 1 + 1 / x^2 - ν^2 * r′
+    ∂x∂ν = -r - z * r′
+    ∂²ν = 1 - x^2 * r′
+    ∂³x = -2 / x^3 - ν^3 * r′′
+    ∂²x∂ν = -2 * ν * r′ - z * ν * r′′
+    ∂x∂ν² = -2 * x * r′ - z * x * r′′
+    ∂³ν = -x^3 * r′′
+    return (∂x, ∂ν), (∂²x, ∂x∂ν, ∂²ν), (∂³x, ∂²x∂ν, ∂x∂ν², ∂³ν)
+end
 
 function FastRicianLikelihoods.mode_rician(ν::ArbReal; tol = √eps(one(ArbReal)), kwargs...)
     ν <= 0 && return one(ν)

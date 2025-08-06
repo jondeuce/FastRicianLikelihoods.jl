@@ -12,7 +12,7 @@ using LinearAlgebra: LinearAlgebra, dot
 using MacroTools: MacroTools, @capture, combinedef, prettify, splitdef
 using Random: Random
 using SpecialFunctions: SpecialFunctions, erf, erfc, erfcinv, erfcx
-using StaticArrays: StaticArrays, SVector, SMatrix
+using StaticArrays: StaticArrays, StaticArray, SVector, SMatrix, SHermitianCompact, SOneTo
 
 export Rice, neglogpdf_rician, neglogpdf_qrician
 

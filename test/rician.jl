@@ -3,9 +3,10 @@ module RicianTests
 using Test
 using ..Utils: arbify, ∇FD_central, ∇FD_forward, ∇Fwd, ∇Zyg
 
-using FastRicianLikelihoods: FastRicianLikelihoods, Distributions
-using FastRicianLikelihoods: neglogpdf_rician, ∇neglogpdf_rician, ∇²neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician, mean_rician, std_rician, f_quadrature, neglogf_quadrature
+using FastRicianLikelihoods: FastRicianLikelihoods, Distributions, StaticArrays
+using FastRicianLikelihoods: neglogpdf_rician, ∇neglogpdf_rician, ∇²neglogpdf_rician, ∇²neglogpdf_rician_with_gradient, ∇³neglogpdf_rician_with_gradient_and_hessian, neglogpdf_qrician, ∇neglogpdf_qrician, mean_rician, std_rician, f_quadrature, neglogf_quadrature
 using .Distributions: Normal, logpdf, cdf
+using .StaticArrays: SVector, SMatrix, @SVector, @SMatrix
 using QuadGK: quadgk
 
 function xν_iterator(z::T) where {T <: Union{Float32, Float64}}
@@ -127,6 +128,34 @@ end
             @test ∂ŷ[1] ≈ ∂y[1] rtol = rtol atol = atol
             @test ∂ŷ[2] ≈ ∂y[2] rtol = rtol atol = atol
             @test ∂ŷ[3] ≈ ∂y[3] rtol = rtol atol = atol
+        end
+    end
+end
+
+@testset "∇³neglogpdf_rician_with_gradient_and_hessian" begin
+    # Note: The Float32 tests pass with tolerances around 1f-3 for almost all inputs, but since we don't yet
+    #       have a robust implementation for r''(z) where r(z) = I1(z) / I0(z), occasionally there is catestrophic cancellation.
+    for T in (Float64,)
+        ∇²f̂_with_grad = ∇²neglogpdf_rician_with_gradient
+        ∇³f̂ = ∇³neglogpdf_rician_with_gradient_and_hessian
+        ∇³f = arbify(∇³f̂)
+
+        rtol = T == Float32 ? 1.0f-3 : 1e-5
+        atol = T == Float32 ? 1.0f-3 : 1e-5
+        zs = T.(exp10.(-5:5))
+        for z in zs, (x, ν) in xν_iterator(z)
+            (∇ŷ, ∇²ŷ, ∇³ŷ), (_, _, ∇³y) = @inferred(∇³f̂(x, ν)), ∇³f(x, ν)
+
+            # Lower order results should be almost exactly equal to the standalone functions
+            ∇ŷ_with_grad, ∇²ŷ_with_grad = @inferred(∇²f̂_with_grad(x, ν))
+            @test all(isapprox.(∇ŷ_with_grad, ∇ŷ; rtol = 2 * eps(T), atol = 2 * eps(T)))
+            @test all(isapprox.(∇²ŷ_with_grad, ∇²ŷ; rtol = 2 * eps(T), atol = 2 * eps(T)))
+
+            # Third derivative components should be approximately equal to the high precision reference
+            @test ∇³ŷ[1] ≈ ∇³y[1] rtol = rtol atol = atol
+            @test ∇³ŷ[2] ≈ ∇³y[2] rtol = rtol atol = atol
+            @test ∇³ŷ[3] ≈ ∇³y[3] rtol = rtol atol = atol
+            @test ∇³ŷ[4] ≈ ∇³y[4] rtol = rtol atol = atol
         end
     end
 end
@@ -289,6 +318,54 @@ end
                 @test isapprox(∂ŷ[3], fd[3] / δ; rtol = √eps(T), atol = √eps(T))
             end
         end
+    end
+end
+
+@testset "∇³neglogpdf_qrician" begin
+    Tad, T = Float64, Float64
+    rtol = 1e-8
+    atol = 1e-8
+
+    for (x, ν, δ) in xνδ_iterator(), order in (Val(1), Val(2), Val(4), Val(8))
+        x > 0 && ν > 0 || continue
+        t = rand(T)
+
+        # Test inner jacobian computation
+        ϕ1, Jϕ1 = FastRicianLikelihoods._∇²neglogpdf_qrician_inner_jac_ad(Tad.((x, ν, δ, t))...)
+        ϕ2, Jϕ2 = FastRicianLikelihoods._∇²neglogpdf_qrician_inner_jac(T(x), T(ν), T(δ), T(t))
+
+        @test isapprox(ϕ1, ϕ2; rtol, atol)
+        @test isapprox(Jϕ1, Jϕ2; rtol, atol)
+
+        # Test inner JVP computation
+        Δϕ = @SVector randn(T, 9)
+        ϕ3, jvp3 = FastRicianLikelihoods._∇²neglogpdf_qrician_inner_jvp(Δϕ, T(x), T(ν), T(δ), T(t))
+
+        @test isapprox(ϕ3, ϕ1; rtol, atol)
+        @test isapprox(jvp3, Jϕ1' * Δϕ; rtol, atol)
+
+        # Test different JVP implementations
+        Δ = @SVector randn(T, 9)
+        Φ1, jvp1 = FastRicianLikelihoods._∇²neglogpdf_qrician_jvp_ad(Tad.(Δ), Tad.((x, ν, δ))..., order)
+        Φ2, jvp2 = FastRicianLikelihoods._∇²neglogpdf_qrician_jvp_via_jac_parts(Δ, T(x), T(ν), T(δ), order)
+        Φ3, jvp3 = FastRicianLikelihoods._∇²neglogpdf_qrician_jvp_via_two_pass(Δ, T(x), T(ν), T(δ), order)
+        Φ4, jvp4 = FastRicianLikelihoods._∇²neglogpdf_qrician_jvp_via_one_pass(Δ, T(x), T(ν), T(δ), order)
+
+        @test isapprox(Φ1, Φ2; rtol, atol)
+        @test isapprox(Φ1, Φ3; rtol, atol)
+        @test isapprox(jvp1, jvp2; rtol, atol)
+        @test isapprox(jvp1, jvp3; rtol, atol)
+        @test isapprox(jvp1, jvp4; rtol, atol)
+
+        # Test jacobian computation
+        Φ5, J5 = FastRicianLikelihoods._∇²neglogpdf_qrician_with_jacobian_ad(Tad.((x, ν, δ))..., order)
+        Φ6, J6 = FastRicianLikelihoods._∇²neglogpdf_qrician_with_jacobian(T(x), T(ν), T(δ), order)
+
+        @test isapprox(Φ1, Φ5; rtol, atol)
+        @test isapprox(Φ1, Φ6; rtol, atol)
+        @test isapprox(J5' * Δ, jvp1; rtol, atol)
+        @test isapprox(J6' * Δ, jvp1; rtol, atol)
+        @test isapprox(J5, J6; rtol, atol)
     end
 end
 
