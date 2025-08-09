@@ -90,7 +90,7 @@ end
 @inline function _mode_rician_crude(ν::Real)
     ν² = ν^2
     twoν⁴ = 2 * ν²^2
-    return √muladd(ν², (1 + twoν⁴) / (2 + twoν⁴), one(ν))
+    return √(1 + ν² * ((1 + twoν⁴) / (2 + twoν⁴)))
 end
 
 @inline function _var_mode_rician_crude(v::Real)
@@ -98,7 +98,7 @@ end
     return (1 + twoν²) / (2 + twoν²)
 end
 
-function _mode_rician(ν::Real)
+@inline function _mode_rician(ν::Real)
     T = checkedfloattype(ν)
     tay, low, med1, med2, med3, med4, med5, tail = mode_rician_branches(T)
     if ν < tay
@@ -116,9 +116,9 @@ function _mode_rician(ν::Real)
     elseif ν < med5
         return ν + mode_rician_kernel_med_5_approx(T, ν)
     elseif ν < tail
-        return muladd(inv(ν), mode_rician_kernel_tail_approx(T, ν), ν)
+        return inv(ν) * mode_rician_kernel_tail_approx(T, ν) + ν
     else
-        return muladd(inv(ν), mode_rician_kernel_tail_long_approx(T, ν), ν)
+        return inv(ν) * mode_rician_kernel_tail_long_approx(T, ν) + ν
     end
 end
 

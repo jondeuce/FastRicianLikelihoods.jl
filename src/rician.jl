@@ -20,7 +20,7 @@ end
 @inline _neglogpdf_rician(x::D, ν::D) where {D} = (x - ν)^2 / 2 - log(x) - logbesseli0x(x * ν) # negative Rician log-likelihood `-logp(x | ν, σ = 1)`
 
 @inline function _∇neglogpdf_rician(x::D, ν::D) where {D}
-    # Define the univariate normalized Bessel function `Î₀` as
+    # Define the univariate normalized Bessel function `Î₀(z)` for `z = x * ν ≥ 0` as
     #
     #   Î₀(z) = I₀(z) / (exp(z) / √2πz).
     #
@@ -44,24 +44,24 @@ end
     T = checkedfloattype(z)
     if z < besseli1i0_low_cutoff(T)
         z² = z^2
-        r = z * evalpoly(z², besseli1i0_low_coefs(T)) # r = logÎ₀′(z) + 1 - 1/2z = I₁(z) / I₀(z) ≈ z/2 + 𝒪(z^3)
-        ∂x = muladd(-r, ν, x) - inv(x)
-        ∂ν = muladd(-r, x, ν)
+        r = z * evalpoly(z², besseli1i0_low_coefs(T)) # r = logÎ₀′(z) + 1 - 1/2z = I₁(z) / I₀(z) ≈ z/2 + 𝒪(z^3)
+        ∂x = x - r * ν - inv(x)
+        ∂ν = ν - r * x
     elseif z < besseli1i0_mid_cutoff(T)
         z² = z^2
         r = z * evalpoly(z², besseli1i0_mid_num_coefs(T)) / evalpoly(z², besseli1i0_mid_den_coefs(T)) # r = I₁(z) / I₀(z)
-        ∂x = muladd(-r, ν, x) - inv(x)
-        ∂ν = muladd(-r, x, ν)
+        ∂x = x - r * ν - inv(x)
+        ∂ν = ν - r * x
     elseif z < besseli1i0_high_cutoff(T)
         z² = z^2
         r = z * evalpoly(z², besseli1i0_high_num_coefs(T)) / evalpoly(z², besseli1i0_high_den_coefs(T)) # r = I₁(z) / I₀(z)
-        ∂x = muladd(-r, ν, x) - inv(x)
-        ∂ν = muladd(-r, x, ν)
+        ∂x = x - r * ν - inv(x)
+        ∂ν = ν - r * x
     else
         z⁻¹ = inv(z)
-        rm1_tail = z⁻¹ * evalpoly(z⁻¹, besseli1i0c_tail_coefs(T)) # -z * logÎ₀′(z) = -1/2 - z * (I₁(z) / I₀(z) - 1) ≈ 1/8z + 𝒪(1/z^2)
-        ∂x = muladd(inv(x), T(-0.5) + rm1_tail, x - ν)
-        ∂ν = muladd(inv(ν), T(+0.5) + rm1_tail, ν - x)
+        rm1_tail = z⁻¹ * evalpoly(z⁻¹, besseli1i0c_tail_coefs(T)) # -z * logÎ₀′(z) = -1/2 - z * (I₁(z) / I₀(z) - 1) ≈ 1/8z + 𝒪(1/z^2)
+        ∂x = (x - ν) + inv(x) * (T(-0.5) + rm1_tail)
+        ∂ν = (ν - x) + inv(ν) * (T(+0.5) + rm1_tail)
     end
 
     return (∂x, ∂ν)
@@ -75,11 +75,10 @@ end
     T = checkedfloattype(z)
 
     r, rx, rm1, rm1_tail, r²m1, r²m1prx = _besseli1i0_parts(z) # (r, r / z, r - 1, -1/2 - z * (r - 1), r^2 - 1, r^2 - 1 + r / z) where r = I₁(z) / I₀(z)
-
     x⁻¹ = inv(x)
     x², x⁻², ν² = x^2, x⁻¹^2, ν^2
-    ∂²x = muladd(ν², r²m1prx, one(T) + x⁻²) # ∂²/∂x²
-    ∂²ν = muladd(x², r²m1prx, one(T)) # ∂²/∂ν²
+    ∂²x = ν² * r²m1prx + one(T) + x⁻² # ∂²/∂x²
+    ∂²ν = x² * r²m1prx + one(T) # ∂²/∂ν²
     ∂x∂ν = z * r²m1 # ∂²/∂x∂ν
 
     return (∂²x, ∂x∂ν, ∂²ν)
@@ -93,17 +92,17 @@ end
     x⁻¹ = inv(x)
 
     if z < besseli1i0_high_cutoff(T)
-        ∂x = muladd(-r, ν, x) - x⁻¹
-        ∂ν = muladd(-r, x, ν)
+        ∂x = x - r * ν - x⁻¹
+        ∂ν = ν - r * x
     else
         ν⁻¹ = inv(ν)
-        ∂x = muladd(x⁻¹, T(-0.5) + rm1_tail, x - ν)
-        ∂ν = muladd(ν⁻¹, T(+0.5) + rm1_tail, ν - x)
+        ∂x = x - ν + x⁻¹ * (T(-0.5) + rm1_tail)
+        ∂ν = ν - x + ν⁻¹ * (T(+0.5) + rm1_tail)
     end
 
     x², x⁻², ν² = x^2, x⁻¹^2, ν^2
-    ∂²x = muladd(ν², r²m1prx, one(T) + x⁻²) # ∂²/∂x²
-    ∂²ν = muladd(x², r²m1prx, one(T)) # ∂²/∂ν²
+    ∂²x = ν² * r²m1prx + one(T) + x⁻² # ∂²/∂x²
+    ∂²ν = x² * r²m1prx + one(T) # ∂²/∂ν²
     ∂x∂ν = z * r²m1 # ∂²/∂x∂ν
 
     return (∂x, ∂ν), (∂²x, ∂x∂ν, ∂²ν)
@@ -113,28 +112,28 @@ end
     z = x * ν
     T = checkedfloattype(z)
 
-    r, rx, rm1, rm1_tail, r²m1, r²m1prx = _besseli1i0_parts(z)
+    r, rx, rm1, rm1_tail, r²m1, r²m1prx = _besseli1i0_parts(z) # (r, r / z, r - 1, -1/2 - z * (r - 1), r^2 - 1, r^2 - 1 + r / z) where r = I₁(z) / I₀(z)
     x⁻¹, z⁻¹ = inv(x), inv(z)
-    r′′ = muladd(r²m1prx, muladd(T(2), r, z⁻¹), rx * z⁻¹) # r/z² - r'(1/z + 2r)
+    r′′ = r²m1prx * (T(2) * r + z⁻¹) + rx * z⁻¹ # r/z² - r'(1/z + 2r)
 
     if z < besseli1i0_high_cutoff(T)
-        ∂x = muladd(-r, ν, x) - x⁻¹
-        ∂ν = muladd(-r, x, ν)
+        ∂x = x - r * ν - x⁻¹
+        ∂ν = ν - r * x
     else
         ν⁻¹ = inv(ν)
-        ∂x = muladd(x⁻¹, T(-0.5) + rm1_tail, x - ν)
-        ∂ν = muladd(ν⁻¹, T(+0.5) + rm1_tail, ν - x)
+        ∂x = x - ν + x⁻¹ * (T(-0.5) + rm1_tail)
+        ∂ν = ν - x + ν⁻¹ * (T(+0.5) + rm1_tail)
     end
 
     x², x⁻², ν² = x^2, x⁻¹^2, ν^2
-    ∂xx = muladd(ν², r²m1prx, one(T) + x⁻²)
-    ∂νν = muladd(x², r²m1prx, one(T))
+    ∂xx = ν² * r²m1prx + one(T) + x⁻²
+    ∂νν = x² * r²m1prx + one(T)
     ∂xν = z * r²m1
 
     ν²r′′, x²r′′ = ν² * r′′, x² * r′′
-    ∂xxx = -muladd(ν, ν²r′′, T(2) * x⁻¹ * x⁻²)
-    ∂xxν = -muladd(x, ν²r′′, T(-2) * ν * r²m1prx)
-    ∂xνν = -muladd(ν, x²r′′, T(-2) * x * r²m1prx)
+    ∂xxx = -ν * ν²r′′ - T(2) * x⁻¹ * x⁻²
+    ∂xxν = -x * ν²r′′ + T(2) * ν * r²m1prx
+    ∂xνν = -ν * x²r′′ + T(2) * x * r²m1prx
     ∂ννν = -x * x²r′′
 
     return (∂x, ∂ν), (∂xx, ∂xν, ∂νν), (∂xxx, ∂xxν, ∂xνν, ∂ννν)
@@ -177,9 +176,10 @@ end
     return ∂x, ∂ν, ∂x / 2 - inv(δ)
 end
 @inline function _∇²neglogpdf_qrician_midpoint_with_gradient(x::D, ν::D, δ::D) where {D}
+    δ⁻¹ = inv(δ)
     x′ = x + δ / 2
     (∇x, ∇ν), (∇xx, ∇xν, ∇νν) = _∇²neglogpdf_rician_with_gradient(x′, ν)
-    return (∇x, ∇ν, ∇x / 2 - inv(δ)), (∇xx, ∇xν, ∇xx / 2, ∇νν, ∇xν / 2, ∇xx / 4 + inv(δ)^2)
+    return (∇x, ∇ν, ∇x / 2 - δ⁻¹), (∇xx, ∇xν, ∇xx / 2, ∇νν, ∇xν / 2, ∇xx / 4 + δ⁻¹ * δ⁻¹)
 end
 @inline function _∇²neglogpdf_qrician_midpoint_with_primal_and_gradient(x::D, ν::D, δ::D) where {D}
     Ω = _neglogpdf_qrician_midpoint(x, ν, δ)
@@ -202,7 +202,7 @@ end
     #      = -exp(Ω) * ∫_{0}^{1} ∂(exp(-ω(x + δ * t)) * δ) dt
     # where Ω = -logI is constant w.r.t. ∂.
     Ω₀, (∂x, ∂ν, ∂δ) = f_quadrature_weighted_unit_interval(D, order) do t
-        x′ = muladd(δ, t, x)
+        x′ = x + δ * t
         ∇x, ∇ν = _∇neglogpdf_rician(x′, ν)
         ∇δ = t * ∇x - inv(δ)
         return _neglogpdf_rician(x′, ν), SVector{3, D}(∇x, ∇ν, ∇δ)
@@ -260,11 +260,11 @@ end
     # where Ω = -logI is constant w.r.t. ∂₁ and ∂₂.
     logδ, δ⁻¹ = log(δ), inv(δ)
     Ω₀, (∂x, ∂ν, ∂δ, ∂x∂x, ∂x∂ν, ∂x∂δ, ∂ν∂ν, ∂ν∂δ, ∂δ∂δ) = f_quadrature_weighted_unit_interval(D, order) do t
-        x′ = muladd(δ, t, x)
+        x′ = x + δ * t
         (∇x, ∇ν), (∇xx, ∇xν, ∇νν) = _∇²neglogpdf_rician_with_gradient(x′, ν)
-        ∇δ = muladd(t, ∇x, -δ⁻¹)
-        dxdx, dxdν, dνdν = muladd(-∇x, ∇x, ∇xx), muladd(-∇x, ∇ν, ∇xν), muladd(-∇ν, ∇ν, ∇νν)
-        dxdδ, dνdδ, dδdδ = muladd(t, dxdx, ∇x * δ⁻¹), muladd(t, dxdν, ∇ν * δ⁻¹), t * muladd(t, dxdx, 2 * ∇x * δ⁻¹)
+        ∇δ = t * ∇x - δ⁻¹
+        dxdx, dxdν, dνdν = ∇xx - ∇x * ∇x, ∇xν - ∇x * ∇ν, ∇νν - ∇ν * ∇ν
+        dxdδ, dνdδ, dδdδ = t * dxdx + ∇x * δ⁻¹, t * dxdν + ∇ν * δ⁻¹, t * (t * dxdx + 2 * ∇x * δ⁻¹)
         return _neglogpdf_rician(x′, ν), SVector{9, D}(∇x, ∇ν, ∇δ, dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ)
     end
     Ω = Ω₀ - logδ
@@ -304,7 +304,7 @@ end
     # This allows us to integrate the gradient essentially for free, since we need it for the Hessian anyways.
     (∂x, ∂ν, ∂²xx, ∂²xν, ∂²νν) = f_quadrature(x, δ, order) do x′
         ∇, ∇² = _∇²neglogpdf_rician_with_gradient(x′, ν)
-        integrands = SVector{5, D}(∇[1], ∇[2], ∇[1]^2 - ∇²[1], ∇[1] * ∇[2] - ∇²[2], ∇[2]^2 - ∇²[3]) # ∇ and ∇∇ᵀ - ∇²
+        integrands = SVector{5, D}(∇[1], ∇[2], ∇[1] * ∇[1] - ∇²[1], ∇[1] * ∇[2] - ∇²[2], ∇[2] * ∇[2] - ∇²[3]) # ∇ and ∇∇ᵀ - ∇²
         return exp(Ω - _neglogpdf_rician(x′, ν)) * integrands
     end
     ∂²xx = ∂x * ∂x - ∂²xx # d²Ω/dx² = (∂I/∂x)² - ∂²I/∂x²
@@ -378,20 +378,19 @@ end
     # Define a single integrand that computes all necessary terms for the primal and JVP calculations.
     _, (E_∇ω, E_∇²ω, E_Jϕ_minus_E_ϕ∇ωᵀ) = f_quadrature_weighted_unit_interval(D, order) do t
         local ϕ, Jϕ = _∇²neglogpdf_qrician_inner_jac(x, ν, δ, t)
-        local x′ = muladd(δ, t, x)
+        local x′ = x + δ * t
         local ∇x, ∇ν, ∇δ, ∂²xx, ∂²xν, ∂²xδ, ∂²νν, ∂²νδ, ∂²δδ = ϕ
         local ∇ω = SVector(∇x, ∇ν, ∇δ)
         local ∇²ω = SVector(∂²xx, ∂²xν, ∂²xδ, ∂²νν, ∂²νδ, ∂²δδ)
         local ϕ∇ωᵀ = ϕ * ∇ω'
         return _neglogpdf_rician(x′, ν), (∇ω, ∇²ω, Jϕ - ϕ∇ωᵀ)
     end
-
     ∂x, ∂ν, ∂δ = E_∇ω
     dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ = E_∇²ω
     Φ = SVector{9, D}(
         ∂x, ∂ν, ∂δ,
-        muladd(∂x, ∂x, dxdx), muladd(∂x, ∂ν, dxdν), muladd(∂x, ∂δ, dxdδ),
-        muladd(∂ν, ∂ν, dνdν), muladd(∂ν, ∂δ, dνdδ), muladd(∂δ, ∂δ, dδdδ),
+        ∂x * ∂x + dxdx, ∂x * ∂ν + dxdν, ∂x * ∂δ + dxdδ,
+        ∂ν * ∂ν + dνdν, ∂ν * ∂δ + dνdδ, ∂δ * ∂δ + dδdδ,
     )
 
     return Φ, (E_∇ω, E_∇²ω, E_Jϕ_minus_E_ϕ∇ωᵀ)
@@ -405,7 +404,7 @@ end
     # Define a single integrand that computes all necessary terms for the primal and JVP calculations.
     _, (E_∇ω, E_∇²ω, E_JϕᵀΔ_minus_∇ωϕᵀΔ, E_J∇ω_minus_E_∇ω∇ωᵀ) = f_quadrature_weighted_unit_interval(D, order) do t
         local ϕ, Jϕ = _∇²neglogpdf_qrician_inner_jac(x, ν, δ, t)
-        local x′ = muladd(δ, t, x)
+        local x′ = x + δ * t
         local ∇x, ∇ν, ∇δ, ∂²xx, ∂²xν, ∂²xδ, ∂²νν, ∂²νδ, ∂²δδ = ϕ
         local ∇ω = SVector(∇x, ∇ν, ∇δ)
         local ∇²ω = SVector(∂²xx, ∂²xν, ∂²xδ, ∂²νν, ∂²νδ, ∂²δδ)
@@ -419,12 +418,12 @@ end
     dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ = E_∇²ω
     Φ = SVector{9, D}(
         ∂x, ∂ν, ∂δ,
-        muladd(∂x, ∂x, dxdx), muladd(∂x, ∂ν, dxdν), muladd(∂x, ∂δ, dxdδ),
-        muladd(∂ν, ∂ν, dνdν), muladd(∂ν, ∂δ, dνdδ), muladd(∂δ, ∂δ, dδdδ),
+        ∂x * ∂x + dxdx, ∂x * ∂ν + dxdν, ∂x * ∂δ + dxdδ,
+        ∂ν * ∂ν + dνdν, ∂ν * ∂δ + dνdδ, ∂δ * ∂δ + dδdδ,
     )
 
-    Δḡ = SHermitianCompact{3, D, 6}(SVector{6, D}(2 * ΔHxx, ΔHxν, ΔHxδ, 2 * ΔHνν, ΔHνδ, 2 * ΔHδδ)) * E_∇ω
-    gΦ = E_JϕᵀΔ_minus_∇ωϕᵀΔ + E_J∇ω_minus_E_∇ω∇ωᵀ' * Δḡ + E_∇ω * (dot(E_∇ω, Δg + Δḡ) + dot(E_∇²ω, ΔH))
+    Δḡ = SHermitianCompact{3, D, 6}(SVector{6, D}(2 * ΔHxx, ΔHxν, ΔHxδ, 2 * ΔHνν, ΔHνδ, 2 * ΔHδδ)) * E_∇ω
+    gΦ = E_JϕᵀΔ_minus_∇ωϕᵀΔ + E_J∇ω_minus_E_∇ω∇ωᵀ' * Δḡ + E_∇ω * (dot(E_∇ω, Δg + Δḡ) + dot(E_∇²ω, ΔH))
 
     return Φ, gΦ
 end
@@ -432,7 +431,7 @@ end
 @inline function _∇²neglogpdf_qrician_jvp_via_two_pass(Δ::SVector{9, D}, x::D, ν::D, δ::D, order::Val) where {D}
     # First pass to compute E[∇ω] needed for Δϕ and covariance term in second integrand
     _, E_∇ω, t_nodes, w_nodes = f_quadrature_weighted_unit_interval(D, order) do t
-        local x′ = muladd(δ, t, x)
+        local x′ = x + δ * t
         local ∇x, ∇ν = _∇neglogpdf_rician(x′, ν)
         return _neglogpdf_rician(x′, ν), SVector(∇x, ∇ν, t * ∇x - inv(δ))
     end
@@ -454,14 +453,13 @@ end
         return (gϕ, ∇²ω)
     end
     E_gΦ, E_∇²ω = vecdot(w_nodes, integrands)
-
     # Assemble the primal output Φ
     ∂x, ∂ν, ∂δ = E_∇ω
     dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ = E_∇²ω
     Φ = SVector{9, D}(
         ∂x, ∂ν, ∂δ,
-        muladd(∂x, ∂x, dxdx), muladd(∂x, ∂ν, dxdν), muladd(∂x, ∂δ, dxdδ),
-        muladd(∂ν, ∂ν, dνdν), muladd(∂ν, ∂δ, dνdδ), muladd(∂δ, ∂δ, dδdδ),
+        ∂x * ∂x + dxdx, ∂x * ∂ν + dxdν, ∂x * ∂δ + dxdδ,
+        ∂ν * ∂ν + dνdν, ∂ν * ∂δ + dνdδ, ∂δ * ∂δ + dδdδ,
     )
 
     return Φ, E_gΦ
@@ -470,36 +468,36 @@ end
 @inline function _∇²neglogpdf_qrician_inner_jac_ad(x::D, ν::D, δ::D, t::D) where {D}
     ϕ, Jϕ = withjacobian(SVector(x, ν, δ)) do p
         local x, ν, δ = p
-        x′ = muladd(δ, t, x)
+        x′ = x + δ * t
         δ⁻¹ = inv(δ)
         (∇x, ∇ν), (∇xx, ∇xν, ∇νν) = _∇²neglogpdf_rician_with_gradient(x′, ν)
-        ∇δ = muladd(t, ∇x, -δ⁻¹)
-        dxdx, dxdν, dνdν = muladd(-∇x, ∇x, ∇xx), muladd(-∇x, ∇ν, ∇xν), muladd(-∇ν, ∇ν, ∇νν)
-        dxdδ, dνdδ, dδdδ = muladd(t, dxdx, ∇x * δ⁻¹), muladd(t, dxdν, ∇ν * δ⁻¹), t * muladd(t, dxdx, 2 * ∇x * δ⁻¹)
+        ∇δ = t * ∇x - δ⁻¹
+        dxdx, dxdν, dνdν = ∇xx - ∇x * ∇x, ∇xν - ∇x * ∇ν, ∇νν - ∇ν * ∇ν
+        dxdδ, dνdδ, dδdδ = t * dxdx + ∇x * δ⁻¹, t * dxdν + ∇ν * δ⁻¹, t * (t * dxdx + 2 * ∇x * δ⁻¹)
         return SVector(∇x, ∇ν, ∇δ, dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ)
     end
 end
 
 @inline function _∇²neglogpdf_qrician_inner_jac(x::D, ν::D, δ::D, t::D) where {D}
     # Compute the core derivatives
-    x′ = muladd(δ, t, x)
+    x′ = x + δ * t
     (∇x, ∇ν), (∇xx, ∇xν, ∇νν), (∇xxx, ∇xxν, ∇xνν, ∇ννν) = _∇³neglogpdf_rician_with_gradient_and_hessian(x′, ν)
 
     # Compute the full 9-element vector ϕ from the core derivatives
     δ⁻¹ = inv(δ)
-    ∇δ = muladd(t, ∇x, -δ⁻¹)
-    dxdx, dxdν, dνdν = muladd(-∇x, ∇x, ∇xx), muladd(-∇x, ∇ν, ∇xν), muladd(-∇ν, ∇ν, ∇νν)
-    dxdδ, dνdδ, dδdδ = muladd(t, dxdx, ∇x * δ⁻¹), muladd(t, dxdν, ∇ν * δ⁻¹), t * muladd(t, dxdx, 2 * ∇x * δ⁻¹)
+    ∇δ = t * ∇x - δ⁻¹
+    dxdx, dxdν, dνdν = ∇xx - ∇x * ∇x, ∇xν - ∇x * ∇ν, ∇νν - ∇ν * ∇ν
+    dxdδ, dνdδ, dδdδ = t * dxdx + ∇x * δ⁻¹, t * dxdν + ∇ν * δ⁻¹, t * (t * dxdx + 2 * ∇x * δ⁻¹)
     ϕ = SVector{9, D}(∇x, ∇ν, ∇δ, dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ)
 
     # Analytically compute the Jacobian of ϕ w.r.t. p = (x, ν, δ)
     δt, δ⁻², t² = δ * t, δ⁻¹^2, t^2
-    dxdxdx, dxdxdν, dνdνdx, dνdνdν = muladd(-2 * ∇x, ∇xx, ∇xxx), muladd(-2 * ∇x, ∇xν, ∇xxν), muladd(-2 * ∇ν, ∇xν, ∇xνν), muladd(-2 * ∇ν, ∇νν, ∇ννν)
-    dxdνdx, dxdνdν = ∇xxν - muladd(∇xx, ∇ν, ∇x * ∇xν), ∇xνν - muladd(∇xν, ∇ν, ∇x * ∇νν)
+    dxdxdx, dxdxdν, dνdνdx, dνdνdν = ∇xxx - 2 * ∇x * ∇xx, ∇xxν - 2 * ∇x * ∇xν, ∇xνν - 2 * ∇ν * ∇xν, ∇ννν - 2 * ∇ν * ∇νν
+    dxdνdx, dxdνdν = ∇xxν - ∇xx * ∇ν - ∇x * ∇xν, ∇xνν - ∇xν * ∇ν - ∇x * ∇νν
     Jϕ = SMatrix{9, 3, D}(
-        ∇xx, ∇xν, t * ∇xx, dxdxdx, dxdνdx, muladd(t, dxdxdx, ∇xx * δ⁻¹), dνdνdx, muladd(t, dxdνdx, ∇xν * δ⁻¹), t * muladd(t, dxdxdx, 2 * ∇xx * δ⁻¹),
-        ∇xν, ∇νν, t * ∇xν, dxdxdν, dxdνdν, muladd(t, dxdxdν, ∇xν * δ⁻¹), dνdνdν, muladd(t, dxdνdν, ∇νν * δ⁻¹), t * muladd(t, dxdxdν, 2 * ∇xν * δ⁻¹),
-        t * ∇xx, t * ∇xν, muladd(t², ∇xx, δ⁻²), t * dxdxdx, t * dxdνdx, muladd(t², dxdxdx, muladd(δt, ∇xx, -∇x) * δ⁻²), t * dνdνdx, muladd(t², dxdνdx, muladd(δt, ∇xν, -∇ν) * δ⁻²), t * muladd(t², dxdxdx, 2 * muladd(δt, ∇xx, -∇x) * δ⁻²),
+        ∇xx, ∇xν, t * ∇xx, dxdxdx, dxdνdx, t * dxdxdx + ∇xx * δ⁻¹, dνdνdx, t * dxdνdx + ∇xν * δ⁻¹, t * (t * dxdxdx + 2 * ∇xx * δ⁻¹),
+        ∇xν, ∇νν, t * ∇xν, dxdxdν, dxdνdν, t * dxdxdν + ∇xν * δ⁻¹, dνdνdν, t * dxdνdν + ∇νν * δ⁻¹, t * (t * dxdxdν + 2 * ∇xν * δ⁻¹),
+        t * ∇xx, t * ∇xν, t² * ∇xx + δ⁻², t * dxdxdx, t * dxdνdx, t² * dxdxdx + (δt * ∇xx - ∇x) * δ⁻², t * dνdνdx, t² * dxdνdx + (δt * ∇xν - ∇ν) * δ⁻², t * (t² * dxdxdx + 2 * (δt * ∇xx - ∇x) * δ⁻²),
     )
 
     return ϕ, Jϕ
@@ -507,30 +505,30 @@ end
 
 @inline function _∇²neglogpdf_qrician_inner_jvp(Δϕ::SVector{9, D}, x::D, ν::D, δ::D, t::D) where {D}
     # Compute the core derivatives
-    x′ = muladd(δ, t, x)
+    x′ = x + δ * t
     (∇x, ∇ν), (∇xx, ∇xν, ∇νν), (∇xxx, ∇xxν, ∇xνν, ∇ννν) = _∇³neglogpdf_rician_with_gradient_and_hessian(x′, ν)
 
     # Compute the full 9-element vector ϕ from the core derivatives
     δ⁻¹ = inv(δ)
     δ⁻² = δ⁻¹^2
-    ∇δ = muladd(t, ∇x, -δ⁻¹)
-    dxdx, dxdν, dνdν = muladd(-∇x, ∇x, ∇xx), muladd(-∇x, ∇ν, ∇xν), muladd(-∇ν, ∇ν, ∇νν)
-    dxdδ, dνdδ, dδdδ = muladd(t, dxdx, ∇x * δ⁻¹), muladd(t, dxdν, ∇ν * δ⁻¹), t * muladd(t, dxdx, 2 * ∇x * δ⁻¹)
+    ∇δ = t * ∇x - δ⁻¹
+    dxdx, dxdν, dνdν = ∇xx - ∇x * ∇x, ∇xν - ∇x * ∇ν, ∇νν - ∇ν * ∇ν
+    dxdδ, dνdδ, dδdδ = t * dxdx + ∇x * δ⁻¹, t * dxdν + ∇ν * δ⁻¹, t * (t * dxdx + 2 * ∇x * δ⁻¹)
     ϕ = SVector{9, D}(∇x, ∇ν, ∇δ, dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ)
 
     # Compute the vector-Jacobian product g = Jϕ' * Δϕ without explicitly forming Jϕ
-    dxdxdx, dxdxdν, dνdνdx, dνdνdν = muladd(-2 * ∇x, ∇xx, ∇xxx), muladd(-2 * ∇x, ∇xν, ∇xxν), muladd(-2 * ∇ν, ∇xν, ∇xνν), muladd(-2 * ∇ν, ∇νν, ∇ννν)
-    dxdνdx, dxdνdν = ∇xxν - muladd(∇xx, ∇ν, ∇x * ∇xν), ∇xνν - muladd(∇xν, ∇ν, ∇x * ∇νν)
+    dxdxdx, dxdxdν, dνdνdx, dνdνdν = ∇xxx - 2 * ∇x * ∇xx, ∇xxν - 2 * ∇x * ∇xν, ∇xνν - 2 * ∇ν * ∇xν, ∇ννν - 2 * ∇ν * ∇νν
+    dxdνdx, dxdνdν = ∇xxν - ∇xx * ∇ν - ∇x * ∇xν, ∇xνν - ∇xν * ∇ν - ∇x * ∇νν
 
     Δϕ_∇x, Δϕ_∇ν, Δϕ_∇δ, Δϕ_dxdx, Δϕ_dxdν, Δϕ_dxdδ, Δϕ_dνdν, Δϕ_dνdδ, Δϕ_dδdδ = Δϕ
-    Δϕ_∇xx = muladd(δ⁻¹, muladd(2 * t, Δϕ_dδdδ, Δϕ_dxdδ), muladd(t, Δϕ_∇δ, Δϕ_∇x))
-    Δϕ_∇xν = muladd(δ⁻¹, Δϕ_dνdδ, Δϕ_∇ν)
-    Δϕ_dxdxdx = muladd(t, muladd(t, Δϕ_dδdδ, Δϕ_dxdδ), Δϕ_dxdx)
-    Δϕ_dxdνdx = muladd(t, Δϕ_dνdδ, Δϕ_dxdν)
+    Δϕ_∇xx = δ⁻¹ * (2 * t * Δϕ_dδdδ + Δϕ_dxdδ) + t * Δϕ_∇δ + Δϕ_∇x
+    Δϕ_∇xν = δ⁻¹ * Δϕ_dνdδ + Δϕ_∇ν
+    Δϕ_dxdxdx = t * (t * Δϕ_dδdδ + Δϕ_dxdδ) + Δϕ_dxdx
+    Δϕ_dxdνdx = t * Δϕ_dνdδ + Δϕ_dxdν
 
-    gx = muladd(∇xx, Δϕ_∇xx, muladd(∇xν, Δϕ_∇xν, muladd(dxdxdx, Δϕ_dxdxdx, muladd(dxdνdx, Δϕ_dxdνdx, dνdνdx * Δϕ_dνdν))))
-    gν = muladd(∇xν, Δϕ_∇xx, muladd(∇νν, Δϕ_∇xν, muladd(dxdxdν, Δϕ_dxdxdx, muladd(dxdνdν, Δϕ_dxdνdx, dνdνdν * Δϕ_dνdν))))
-    gδ = muladd(t, gx, muladd(δ⁻², Δϕ_∇δ, -δ⁻² * muladd(∇x, Δϕ_dxdδ + 2 * t * Δϕ_dδdδ, ∇ν * Δϕ_dνdδ)))
+    gx = ∇xx * Δϕ_∇xx + ∇xν * Δϕ_∇xν + dxdxdx * Δϕ_dxdxdx + dxdνdx * Δϕ_dxdνdx + dνdνdx * Δϕ_dνdν
+    gν = ∇xν * Δϕ_∇xx + ∇νν * Δϕ_∇xν + dxdxdν * Δϕ_dxdxdx + dxdνdν * Δϕ_dxdνdx + dνdνdν * Δϕ_dνdν
+    gδ = t * gx + δ⁻² * Δϕ_∇δ - δ⁻² * (∇x * (Δϕ_dxdδ + 2 * t * Δϕ_dδdδ) + ∇ν * Δϕ_dνdδ)
     gϕ = SVector{3, D}(gx, gν, gδ)
 
     return ϕ, gϕ
@@ -736,7 +734,7 @@ end
     # I = ∫_{x₀}^{x₀ + δ} [f(t)] dt
     T = checkedfloattype(x₀, δ)
     x, w = gausslegendre_unit_interval(Val(order), T)
-    y = @. f(muladd(δ, x, x₀))
+    y = @. f(x₀ + δ * x)
     return vecdot(w, y) * δ
 end
 
@@ -755,7 +753,7 @@ end
     # I = ∫_{x₀}^{x₀ + δ} [f(t)] dt, where f(t) = exp(-neglogf(t))
     T = checkedfloattype(x₀, δ)
     x, w = gausslegendre_unit_interval(Val(order), T)
-    neglogy = @. neglogf(muladd(δ, x, x₀))
+    neglogy = @. neglogf(x₀ + δ * x)
     return weighted_neglogsumexp(w, neglogy) .- log(δ)
 end
 

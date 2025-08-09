@@ -10,19 +10,20 @@ using GenericLinearAlgebra: GenericLinearAlgebra # need to load this package to 
 using IrrationalConstants: IrrationalConstants, invsqrt2, sqrt2, invsqrt2π, sqrt2π, sqrthalfπ, logtwo, log2π
 using LinearAlgebra: LinearAlgebra, dot
 using MacroTools: MacroTools, @capture, combinedef, prettify, splitdef
+using MuladdMacro: MuladdMacro, @muladd, to_muladd
 using Random: Random
 using SpecialFunctions: SpecialFunctions, erf, erfc, erfcinv, erfcx
 using StaticArrays: StaticArrays, StaticArray, SVector, SMatrix, SHermitianCompact, SOneTo
 
 export Rice, neglogpdf_rician, neglogpdf_qrician
 
-include("gausshalfhermite.jl")
+include(to_muladd, "gausshalfhermite.jl")
 using .GaussHalfHermite: GaussHalfHermite, gausshalfhermite_gw
 
-include("utils.jl")
-include("forwarddiff.jl")
-include("bessels.jl")
-include("rician.jl")
-include("distributions.jl")
+include(to_muladd, "utils.jl")
+include(to_muladd, "forwarddiff.jl")
+include(to_muladd, "bessels.jl")
+include(to_muladd, "rician.jl")
+include(to_muladd, "distributions.jl")
 
 end

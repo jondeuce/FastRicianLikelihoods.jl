@@ -53,8 +53,8 @@ for T in (Float32, Float64)
         @testset "$(f̂) ($T)" begin
             f = arbify(f̂)
             for x in pos_range_iterator(T)
-                rtol = T == Float32 ? 2 * eps(T) : 5 * eps(T)
-                atol = T == Float32 ? 2 * eps(T) : 15 * eps(T)
+                rtol = 2 * eps(T)
+                atol = 2 * eps(T)
                 @test f̂(x) ≈ f(x) rtol = rtol atol = atol
             end
         end
