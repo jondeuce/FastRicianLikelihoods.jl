@@ -35,7 +35,7 @@ function cf_minimax(f::Function, dom::Tuple{<:Real, <:Real}, m::Integer, n::Inte
 end
 
 """
-    find_puiseux_series(f, h=one(ArbReal); alpha=1, order=4, verbose=false)
+    puiseux_series(f, h=one(ArbReal); alpha=1, order=4, verbose=false)
 
 Computes a generalized power series expansion for `f(x)` of the form
 
@@ -49,7 +49,7 @@ The coefficients are found recursively using Richardson extrapolation:
     c₀ = lim_{x→x₀} f(x)
     cₙ = lim_{x→x₀} x^{-n * α} * (f(x) - qₙ₋₁(x^α))
 """
-function find_puiseux_series(f, h::T = one(ArbReal); alpha::Number = 1, order::Int = 4, verbose::Bool = false) where {T}
+function puiseux_series(f, h::T = one(ArbReal); alpha::Number = 1, order::Int = 4, verbose::Bool = false) where {T}
     coeffs = Rational[]
     for i in 0:order
         c, c_err = Richardson.extrapolate(h; x0 = alpha > 0 ? zero(T) : T(Inf), power = abs(alpha)) do x

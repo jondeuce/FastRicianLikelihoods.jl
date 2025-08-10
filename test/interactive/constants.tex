@@ -1,0 +1,276 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+% \usepackage[margin=1in]{geometry}
+
+\title{Stable, efficient evaluation of gradients and Hessians for the Rician log-likelihood}
+\author{Jonathan Doucette}
+% \date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+We consider the Rician probability density for a positive observation $x>0$ with noncentrality parameter $\nu>0$ and scale $\sigma>0$.
+The pdf is
+%
+\begin{align}
+  p(x\mid\nu,\sigma) = \frac{x}{\sigma^2} \exp\left(-\frac{x^2+\nu^2}{2\sigma^2}\right) I_0\left(\frac{x\nu}{\sigma^2}\right)
+\end{align}
+%
+where $I_0(z)$ is the modified Bessel function of the first kind of order zero.
+
+We seek numerically stable, machine-precision formulas for the negative log-likelihood and its first- through third-order partial derivatives with respect to $x$ and $\nu$.
+Define $F(x,\nu,\sigma) := -\log p(x\mid\nu,\sigma)$ and $f(x,\nu) := F(x,\nu,1)$.
+For general $\sigma>0$, set $x'=x/\sigma$ and $\nu'=\nu/\sigma$.
+Then, we have
+%
+\begin{align}
+  F(x,\nu,\sigma) = f(x',\nu') + \log\sigma
+\end{align}
+%
+and the derivatives of $F$ with respect to $x$, $\nu$, and $\sigma$ are given in terms of the derivatives of $f$:
+%
+\begin{align}
+  \frac{\partial F}{\partial x}      = \frac{1}{\sigma} \frac{\partial f}{\partial x'}                                                                                        \qquad
+  \frac{\partial F}{\partial \nu}    = \frac{1}{\sigma} \frac{\partial f}{\partial \nu'}                                                                                      \qquad
+  \frac{\partial F}{\partial \sigma} = -\frac{x}{\sigma^2} \frac{\partial f}{\partial x'} - \frac{\nu}{\sigma^2} \frac{\partial f}{\partial \nu'} + \frac{1}{\sigma}
+\end{align}
+%
+and likewise for higher-order derivatives.
+
+Henceforth we take $\sigma=1$ and, by slight abuse of notation, write $x,\nu$ for the rescaled variables $x',\nu'$.
+Define $z=x\nu$ and $u=1/z$.
+Na\"ive differentiation produces expressions with catastrophic cancellation for both very small and very large values of $z$.
+To evaluate $f$ and its derivatives in a numerically stable way, we must branch on the value of $z$ and derive algebraic simplifications in each branch.
+
+\section{The Rician log-likelihood and basic simplifications}
+
+With $\sigma=1$, the Rician negative log-likelihood is
+%
+\begin{align}
+  f(x,\nu) & = -\log p(x\mid\nu)                                                                                               \\
+           & = \frac{(x-\nu)^2}{2} - \frac{1}{2}\log\left(\frac{x}{\nu}\right) - \log \hat{I}_0(x \nu) + \frac{1}{2}\log(2\pi)
+\end{align}
+%
+where $\hat{I}_0$ is the scaled modified Bessel function of the first kind
+%
+\begin{align}
+  \hat{I}_0(z) = \frac{I_0(z)}{e^{z}/\sqrt{2\pi z}}.
+\end{align}
+
+\subsection{First derivatives}
+
+Now, we differentiate $f$ with respect to $x$ and $\nu$ and simplify algebraically:
+%
+\begin{align}
+  f_x   & = x-\nu -\frac{1}{2x} - \nu\frac{d}{dz}\log\hat{I}_0(z) \label{eq:first-derivatives-unsimplified-x}  \\
+  f_\nu & = \nu-x +\frac{1}{2\nu} - x\frac{d}{dz}\log\hat{I}_0(z) \label{eq:first-derivatives-unsimplified-nu}
+\end{align}
+%
+where
+%
+\begin{align}
+  \frac{d}{dz}\log\hat{I}_0(z) & = r(z) - 1 + \frac{1}{2z} \label{eq:log-scaled-bessel-derivative} \\
+  r(z)                         & = \frac{I_1(z)}{I_0(z)}. \label{eq:ratio-r}
+\end{align}
+%
+Substituting~\eqref{eq:log-scaled-bessel-derivative} and $z=x\nu$ into~\eqref{eq:first-derivatives-unsimplified-x} and~\eqref{eq:first-derivatives-unsimplified-nu} gives
+%
+\begin{align}
+  f_x   & = x - \nu r - \frac{1}{x} \label{eq:first-derivatives-simplified-x} \\
+  f_\nu & = \nu - x r \label{eq:first-derivatives-simplified-nu}
+\end{align}
+%
+This algebraic simplification avoids catastrophic cancellation that would occur for small $\nu$ if the $\frac{1}{2\nu}$ and $\frac{-x}{2z}$ terms were evaluated separately and then combined.
+
+\subsection{Second derivatives}
+
+Next, we differentiate the simplified first derivatives~\eqref{eq:first-derivatives-simplified-x} and~\eqref{eq:first-derivatives-simplified-nu} to obtain the second derivatives:
+%
+\begin{align}
+  f_{xx}     & = \frac{\partial}{\partial x}\left(x - \nu r(z) - \frac{1}{x}\right) = 1 + \frac{1}{x^2} - \nu^2 r' \label{eq:second-derivatives-unsimplified-x-x} \\
+  f_{x\nu}   & = \frac{\partial}{\partial \nu}\left(x - \nu r(z) - \frac{1}{x}\right) = -(r + z r') = -z(1 - r^2) \label{eq:second-derivatives-unsimplified-x-nu} \\
+  f_{\nu\nu} & = \frac{\partial}{\partial \nu}\left(\nu - x r(z)\right) = 1 - x^2 r' \label{eq:second-derivatives-unsimplified-nu-nu}
+\end{align}
+%
+where the last equality in~\eqref{eq:second-derivatives-unsimplified-x-nu} follows from the recurrence relation~\eqref{eq:r-prime-recurrence}.
+
+\subsection{Third derivatives}
+
+Differentiate once more to obtain third derivatives; each depends only on $r'$ and $r''$:
+%
+\begin{align}
+  f_{xxx}       & = \frac{\partial}{\partial x}\left(1+\frac{1}{x^2}-\nu^2 r'(z)\right) = -\frac{2}{x^3} - \nu^3 r'' \label{eq:third-derivatives-unsimplified-x-x-x}                                 \\
+  f_{xx\nu}     & = \frac{\partial}{\partial \nu}\left(1+\frac{1}{x^2}-\nu^2 r'(z)\right) = -2\nu r' - x\nu^2 r'' = -\nu(2r' + z r'')              \label{eq:third-derivatives-unsimplified-x-x-nu}  \\
+  f_{x\nu\nu}   & = \frac{\partial}{\partial x}\left(1 - x^2 r'(z)\right) = -2x r' - x^2\nu r'' = -x(2r' + z r'')                                  \label{eq:third-derivatives-unsimplified-x-nu-nu} \\
+  f_{\nu\nu\nu} & = \frac{\partial}{\partial \nu}\left(1 - x^2 r'(z)\right) = -x^3 r''. \label{eq:third-derivatives-unsimplified-nu-nu-nu}
+\end{align}
+%
+Therefore it suffices to compute $r$, $r'$, and $r''$ with high relative accuracy.
+
+\section{Recurrence relations for derivatives of $r$}
+
+To obtain $r$, $r'$, and $r''$, we differentiate $r=I_1/I_0$.
+Using $I_0'=I_1$ and $I_1'=I_0 - I_1/z$, we have the recurrence relations
+%
+\begin{align}
+  r'  & = \frac{I_1'}{I_0} - r\frac{I_0'}{I_0} = \frac{I_0 - \frac{1}{z} I_1}{I_0} - r^2 = 1 - \frac{r}{z} - r^2 \label{eq:r-prime-recurrence} \\
+  r'' & = -\left(\frac{r}{z}\right)' - 2 r r' = -\frac{r'}{z} + \frac{r}{z^2} - 2 r r' \label{eq:r-second-derivative-recurrence}
+\end{align}
+
+These are exact identities but are numerically unstable as $z \to 0$ and as $z \to \infty$.
+To address this, for each of $r$, $r'$, and $r''$, we split the domain $z>0$ into three regimes and approximate a single well-scaled quantity in each regime:
+\begin{itemize}
+  \item Small $z$: use a Taylor expansion, group terms by order in $z$, and fit a minimax polynomial to the residual.
+  \item Large $z$: use the asymptotic expansion in $u = 1/z$, group terms by order in $u$, and fit a minimax polynomial to the residual.
+  \item Intermediate $z$: cancellation is negligible; employ a rational minimax approximant.
+\end{itemize}
+
+\section{Small-$z$ analysis}
+
+For small $z$, $r(z) \approx z/2$.
+Thus if we define
+%
+\begin{align}
+  a_0(z) = \frac{r(z)}{z} = \frac{1}{2} - \frac{1}{16}z^2 + \mathcal{O}(z^4),
+\end{align}
+%
+then for computing $r$, we need only approximate $a_0(z)$ to high precision.
+Similarly, to compute $r'(z)$, we have that
+%
+\begin{align}\label{eq:r-prime-reparametrized}
+  r'(z) = 1 - \frac{r}{z} - r^2 = 1 - a_0 - z^2 a_0^2
+\end{align}
+%
+which is numerically stable since $a_0(z) = \frac{1}{2} + \mathcal{O}(z^2)$ and thus both the constant coefficient $1 - a_0(z)$ and the quadratic coefficient $-a_0(z)^2$ do not suffer from cancellation in floating-point arithmetic.
+
+However, the second derivative $r''(z)$ requires more care.
+Observe that
+%
+\begin{align}
+  r''(z) & = -\frac{r'}{z} + \frac{r}{z^2} - 2 r r'                                             \\
+         & = -\frac{1 - a_0 - z^2 a_0^2}{z} + \frac{z a_0}{z^2} -  2 z a_0(1 - a_0 - z^2 a_0^2) \\
+         & = \frac{2 a_0 - 1}{z} + z a_0 (3 a_0 - 2) + 2 z^3 a_0^3.
+\end{align}
+%
+The leading $\mathcal{O}(1/z)$ term has coefficient $2a_0 - 1$, but for small $z$, $a_0 \approx \frac{1}{2} - \frac{1}{16}z^2$ and thus computing $2a_0 - 1$ requires subtracting two $\mathcal{O}(1)$ terms to obtain a $\mathcal{O}(z^2)$ term.
+We therefore reparametrize to
+%
+\begin{align}
+  a_0                 & = \frac{1}{2} + z^2 a_1 \label{eq:a0-reparametrized}                                                          \\
+  \Leftrightarrow a_1 & = \frac{1}{z^2} (a_0 - \frac{1}{2}) = \frac{1}{z^2} (\frac{r}{z} - \frac{1}{2}). \label{eq:a1-reparametrized}
+\end{align}
+%
+Note that since $r(z) = \frac{1}{2}z - \frac{1}{16}z^3 + \mathcal{O}(z^5)$, it follows that $a_1(z) = -\frac{1}{16} + \mathcal{O}(z^2)$.
+We can then rewrite the second derivative into a numerically stable form:
+%
+\begin{align}
+  r''(z) & = \frac{2(\frac{1}{2} + z^2 a_1)-1}{z} + z a_0 (3 a_0 - 2) + 2 z^3 a_0^3                 \\
+         & = z (2a_1 + a_0 (3 a_0 - 2)) + 2 z^3 a_0^3 \label{eq:r-second-derivative-reparametrized}
+\end{align}
+
+% We can then rewrite the first and second derivatives of $r$ as
+% %
+% \begin{align}
+%   r'(z) & = 1 - a_0 - z^2 a_0^2 \\
+%   & = 1 - (\frac{1}{2} + z^2 a_1) - z^2 (\frac{1}{2} + z^2 a_1)^2 \\
+%   &= \frac{1}{2} - z^2 (a_1 + \frac{1}{4}) - z^4 a_1 - z^6 a_1^2
+% \end{align}
+% %
+% \begin{align}
+%   r''(z) & = \frac{2 a_0 - 1}{z} + z a_0 (3 a_0 - 2) + 2 z^3 a_0^3 \\
+%   &= \frac{2(\frac{1}{2} + z^2 a_1)-1}{z} - 2z(\frac{1}{2} + z^2 a_1) + 2z(\frac{1}{2} + z^2 a_1)^{2} + 2z^3 (\frac{1}{2} + z^2 a_1)^3 \\
+%          & = z (2a_1 - \frac{1}{2}) + \frac{1}{4} z^3 + z^5 a_1 (\frac{3}{2} + 2 a_1) + z^7 (3 a_1^2) + z^9 (2 a_1^3)
+% \end{align}
+
+% Finally, we see from equations~\eqref{eq:third-derivatives-unsimplified-x-x-nu} and
+% \eqref{eq:third-derivatives-unsimplified-x-nu-nu} that we should double-check the quantity $2r' + zr''$ for cancellation issues:
+% %
+% \begin{align}
+%   2r' + zr'' & = 2(1 - a_0 - z^2 a_0^2) + z(z (2a_1 + a_0 (3 a_0 - 2)) + 2 z^3 a_0^3) \\
+%              & = 2 - 2a_0 - 2z^2 a_0^2 + z^2 (2a_1 + a_0 (3 a_0 - 2)) + 2 z^4 a_0^3 \\
+%              & = 2 a_0^3 z^4 + a_0^2 z^2 - 2 a_0 z^2 - 2 a_0 + 2 a_1 z^2 + 2 \\
+%              & = 2 - 2a_0 + z^2 (2a_1 - a_0 (2 - a_0)) + 2 a_0^3 z^4
+% \end{align}
+
+Finally, note that the quantity $2r' + z r''$ from equations~\eqref{eq:third-derivatives-unsimplified-x-x-nu} and
+\eqref{eq:third-derivatives-unsimplified-x-nu-nu} does not suffer cancellation issues, since $2r' = 1 + \mathcal{O}(z^2)$ and $z r'' = \mathcal{O}(z^2)$.
+
+Thus, we need only fit one minimax polynomial to equation~\eqref{eq:a1-reparametrized} to estimate $a_1(z)$, and then $r$, $r'$, and $r''$ can be formed from $a_1$ and $a_0 = \frac{1}{2} + z^2 a_1$ without catastrophic cancellation using equations~\eqref{eq:r-prime-reparametrized} and~\eqref{eq:r-second-derivative-reparametrized}.
+
+\section{Large-$z$ analysis}
+
+As $z \to \infty$, $r(z) \to 1$.
+To avoid cancellation issues analogous to the small-$z$ case, we work with $u=1/z$ and rescale the residual $1-r(z)$ to obtain a well-scaled quantity.
+Let
+%
+\begin{align}
+  b_0(u)           & = \frac{1-r(z)}{u} = \frac{1}{2} + \frac{1}{8} u + \frac{1}{8} u^2 + \mathcal{O}(u^3) \\
+  \Rightarrow r(z) & = 1 - u b_0(u) \label{eq:r-large-reparametrized}
+\end{align}
+%
+Approximating $b_0(u)$ with a minimax polynomial allows us to compute $r(z)$ without catastrophic cancellation.
+
+Next, we consider $r'(z)$:
+%
+\begin{align}\label{eq:r-prime-large-reparametrized}
+  r'(z) & = 1 - \frac{r}{z} - r^2             \\
+        & = 1 - u(1 - u b_0) - (1 - u b_0)^2  \\
+        & = u (2 b_0 - 1) + u^2 b_0 (1 - b_0)
+\end{align}
+%
+Analogous to the small-$z$ case, this will lead to cancellation issues since $2b_0 - 1 = \mathcal{O}(u)$.
+Thus, we reparametrize to
+%
+\begin{align}
+  b_1(u)             & = \frac{2b_0(u)-1}{u} = \frac{1}{4} + \frac{1}{4} u + \mathcal{O}(u^2) \\
+  \Rightarrow b_0(u) & = \frac{1 + u b_1(u)}{2}
+\end{align}
+%
+Then, $r'$ simplifies to
+%
+\begin{align}
+  r' = u(2b_0-1) + u^2 b_0(1-b_0) = u^2 (b_1 + b_0(1-b_0))
+\end{align}
+%
+which avoids cancellation issues since $b_1 \to \frac{1}{4}$ and $b_0 \to \frac{1}{2}$ as $u \to 0$, thus $r' = \frac{1}{2} u^2 + \mathcal{O}(u^3)$.
+
+Next, we consider $r''$:
+%
+\begin{align}
+  r'' & = -\frac{r'}{z} + \frac{r}{z^2} - 2 r r'                                                \\
+      & = -u(u^2 (b_1 + b_0(1-b_0))) + u^2 (1 - u b_0) - 2 (1 - u b_0) (u^2 (b_1 + b_0(1-b_0))) \\
+      & = u^2 (2b_0^2 - 2b_1 - (2b_0 - 1)) + u^3 (b_1 (2b_0 - 1) - 2b_0 + 3b_0^2 - 2b_0^3)      \\
+      & = u^2 (2b_0^2 - 2b_1) + u^3 (b_0 (- 2 + 3b_0 - 2b_0^2) - b_1) + u^4 b_1^2               \\
+      & = u^2 (2b_0^2 - 2b_1) + u^3 (b_0 (2(2b_0 - 1) - b_0 (1 + 2b_0)) - b_1) + u^4 b_1^2      \\
+      & = u^2 (2b_0^2 - 2b_1) - u^3 (b_0^2 (1 + 2b_0) + b_1) + u^4 b_1(b_1 + 2b_0)
+\end{align}
+%
+Now, since $b_0 = \frac{1}{2} + \mathcal{O}(u)$ and $b_1 = \frac{1}{4} + \mathcal{O}(u)$, we have $b_0^2 - b_1 = \mathcal{O}(u)$, and thus the leading term is order $\mathcal{O}(u^3)$, as expected since $r = 1 + \mathcal{O}(1/z)$.
+To avoid cancellation issues, we introduce one final change of variables:
+%
+\begin{align}
+  b_2(u)             & = \frac{4 b_1(u) - 1}{u} = 1 + \mathcal{O}(u) \label{eq:b2-reparametrized} \\
+  \Rightarrow b_1(u) & = \frac{1 + u b_2(u)}{4} \label{eq:b1-reparametrized}
+\end{align}
+%
+Then, we have
+%
+\begin{align}
+  2b_0^2 - 2b_1 & = 2(\frac{1 + u b_1}{2})^2 - 2b_1 = \frac{1}{2} (1 - 4 b_1 + 2 u b_1 + u^2 b_1^2) \\
+                & = \frac{1}{2} u (-b_2 + 2 b_1) + \frac{1}{2} u^2 b_1^2
+\end{align}
+%
+and finally
+%
+\begin{align}
+  r'' & = u^2 (2b_0^2 - 2b_1) - u^3 (b_0^2 (1 + 2b_0) + b_1) + u^4 b_1(b_1 + 2b_0)                                                        \\
+      & = \frac{1}{2} u^2 (u (-b_2 + 2 b_1) + u^2 b_1^2) - u^3 (b_0^2 (1 + 2b_0) + b_1) + u^4 b_1(b_1 + 2b_0)                             \\
+      & = -u^3 (\frac{1}{2}b_2 + b_0^2 (1 + 2b_0)) + u^4 b_1 (\frac{3}{2} b_1 + 2b_0) \label{eq:r-second-derivative-large-reparametrized}
+\end{align}
+
+Thus, we need only fit one minimax polynomial to equation~\eqref{eq:b2-reparametrized} to estimate $b_2(u)$, and then $r$, $r'$, and $r''$ can be formed from $b_2$, $b_1 = \frac{1 + u b_2}{4}$, and $b_0 = \frac{1 + u b_1}{2}$ using equations~\eqref{eq:r-prime-large-reparametrized} and~\eqref{eq:r-second-derivative-large-reparametrized} without catastrophic cancellation.
+
+\end{document}
