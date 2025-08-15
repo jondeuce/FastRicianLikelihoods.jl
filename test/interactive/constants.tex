@@ -2,6 +2,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{hyperref}
+\usepackage{mathtools}
 \usepackage[margin=1in]{geometry}
 
 \title{Stable, efficient evaluation of gradients and Hessians for the Rician log-likelihood}
@@ -17,31 +18,35 @@ We consider the Rician probability density for a positive observation $x>0$ with
 The pdf is
 %
 \begin{align}
-  p(x\mid\nu,\sigma) = \frac{x}{\sigma^2} \exp\left(-\frac{x^2+\nu^2}{2\sigma^2}\right) I_0\left(\frac{x\nu}{\sigma^2}\right)
+  p(x \mid \nu, \sigma) = \frac{x}{\sigma^2} \exp\left(-\frac{x^2+\nu^2}{2\sigma^2}\right) I_0\left(\frac{x\nu}{\sigma^2}\right) \label{eq:rician-pdf}
 \end{align}
 %
 where $I_0$ is the modified Bessel function of the first kind of order zero.
 
 We seek numerically stable, machine-precision formulas for the negative log-likelihood and its first- through third-order partial derivatives with respect to $x$ and $\nu$.
-Define $F(x,\nu,\sigma) := -\log p(x\mid\nu,\sigma)$ and $f(x,\nu) := F(x,\nu,1)$.
-For general $\sigma>0$, set $x'=x/\sigma$ and $\nu'=\nu/\sigma$.
-Then, we have
+If we define
 %
 \begin{align}
-  F(x,\nu,\sigma) = f(x',\nu') + \log\sigma
+  f(x, \nu) \coloneqq -\log p(x \mid \nu, \sigma = 1),
 \end{align}
 %
-and the derivatives of $F$ with respect to $x$, $\nu$, and $\sigma$ are given in terms of the derivatives of $f$:
+then the log of the likelihood~\eqref{eq:rician-pdf} can be given in terms of $f$ via
 %
 \begin{align}
-  \frac{\partial F}{\partial x}      = \frac{1}{\sigma} \frac{\partial f}{\partial x'}                                                                                        \qquad
-  \frac{\partial F}{\partial \nu}    = \frac{1}{\sigma} \frac{\partial f}{\partial \nu'}                                                                                      \qquad
-  \frac{\partial F}{\partial \sigma} = -\frac{x}{\sigma^2} \frac{\partial f}{\partial x'} - \frac{\nu}{\sigma^2} \frac{\partial f}{\partial \nu'} + \frac{1}{\sigma}
+  \log p(x \mid \nu, \sigma) = \log\sigma - f\left(\frac{x}{\sigma}, \frac{\nu}{\sigma}\right).
+\end{align}
+%
+Similarly, the derivatives of $\log p$ with respect to $x$, $\nu$, and $\sigma$ are given in terms of the derivatives of $f$ evaluated at $(x', \nu') = (x / \sigma, \nu / \sigma)$:
+%
+\begin{align}
+  \frac{\partial \log p}{\partial x}      = -\frac{1}{\sigma} \frac{\partial f}{\partial x'},                                                                                        \qquad
+  \frac{\partial \log p}{\partial \nu}    = -\frac{1}{\sigma} \frac{\partial f}{\partial \nu'}                                                                                      \qquad
+  \frac{\partial \log p}{\partial \sigma} = \frac{x}{\sigma^2} \frac{\partial f}{\partial x'} + \frac{\nu}{\sigma^2} \frac{\partial f}{\partial \nu'} - \frac{1}{\sigma}
 \end{align}
 %
 and likewise for higher-order derivatives.
 
-Henceforth we take $\sigma=1$ and, by slight abuse of notation, write $x,\nu$ for the rescaled variables $x',\nu'$.
+Henceforth we take $\sigma=1$ and, by slight abuse of notation, write $x, \nu$ for the rescaled variables $x', \nu'$.
 We will show that the key to numerically stable evaluation of $f$ and its derivatives is to carefully consider the limiting behavior in the regimes where $z = x\nu \ll 1$ and $z \gg 1 \Leftrightarrow u=1/z \ll 1$.
 Na\"ive differentiation produces expressions with catastrophic cancellation in both regimes.
 To evaluate $f$ and its derivatives in a numerically stable way, we branch on the value of $z$ and derive algebraic simplifications in each branch.
@@ -51,8 +56,9 @@ To evaluate $f$ and its derivatives in a numerically stable way, we branch on th
 With $\sigma=1$, the Rician negative log-likelihood is given by
 %
 \begin{align}
-  f(x,\nu) & = -\log p(x\mid\nu)                                                                                               \\
-           & = \frac{(x-\nu)^2}{2} - \frac{1}{2}\log\left(\frac{x}{\nu}\right) - \log \hat{I}_0(x \nu) + \frac{1}{2}\log(2\pi)
+  f(x, \nu) & \eqqcolon -\log p(x \mid \nu, \sigma=1)                                                                                                                       \\
+            & = \frac{x^2 + \nu^2}{2} - \log x - \log I_0(z) \label{eq:rician-neg-log-likelihood}                                                                           \\
+            & = \frac{(x-\nu)^2}{2} - \frac{1}{2}\log\left(\frac{x}{\nu}\right) - \log \hat{I}_0(x \nu) + \frac{1}{2}\log(2\pi) \label{eq:rician-neg-log-likelihood-scaled}
 \end{align}
 %
 where $\hat{I}_0$ is the scaled modified Bessel function of the first kind
@@ -60,6 +66,47 @@ where $\hat{I}_0$ is the scaled modified Bessel function of the first kind
 \begin{align}
   \hat{I}_0(z) = \frac{I_0(z)}{e^{z}/\sqrt{2\pi z}}.
 \end{align}
+
+We now consider the numerical stability of these algebraically equivalent forms of $f$.
+
+\paragraph{Small $z \ll 1$.}
+
+For small $z$, we have that $\log I_0(z) = z^2/4 + \mathcal{O}(z^4)$, and thus~\eqref{eq:rician-neg-log-likelihood} becomes
+%
+\begin{align}
+  f(x, \nu) = \frac{x^2 + \nu^2}{2} - \log x - \frac{z^2}{4} + \mathcal{O}(z^4).
+\end{align}
+%
+The terms in this expression are generally not of the same order of magnitude, so there are no cancellation issues.
+% This is slightly more numerically stable than using $\log \hat{I}_0(z) = \log I_0(z) - z + \frac{1}{2}\log(2\pi z) = \frac{1}{2}\log(2\pi z) - z + \mathcal{O}(z^2)$, which may suffer small cancellation issues when computing $-\frac{1}{2}\log(\frac{x}{\nu}) - \log \hat{I}_0(x \nu) + \frac{1}{2}\log(2\pi) = -\log x + z + \mathcal{O}(z^2)$.
+% For example, if $x \approx 1$ and $\nu \approx z$, then $\frac{1}{2}\log(\frac{x}{\nu}) \approx -\frac{1}{2}\log z$ and $-\log \hat{I}_0(x \nu) + \frac{1}{2}\log(2\pi) \approx -\frac{1}{2}\log z$ but the result is $z \ll -\log z$.
+
+\paragraph{Large $z \gg 1$.}
+
+For large $z$, we have that $\log \hat{I}_0(z) = \frac{1}{8 z} + \mathcal{O}(z^{-2})$, and thus~\eqref{eq:rician-neg-log-likelihood-scaled} becomes
+%
+\begin{align}
+  f(x, \nu) = \frac{(x-\nu)^2}{2} - \frac{1}{2}\log\left(\frac{x}{\nu}\right) + \frac{1}{2}\log(2\pi) - \frac{1}{8 z} + \mathcal{O}(z^{-2}).
+\end{align}
+%
+The terms in this expression are generally not of the same order of magnitude -- unless $x \approx \nu$, which we address next -- so there are typically no cancellation issues.
+
+\paragraph{High SNR $x \approx \nu \approx \sqrt{z} \gg 1$.}
+
+A common case in practice is when the signal-to-noise ratio (SNR) is large: observations are concentrated near the noncentrality parameter such that $x \approx \nu \pm 1$ (recall that the noise level is normalized to $\sigma=1$).
+As was the case for large $z$, we should use the scaled form~\eqref{eq:rician-neg-log-likelihood-scaled} but with a stable evaluation of $\log(x/\nu)$:
+%
+\begin{align}
+  \log\left(\frac{x}{\nu}\right) = \begin{cases}
+    \log\left(1 + \frac{x-\nu}{\nu}\right) & \text{if } x \ge \nu \\
+    -\log\left(1 + \frac{\nu-x}{x}\right)  & \text{if } x < \nu
+  \end{cases}
+\end{align}
+%
+where $\log(1 + t) = t - t^2/2 + \mathcal{O}(t^3)$ is computed using the common special-function routine \texttt{log1p(t)} which is designed to be accurate when $t$ is small.
+With this modification, equation~\eqref{eq:rician-neg-log-likelihood-scaled} is accurate for all $z \gg 1$.
+
+We note that~\eqref{eq:rician-neg-log-likelihood} is not stable in the high SNR regime, since $\log I_0(z) = \log \hat{I}_0(z) + z - \frac{1}{2}\log(2\pi z)$ has a large component $z$ which catastrophically cancels with $(x^2 + \nu^2) / 2 \approx z$.
 
 \subsection{First derivatives}
 
@@ -109,7 +156,7 @@ Differentiate once more to obtain third derivatives; each depends only on $r'$ a
 %
 Therefore it suffices to compute $r$, $r'$, and $r''$ with high relative accuracy.
 
-\section{Recurrence relations for derivatives of $r$}
+\subsection{Recurrence relations for derivatives of $r$}
 
 To obtain $r$, $r'$, and $r''$, we differentiate $r=I_1/I_0$.
 Using $I_0'=I_1$ and $I_1'=I_0 - I_1/z$, we have the recurrence relations
@@ -133,14 +180,19 @@ For small $z$, $r \approx z/2$.
 Thus if we define
 %
 \begin{align}
-  a_0(z) = \frac{r(z)}{z} = \frac{1}{2} - \frac{1}{16}z^2 + \mathcal{O}(z^4),
+  \boxed{
+    \begin{aligned}
+      a_0(z)           & = \frac{r(z)}{z} = \frac{1}{2} - \frac{1}{16}z^2 + \mathcal{O}(z^4) \\
+      \Rightarrow r(z) & = z a_0(z)
+    \end{aligned}
+  }
 \end{align}
 %
 then for computing $r$, we need only approximate $a_0$ to high precision.
 Similarly, to compute $r'$, we have
 %
 \begin{align}\label{eq:r-prime-reparametrized}
-  r'(z) = 1 - \frac{r}{z} - r^2 = 1 - a_0 - z^2 a_0^2
+  \boxed{r'(z) = 1 - \frac{r}{z} - r^2 = 1 - a_0 - z^2 a_0^2}
 \end{align}
 %
 which is numerically stable since $a_0 = \frac{1}{2} + \mathcal{O}(z^2)$ and thus both the constant coefficient $1 - a_0$ and the quadratic coefficient $-a_0^2$ do not suffer from cancellation in floating-point arithmetic.
@@ -163,11 +215,10 @@ We therefore reparametrize to
 \end{align}
 %
 Note that since $r = \frac{1}{2}z - \frac{1}{16}z^3 + \mathcal{O}(z^5)$, it follows that $a_1 = -\frac{1}{16} + \mathcal{O}(z^2)$.
-We can then rewrite the second derivative into a numerically stable form:
+We can then rewrite the second derivative into a numerically stable form using $(2 a_0 - 1) / z = 2 z a_1$:
 %
 \begin{align}
-  r''(z) & = \frac{2(\frac{1}{2} + z^2 a_1)-1}{z} + z a_0 (3 a_0 - 2) + 2 z^3 a_0^3                 \\
-         & = z (2a_1 + a_0 (3 a_0 - 2)) + 2 z^3 a_0^3 \label{eq:r-second-derivative-reparametrized}
+  \boxed{r''(z) = z (2a_1 + a_0 (3 a_0 - 2)) + 2 z^3 a_0^3} \label{eq:r-second-derivative-reparametrized}
 \end{align}
 %
 We also note that the quantity $2r' + z r''$ from equations~\eqref{eq:third-derivatives-unsimplified-x-x-nu} and
@@ -206,8 +257,12 @@ To avoid cancellation issues analogous to the small-$z$ case, we work with $u=1/
 Let
 %
 \begin{align}
-  b_0(u)           & = \frac{1-r(z)}{u} = \frac{1}{2} + \frac{1}{8} u + \frac{1}{8} u^2 + \mathcal{O}(u^3) \\
-  \Rightarrow r(z) & = 1 - u b_0(u) \label{eq:r-large-reparametrized}
+  \boxed{
+    \begin{aligned}
+      b_0(u)           & = \frac{1-r(z)}{u} = \frac{1}{2} + \frac{1}{8} u + \frac{1}{8} u^2 + \mathcal{O}(u^3) \\
+      \Rightarrow r(z) & = 1 - u b_0(u) \label{eq:r-large-reparametrized}
+    \end{aligned}
+  }
 \end{align}
 %
 Approximating $b_0$ with a minimax polynomial allows us to compute $r$ without catastrophic cancellation.
@@ -220,18 +275,22 @@ Next, we consider $r'$:
         & = u (2 b_0 - 1) + u^2 b_0 (1 - b_0) \label{eq:r-prime-large-reparametrized}
 \end{align}
 %
-Analogous to the small-$z$ case, this will lead to cancellation issues since $2b_0 - 1 = \mathcal{O}(u)$.
+Analogous to the small-$z$ case, this will lead to cancellation issues since $2 b_0 - 1 = \mathcal{O}(u)$.
 Thus, we reparametrize to
 %
 \begin{align}
-  b_1(u)             & = \frac{2b_0(u)-1}{u} = \frac{1}{4} + \frac{1}{4} u + \mathcal{O}(u^2) \\
+  b_1(u)             & = \frac{2 b_0(u)-1}{u} = \frac{1}{4} + \frac{1}{4} u + \mathcal{O}(u^2) \\
   \Rightarrow b_0(u) & = \frac{1 + u b_1(u)}{2}
 \end{align}
 %
 Then, $r'$ simplifies to
 %
-\begin{align}\label{eq:r-prime-large-reparametrized-simplified}
-  r' = u(2b_0-1) + u^2 b_0(1-b_0) = u^2 (b_1 + b_0(1-b_0))
+\begin{align}
+  \boxed{
+    \begin{aligned}
+      r' = u(2 b_0-1) + u^2 b_0(1-b_0) = u^2 (b_1 + b_0(1-b_0)) \label{eq:r-prime-large-reparametrized-simplified}
+    \end{aligned}
+  }
 \end{align}
 %
 which avoids cancellation issues since $b_1 \to \frac{1}{4}$ and $b_0 \to \frac{1}{2}$ as $u \to 0$, thus $r' = \frac{1}{2} u^2 + \mathcal{O}(u^3)$.
@@ -239,12 +298,12 @@ which avoids cancellation issues since $b_1 \to \frac{1}{4}$ and $b_0 \to \frac{
 Next, we consider $r''$:
 %
 \begin{align}
-  r'' & = -\frac{r'}{z} + \frac{r}{z^2} - 2 r r'                                                \\
-      & = -u(u^2 (b_1 + b_0(1-b_0))) + u^2 (1 - u b_0) - 2 (1 - u b_0) (u^2 (b_1 + b_0(1-b_0))) \\
-      & = u^2 (2b_0^2 - 2b_1 - (2b_0 - 1)) + u^3 (b_1 (2b_0 - 1) - 2b_0 + 3b_0^2 - 2b_0^3)      \\
-      & = u^2 (2b_0^2 - 2b_1) + u^3 (b_0 (- 2 + 3b_0 - 2b_0^2) - b_1) + u^4 b_1^2               \\
-      & = u^2 (2b_0^2 - 2b_1) + u^3 (b_0 (2(2b_0 - 1) - b_0 (1 + 2b_0)) - b_1) + u^4 b_1^2      \\
-      & = u^2 (2b_0^2 - 2b_1) - u^3 (b_0^2 (1 + 2b_0) + b_1) + u^4 b_1(b_1 + 2b_0)
+  r'' & = -\frac{r'}{z} + \frac{r}{z^2} - 2 r r'                                                                                                        \\
+      & = -u(u^2 (b_1 + b_0(1-b_0))) + u^2 (1 - u b_0) - 2 (1 - u b_0) (u^2 (b_1 + b_0(1-b_0)))                                                         \\
+      & = u^2 (2 b_0^2 - 2 b_1 - (2 b_0 - 1)) + u^3 (b_1 (2 b_0 - 1) - 2 b_0 + 3b_0^2 - 2 b_0^3)                                                        \\
+      & = u^2 (2 b_0^2 - 2 b_1) + u^3 (b_0 (- 2 + 3b_0 - 2 b_0^2) - b_1) + u^4 b_1^2                                                                    \\
+      & = u^2 (2 b_0^2 - 2 b_1) + u^3 (b_0 (2(2 b_0 - 1) - b_0 (1 + 2 b_0)) - b_1) + u^4 b_1^2                                                          \\
+      & = u^2 (2 b_0^2 - 2 b_1) - u^3 (b_0^2 (1 + 2 b_0) + b_1) + u^4 b_1(b_1 + 2 b_0) \label{eq:r-second-derivative-large-reparametrized-unsimplified}
 \end{align}
 %
 Now, since $b_0 = \frac{1}{2} + \mathcal{O}(u)$ and $b_1 = \frac{1}{4} + \mathcal{O}(u)$, we have $b_0^2 - b_1 = \mathcal{O}(u)$, and thus the leading term is order $\mathcal{O}(u^3)$, as expected since $r = 1 + \mathcal{O}(1/z)$.
@@ -258,18 +317,24 @@ To avoid cancellation issues, we introduce one final change of variables:
 Then, we have
 %
 \begin{align}
-  2b_0^2 - 2b_1 & = 2(\frac{1 + u b_1}{2})^2 - 2b_1 = \frac{1}{2} (1 - 4 b_1 + 2 u b_1 + u^2 b_1^2) \\
-                & = \frac{1}{2} u (-b_2 + 2 b_1) + \frac{1}{2} u^2 b_1^2
+  2 b_0^2 - 2 b_1 & = 2(\frac{1 + u b_1}{2})^2 - 2 b_1 = \frac{1}{2} (1 - 4 b_1 + 2 u b_1 + u^2 b_1^2) \\
+                  & = \frac{1}{2} u (-b_2 + 2 b_1) + \frac{1}{2} u^2 b_1^2
+\end{align}
+%
+which we substitute into equation~\eqref{eq:r-second-derivative-large-reparametrized-unsimplified} and simplify to obtain
+%
+\begin{align}
+  r'' & = u^2 (2 b_0^2 - 2 b_1) - u^3 (b_0^2 (1 + 2 b_0) + b_1) + u^4 b_1(b_1 + 2 b_0)                          \\
+      & = \frac{1}{2} u^2 (u (-b_2 + 2 b_1) + u^2 b_1^2) - u^3 (b_0^2 (1 + 2 b_0) + b_1) + u^4 b_1(b_1 + 2 b_0) \\
+      & = -u^3 (\frac{1}{2}b_2 + b_0^2 (1 + 2 b_0)) + u^4 b_1 (\frac{3}{2} b_1 + 2 b_0)
 \end{align}
 %
 and finally
 %
-\begin{align}
-  r'' & = u^2 (2b_0^2 - 2b_1) - u^3 (b_0^2 (1 + 2b_0) + b_1) + u^4 b_1(b_1 + 2b_0)                                                        \\
-      & = \frac{1}{2} u^2 (u (-b_2 + 2 b_1) + u^2 b_1^2) - u^3 (b_0^2 (1 + 2b_0) + b_1) + u^4 b_1(b_1 + 2b_0)                             \\
-      & = -u^3 (\frac{1}{2}b_2 + b_0^2 (1 + 2b_0)) + u^4 b_1 (\frac{3}{2} b_1 + 2b_0) \label{eq:r-second-derivative-large-reparametrized}
+\begin{align}\label{eq:r-second-derivative-large-reparametrized}
+  \boxed{r'' = -\frac{1}{2} u^3 (b_2 + 2 b_0^2 (1 + 2 b_0) - u b_1 (3 b_1 + 4 b_0))}
 \end{align}
-
+%
 Thus, we need only fit one minimax polynomial to equation~\eqref{eq:b2-reparametrized} to estimate $b_2(u)$, and then $r$, $r'$, and $r''$ can be formed from $b_2$, $b_1 = \frac{1 + u b_2}{4}$, and $b_0 = \frac{1 + u b_1}{2}$ using equations~\eqref{eq:r-prime-large-reparametrized} and~\eqref{eq:r-second-derivative-large-reparametrized} without catastrophic cancellation.
 
 % \section{Intermediate-$z$ analysis}
@@ -286,11 +351,12 @@ The algebraic simplification of equations~\eqref{eq:first-derivatives-unsimplifi
 In particular, when $\nu \ll 1$, the problematic $\frac{1}{2\nu}$ and $\frac{-x}{2z} = \frac{-1}{2\nu}$ terms in~\eqref{eq:first-derivatives-unsimplified-nu} are cancelled analytically, avoiding subtraction of two $\mathcal{O}(1/\nu)$ terms.
 %
 \begin{align}\label{eq:first-derivatives-small-z}
-  \boxed{%
+  \boxed{
     \begin{aligned}
       f_x   & = x - \nu r - \frac{1}{x} \\
       f_\nu & = \nu - x r
-    \end{aligned}}
+    \end{aligned}
+  }
 \end{align}
 
 \paragraph{Large-$z$}
@@ -304,20 +370,19 @@ For $z \gg 1$, we have $r = 1 - b_0(1/z) / z$ from equation~\eqref{eq:r-large-re
   = \nu - x + \frac{b_0}{\nu}
 \end{align}
 %
-These forms of $f_x$ and $f_\nu$ are more numerically
-stable when $x \approx \nu \approx \sqrt{z}$.
-This is a common case in practice when the signal-to-noise ratio (SNR) is large: observations concentrate near the noncentrality parameter, i.e. $x \approx \nu \pm 1$ (recall that the noise level is normalized to $\sigma=1$).
+These forms of $f_x$ and $f_\nu$ are more numerically stable when $x \approx \nu \approx \sqrt{z}$.
 The improved numerical stability results from the approximation error being scaled by $1/x$ and $1/\nu$ instead of by $\nu$ and $x$.
 If $\hat{r}=r(1+\delta_r)$ and $\hat{b}_0=b_0(1+\delta_b)$, the naive forms incur absolute errors $\mathcal{O}(\nu|\delta_r|)$ in $f_x$ and $\mathcal{O}(x|\delta_r|)$ in $f_\nu$, whereas the simplified forms incur errors $\mathcal{O}(|\delta_b|/x)$ and $\mathcal{O}(|\delta_b|/\nu)$.
 Since $z = x\nu \gg 1$ and the relative errors $|\delta_r|$ and $|\delta_b|$ are comparably small, this yields an absolute-error reduction approximately by a factor of $z$.
 %
 %
 \begin{align}\label{eq:first-derivatives-large-z}
-  \boxed{%
+  \boxed{
     \begin{aligned}
       f_x   & = x - \nu - \frac{1 - b_0}{x} \\
       f_\nu & = \nu - x + \frac{b_0}{\nu}
-    \end{aligned}}
+    \end{aligned}
+  }
 \end{align}
 
 \subsection{Second derivatives}
@@ -328,12 +393,13 @@ Similar to the first derivatives, the algebraically simplified equations~\eqref{
 %
 %
 \begin{align}\label{eq:second-derivatives-small-z}
-  \boxed{%
+  \boxed{
     \begin{aligned}
       f_{xx}     & = 1 + \frac{1}{x^2} - \nu^2 r' \\
-      f_{x\nu}   & = -z (1 - r^2)                 \\
+      f_{x\nu}   & = -z (1 - r^2) = -(r+z r')     \\
       f_{\nu\nu} & = 1 - x^2 r'
-    \end{aligned}}
+    \end{aligned}
+  }
 \end{align}
 %
 Here $r= z a_0$ and $r' = 1-a_0 - z^2 a_0^2$, with $1-a_0=\frac{1}{2}+\mathcal{O}(z^2)$ and $z^2 a_0^2=\mathcal{O}(z^2)$, so no catastrophic cancellation occurs.
@@ -369,12 +435,13 @@ We make the following observations:
 and therefore the stable forms are:
 %
 \begin{align}\label{eq:second-derivatives-large-z}
-  \boxed{%
+  \boxed{
     \begin{aligned}
       f_{xx}     & = 1 + \frac{1}{x^2}(1 - z^2 r') \\
       f_{x\nu}   & = -b_0 (1 + r)                  \\
       f_{\nu\nu} & = 1 - x^2 r'
-    \end{aligned}}
+    \end{aligned}
+  }
 \end{align}
 
 % \subsubsection{Error analysis}
@@ -382,12 +449,13 @@ and therefore the stable forms are:
 % Following the large-$z$ analysis for the first derivatives, we substitute $r = 1 - \frac{b_0}{z}$ from~\eqref{eq:r-large-reparametrized} and $r' = \frac{1}{z^2} (b_1 + b_0(1 - b_0))$ from~\eqref{eq:r-prime-large-reparametrized-simplified} into the second derivatives expressions~\eqref{eq:second-derivatives-unsimplified-x-x}, \eqref{eq:second-derivatives-unsimplified-x-nu}, and \eqref{eq:second-derivatives-unsimplified-nu-nu}:
 % %
 % \begin{align}\label{eq:second-derivatives-large-z}
-%   \boxed{%
+%   \boxed{
 %     \begin{aligned}
 %       f_{xx}     & = 1 + \frac{1 - (b_1 + b_0(1-b_0))}{x^2} \\
 %       f_{x\nu}   & = -b_0 (2 - \frac{b_0}{z})               \\
 %       f_{\nu\nu} & = 1 - \frac{b_1 + b_0(1-b_0)}{\nu^2}
-%     \end{aligned}}
+%     \end{aligned}
+%   }
 % \end{align}
 % %
 % To analyze the error propagation, let $\hat{r}=r(1+\delta_r)$, $\hat{r}' = r'(1+\delta_{r'})$, $\hat{b}_0=b_0(1+\delta_{b_0})$, and $\hat{b}_1=b_1(1+\delta_{b_1})$ with comparable small relative errors.
@@ -433,13 +501,14 @@ where $a_0 = \frac{r}{z}$ and $a_1 = \frac{1}{z^2} (a_0 - \frac{1}{2})$.
 We see that for small-$z$, the original simplified expressions~\eqref{eq:third-derivatives-unsimplified-x-x-x}--\eqref{eq:third-derivatives-unsimplified-nu-nu-nu}
 %
 \begin{align}
-  \boxed{%
+  \boxed{
     \begin{aligned}
       f_{xxx}       & = -\frac{2}{x^3} - \nu^3 r'' \\
       f_{xx\nu}     & = -\nu(2r' + z r'')          \\
       f_{x\nu\nu}   & = -x(2r' + z r'')            \\
       f_{\nu\nu\nu} & = -x^3 r''
-    \end{aligned}}
+    \end{aligned}
+  }
 \end{align}
 %
 are stable to compute, since neither $r''$ nor $2r' + z r''$ suffer cancellation issues.
@@ -452,30 +521,30 @@ We derive a stable form from the identity $2r' + zr'' = r' + r/z - 2zrr'$ which 
 Substituting $r=1-ub_0$ and $r'=u^2(b_1+b_0(1-b_0))$ gives
 %
 \begin{align}
-  2r' + zr'' &= r' + r/z - 2zrr' \\
-            &= u^2 (b_1+b_0(1-b_0)) + u(1-ub_0) - 2u(1-ub_0)(b_1+b_0(1-b_0)) \\
-             &= u ( u(b_1+b_0-b_0^2) + (1-ub_0)(1 - 2(b_1+b_0-b_0^2)) )
+  2r' + zr'' & = r' + r/z - 2zrr'                                              \\
+             & = u^2 (b_1+b_0(1-b_0)) + u(1-ub_0) - 2u(1-ub_0)(b_1+b_0(1-b_0)) \\
+             & = u ( u(b_1+b_0-b_0^2) + (1-ub_0)(1 - 2(b_1+b_0-b_0^2)) )
 \end{align}
 %
-The term $1-2(b_1+b_0-b_0^2) = -\frac{1}{2}u + \mathcal{O}(u^2)$ contains a cancellation which can be resolved by substituting $b_0=(1+ub_1)/2$ followed by $b_1=(1+ub_2)/4$:
+The term $1-2(b_1+b_0-b_0^2) = -\frac{1}{2}u + \mathcal{O}(u^2)$ is prone to cancellation issues which can be resolved by substituting $b_0=(1+ub_1)/2$ followed by $b_1=(1+ub_2)/4$:
 %
 \begin{align}
-  1-2(b_1+b_0-b_0^2) = \frac{1-4b_1+u^2b_1^2}{2} = -\frac{1}{2}u(b_2 - u b_1^2)
+  1-2(b_1+b_0-b_0^2) = \frac{1-4b_1+u^2 b_1^2}{2} = -\frac{1}{2}u(b_2 - u b_1^2)
 \end{align}
 %
 Substituting this back yields
 %
 \begin{align}
-  2r' + zr'' &= u^2 ( (b_1+b_0-b_0^2) + (1-ub_0)\frac{u b_1^2 - b_2}{2} ) \\
-  &= \frac{1}{2} u^2 ( (1-b_2) + u (b_2 (\frac{1}{2}+b_0 ) + b_1^2 ) - u^2 b_1^2 (\frac{1}{2} + b_0 ) )
+  2r' + zr'' & = u^2 \left( (b_1+b_0-b_0^2) + (1-ub_0)\frac{u b_1^2 - b_2}{2} \right)                                          \\
+             & = \frac{1}{2} u^2 \left( (1-b_2) + u (b_2 (\frac{1}{2}+b_0 ) + b_1^2 ) - u^2 b_1^2 (\frac{1}{2} + b_0 ) \right)
 \end{align}
 %
 but now, since $b_2 = 1 + \mathcal{O}(u)$, the term $1-b_2$ causes cancellation issues and so we must define one final change of variables $b_2 = 1 + u b_3$ to handle the cancellation.
 Substituting this gives the stable form:
 %
 \begin{align}
-  2r' + zr'' &= \frac{1}{2} u^2 ( -u b_3 + u (b_2 (\frac{1}{2}+b_0 ) + b_1^2 ) - u^2 b_1^2 (\frac{1}{2} + b_0 ) ) \\
-             &= \frac{1}{2} u^3 ( b_2 (\frac{1}{2}+b_0 ) + b_1^2 - b_3) - \frac{1}{2} u^4 b_1^2 (\frac{1}{2} + b_0) \label{eq:2rprime-zrsecondprime-large-z}
+  2r' + zr'' & = \frac{1}{2} u^2 \left( -u b_3 + u (b_2 (\frac{1}{2}+b_0 ) + b_1^2 \right) - u^2 b_1^2 ( \frac{1}{2} + b_0 )                                \\
+             & = \frac{1}{2} u^3 \left( b_2 (\frac{1}{2}+b_0 ) + b_1^2 - b_3 - u b_1^2 (\frac{1}{2} + b_0) \right) \label{eq:2rprime-zrsecondprime-large-z}
 \end{align}
 %
 This expression is $\mathcal{O}(u^3)$ with no remaining cancellation issues.
@@ -483,17 +552,14 @@ All terms are computed from $b_0, b_1, b_2$, and $b_3$, which depend on a single
 
 With these stable forms, the third derivatives for large $z$ are computed as:
 \begin{align}\label{eq:third-derivatives-large-z}
-  \boxed{%
+  \boxed{
     \begin{aligned}
-      f_{xxx}       & = -\frac{2}{x^3} - \nu^3 r'' \\
-      f_{xx\nu}     & = -\frac{1}{2 x z^2}   ( b_1^2 - b_3 + (b_2  - \frac{1}{z} b_1^2) (\frac{1}{2} + b_0))         \\
-      f_{x\nu\nu}   & = -\frac{1}{2 \nu z^2} ( b_1^2 - b_3 + (b_2  - \frac{1}{z} b_1^2) (\frac{1}{2} + b_0))           \\
+      f_{xxx}       & = -\frac{2}{x^3} - \nu^3 r''                                                                       \\
+      f_{xx\nu}     & = -\frac{1}{2 x z^2}   \left( b_1^2 - b_3 + (b_2  - \frac{1}{z} b_1^2) (\frac{1}{2} + b_0) \right) \\
+      f_{x\nu\nu}   & = -\frac{1}{2 \nu z^2} \left( b_1^2 - b_3 + (b_2  - \frac{1}{z} b_1^2) (\frac{1}{2} + b_0) \right) \\
       f_{\nu\nu\nu} & = -x^3 r''
-    \end{aligned}}
+    \end{aligned}
+  }
 \end{align}
-
-\section{Conclusion}
-
-In summary, by expressing derivatives in terms of $r=I_1/I_0$ and carefully reparametrizing in the small- and large-$z$ regimes, we obtain numerically stable formulas for $f$ and its first three derivatives across all $z>0$.
 
 \end{document}

@@ -81,17 +81,20 @@ function FastRicianLikelihoods.∇neglogpdf_rician(x::ArbReal, ν::ArbReal)
     return (∂x, ∂ν)
 end
 
-function FastRicianLikelihoods.∇²neglogpdf_rician(x::ArbReal, ν::ArbReal)
+function FastRicianLikelihoods.∇²neglogpdf_rician_with_gradient(x::ArbReal, ν::ArbReal)
     x <= 0 && return (ArbReal(Inf), ArbReal(Inf), ArbReal(Inf))
     z = x * ν
     I0, I1 = ArbNumerics.besseli(0, z), ArbNumerics.besseli(1, z)
     r = I1 / I0
     r′ = 1 - r / z - r^2
+    ∂x = x - ν * r - 1 / x
+    ∂ν = ν - x * r
     ∂²x = 1 + 1 / x^2 - ν^2 * r′
     ∂x∂ν = -r - z * r′
     ∂²ν = 1 - x^2 * r′
-    return (∂²x, ∂x∂ν, ∂²ν)
+    return (∂x, ∂ν), (∂²x, ∂x∂ν, ∂²ν)
 end
+FastRicianLikelihoods.∇²neglogpdf_rician(x::ArbReal, ν::ArbReal) = FastRicianLikelihoods.∇²neglogpdf_rician_with_gradient(x, ν)[2]
 
 function FastRicianLikelihoods.∇³neglogpdf_rician_with_gradient_and_hessian(x::ArbReal, ν::ArbReal)
     x <= 0 && return (ArbReal(Inf), ArbReal(Inf), ArbReal(Inf), ArbReal(Inf))

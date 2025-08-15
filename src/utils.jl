@@ -1,4 +1,4 @@
-# Floating point utilities
+#### Floating point utilities
 
 @inline promote_float(x...) = promote(map(float, x)...)
 
@@ -24,6 +24,19 @@ end
         error("Base float type is not Float32 or Float64; found T = $T.")
     end
 end
+
+#### Tuple utilities
+
+@inline second(x::Tuple) = x[2]
+@inline third(x::Tuple) = x[3]
+@inline fourth(x::Tuple) = x[4]
+
+#### Math utilities
+
+@inline logratio(y, x) = y > x ? log1p((y - x) / x) : -log1p((x - y) / y) # robust log(y / x)
+@inline logexpplus(x, y) = ((lo, hi) = minmax(x, y); return hi + log1p(exp(lo - hi))) # robust log(exp(x) + exp(y))
+@inline logexpminus(x, y) = x + log1p(-exp(y - x)) # robust log(exp(x) - exp(y)) (note: requires x > y)
+@inline logabsexpm1(x) = ifelse(x > 0, x, zero(x)) + log(-expm1(-abs(x))) # robust log|exp(x) - 1|
 
 # Clenshaw scheme for evaluating scalar-valued Chebyshev polynomials
 #   See: https://github.com/chebfun/chebfun/blob/18f759287b6b88e3c3e0cf7885f559791a483127/%40chebtech/clenshaw.m#L94

@@ -17,7 +17,18 @@ end
 
 #### Internal methods with strict type signatures (enables dual number overloads with single method)
 
-@inline _neglogpdf_rician(x::D, ν::D) where {D} = (x - ν)^2 / 2 - log(x) - logbesseli0x(x * ν) # negative Rician log-likelihood `-logp(x | ν, σ = 1)`
+@inline function _neglogpdf_rician(x::D, ν::D) where {D}
+    # Negative Rician log-likelihood `-logp(x | ν, σ = 1)`
+    z = x * ν
+    T = checkedfloattype(z)
+    if z < first(logbesseli0x_branches(T))
+        return ((x^2 + ν^2) / 2 - logbesseli0_taylor(z)) - log(x)
+    elseif z < last(logbesseli0x_branches(T))
+        return ((x - ν)^2 / 2 - logbesseli0x_middle(z)) - log(x)
+    else
+        return ((x - ν)^2 / 2 - logratio(x, ν) / 2 - logbesseli0x_scaled_tail(z)) + T(log2π) / 2
+    end
+end
 
 @inline function _∇neglogpdf_rician(x::D, ν::D) where {D}
     # Define the univariate normalized Bessel function `Î₀(z)` for `z = x * ν ≥ 0` as
@@ -42,26 +53,14 @@ end
     # Could plausibly better account for the latter case, though it is tested quite robustly
     z = x * ν
     T = checkedfloattype(z)
-    if z < besseli1i0_low_cutoff(T)
-        z² = z^2
-        r = z * evalpoly(z², besseli1i0_low_coefs(T)) # r = logÎ₀′(z) + 1 - 1/2z = I₁(z) / I₀(z) ≈ z/2 + 𝒪(z^3)
-        ∂x = x - r * ν - inv(x)
-        ∂ν = ν - r * x
-    elseif z < besseli1i0_mid_cutoff(T)
-        z² = z^2
-        r = z * evalpoly(z², besseli1i0_mid_num_coefs(T)) / evalpoly(z², besseli1i0_mid_den_coefs(T)) # r = I₁(z) / I₀(z)
-        ∂x = x - r * ν - inv(x)
-        ∂ν = ν - r * x
-    elseif z < besseli1i0_high_cutoff(T)
-        z² = z^2
-        r = z * evalpoly(z², besseli1i0_high_num_coefs(T)) / evalpoly(z², besseli1i0_high_den_coefs(T)) # r = I₁(z) / I₀(z)
+
+    r, r_tail, r′, r′′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z)
+    if z < first(neglogpdf_rician_parts_branches(T))
         ∂x = x - r * ν - inv(x)
         ∂ν = ν - r * x
     else
-        z⁻¹ = inv(z)
-        rm1_tail = z⁻¹ * evalpoly(z⁻¹, besseli1i0c_tail_coefs(T)) # -z * logÎ₀′(z) = -1/2 - z * (I₁(z) / I₀(z) - 1) ≈ 1/8z + 𝒪(1/z^2)
-        ∂x = (x - ν) + inv(x) * (T(-0.5) + rm1_tail)
-        ∂ν = (ν - x) + inv(ν) * (T(+0.5) + rm1_tail)
+        ∂x = (x - ν) - inv(x) * (one(T) - r_tail)
+        ∂ν = (ν - x) + inv(ν) * r_tail
     end
 
     return (∂x, ∂ν)
@@ -74,67 +73,70 @@ end
     z = x * ν
     T = checkedfloattype(z)
 
-    r, rx, rm1, rm1_tail, r²m1, r²m1prx = _besseli1i0_parts(z) # (r, r / z, r - 1, -1/2 - z * (r - 1), r^2 - 1, r^2 - 1 + r / z) where r = I₁(z) / I₀(z)
-    x⁻¹ = inv(x)
-    x², x⁻², ν² = x^2, x⁻¹^2, ν^2
-    ∂²x = ν² * r²m1prx + one(T) + x⁻² # ∂²/∂x²
-    ∂²ν = x² * r²m1prx + one(T) # ∂²/∂ν²
-    ∂x∂ν = z * r²m1 # ∂²/∂x∂ν
+    r, r_tail, r′, r′′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z)
+    if z < first(neglogpdf_rician_parts_branches(T))
+        ∂xx = inv(x)^2 + (one(T) - ν^2 * r′)
+        ∂xν = -(r + z * r′)
+        ∂νν = one(T) - x^2 * r′
+    else
+        ∂xx = one(T) + inv(x)^2 * (one(T) - z^2 * r′)
+        ∂xν = -r_tail * (one(T) + r)
+        ∂νν = one(T) - x^2 * r′
+    end
 
-    return (∂²x, ∂x∂ν, ∂²ν)
+    return (∂xx, ∂xν, ∂νν)
 end
 
 @inline function _∇²neglogpdf_rician_with_gradient(x::D, ν::D) where {D}
     z = x * ν
     T = checkedfloattype(z)
 
-    r, rx, rm1, rm1_tail, r²m1, r²m1prx = _besseli1i0_parts(z) # (r, r / z, r - 1, -1/2 - z * (r - 1), r^2 - 1, r^2 - 1 + r / z) where r = I₁(z) / I₀(z)
-    x⁻¹ = inv(x)
-
-    if z < besseli1i0_high_cutoff(T)
+    r, r_tail, r′, r′′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z)
+    if z < first(neglogpdf_rician_parts_branches(T))
+        x⁻¹ = inv(x)
         ∂x = x - r * ν - x⁻¹
         ∂ν = ν - r * x
+        ∂xx = x⁻¹ * x⁻¹ + (one(T) - ν^2 * r′)
+        ∂xν = -(r + z * r′)
+        ∂νν = one(T) - x^2 * r′
     else
-        ν⁻¹ = inv(ν)
-        ∂x = x - ν + x⁻¹ * (T(-0.5) + rm1_tail)
-        ∂ν = ν - x + ν⁻¹ * (T(+0.5) + rm1_tail)
+        x⁻¹, ν⁻¹ = inv(x), inv(ν)
+        ∂x = (x - ν) - x⁻¹ * (one(T) - r_tail)
+        ∂ν = (ν - x) + ν⁻¹ * r_tail
+        ∂xx = one(T) + x⁻¹ * x⁻¹ * (one(T) - z^2 * r′)
+        ∂xν = -r_tail * (one(T) + r)
+        ∂νν = one(T) - x^2 * r′
     end
 
-    x², x⁻², ν² = x^2, x⁻¹^2, ν^2
-    ∂²x = ν² * r²m1prx + one(T) + x⁻² # ∂²/∂x²
-    ∂²ν = x² * r²m1prx + one(T) # ∂²/∂ν²
-    ∂x∂ν = z * r²m1 # ∂²/∂x∂ν
-
-    return (∂x, ∂ν), (∂²x, ∂x∂ν, ∂²ν)
+    return (∂x, ∂ν), (∂xx, ∂xν, ∂νν)
 end
 
 @inline function _∇³neglogpdf_rician_with_gradient_and_hessian(x::D, ν::D) where {D}
     z = x * ν
     T = checkedfloattype(z)
 
-    r, rx, rm1, rm1_tail, r²m1, r²m1prx = _besseli1i0_parts(z) # (r, r / z, r - 1, -1/2 - z * (r - 1), r^2 - 1, r^2 - 1 + r / z) where r = I₁(z) / I₀(z)
-    x⁻¹, z⁻¹ = inv(x), inv(z)
-    r′′ = r²m1prx * (T(2) * r + z⁻¹) + rx * z⁻¹ # r/z² - r'(1/z + 2r)
-
-    if z < besseli1i0_high_cutoff(T)
+    r, r_tail, r′, r′′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z)
+    if z < first(neglogpdf_rician_parts_branches(T))
+        x⁻¹ = inv(x)
+        x⁻² = x⁻¹ * x⁻¹
         ∂x = x - r * ν - x⁻¹
         ∂ν = ν - r * x
+        ∂xx = x⁻² + (one(T) - ν^2 * r′)
+        ∂xν = -(r + z * r′)
+        ∂νν = one(T) - x^2 * r′
     else
-        ν⁻¹ = inv(ν)
-        ∂x = x - ν + x⁻¹ * (T(-0.5) + rm1_tail)
-        ∂ν = ν - x + ν⁻¹ * (T(+0.5) + rm1_tail)
+        x⁻¹, ν⁻¹ = inv(x), inv(ν)
+        x⁻² = x⁻¹ * x⁻¹
+        ∂x = (x - ν) - x⁻¹ * (one(T) - r_tail)
+        ∂ν = (ν - x) + ν⁻¹ * r_tail
+        ∂xx = one(T) + x⁻² * (one(T) - z^2 * r′)
+        ∂xν = -r_tail * (one(T) + r)
+        ∂νν = one(T) - x^2 * r′
     end
-
-    x², x⁻², ν² = x^2, x⁻¹^2, ν^2
-    ∂xx = ν² * r²m1prx + one(T) + x⁻²
-    ∂νν = x² * r²m1prx + one(T)
-    ∂xν = z * r²m1
-
-    ν²r′′, x²r′′ = ν² * r′′, x² * r′′
-    ∂xxx = -ν * ν²r′′ - T(2) * x⁻¹ * x⁻²
-    ∂xxν = -x * ν²r′′ + T(2) * ν * r²m1prx
-    ∂xνν = -ν * x²r′′ + T(2) * x * r²m1prx
-    ∂ννν = -x * x²r′′
+    ∂xxx = T(-2) * x⁻¹ * x⁻² - ν^3 * r′′
+    ∂xxν = -ν * two_r′_plus_z_r′′
+    ∂xνν = -x * two_r′_plus_z_r′′
+    ∂ννν = -x^3 * r′′
 
     return (∂x, ∂ν), (∂xx, ∂xν, ∂νν), (∂xxx, ∂xxν, ∂xνν, ∂ννν)
 end

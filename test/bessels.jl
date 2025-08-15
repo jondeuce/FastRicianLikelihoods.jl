@@ -13,12 +13,13 @@ end
 
 for T in (Float32, Float64)
     for f̂ in (besseli2, besseli2x, logbesseli0, logbesseli0x, logbesseli1, logbesseli1x, logbesseli2, logbesseli2x)
-        rtol = 5 * eps(T)
-        atol = 5 * eps(T)
+        rtol = T == Float32 ? 2 * eps(T) : 5 * eps(T)
+        atol = T == Float32 ? 2 * eps(T) : 5 * eps(T)
         @testset "$f̂ ($T)" begin
             f = arbify(f̂)
             for x in pos_range_iterator(T)
-                @test f̂(x) ≈ f(x) rtol = rtol atol = atol
+                ŷ, y = f̂(x), f(x)
+                @test ŷ ≈ y rtol = rtol atol = atol
             end
         end
     end
@@ -26,13 +27,14 @@ for T in (Float32, Float64)
     @testset "laguerre½ ($T)" begin
         f̂ = laguerre½
         f = arbify(f̂)
+
+        # Note: inaccurate for large positive arguments, but we only use it for negative arguments
         xsmall = reverse(-pos_range_iterator(T))
-        xlarge = T(0.0):T(0.1):T(T == Float32 ? 50 : 500)
-        # TODO: inaccurate for large positive arguments, but we only use it for negative arguments
         for x in xsmall
-            rtol = 3 * eps(T)
-            atol = 3 * eps(T)
-            @test f̂(x) ≈ f(x) rtol = rtol atol = atol
+            rtol = 2 * eps(T)
+            atol = 2 * eps(T)
+            ŷ, y = f̂(x), f(x)
+            @test ŷ ≈ y rtol = rtol atol = atol
         end
     end
 
@@ -44,7 +46,8 @@ for T in (Float32, Float64)
             rtol = f̂ === mean_rician ? 2 * eps(T) : T == Float32 ? 8 * eps(T) : 5e-13
             atol = f̂ === mean_rician ? 2 * eps(T) : T == Float32 ? 8 * eps(T) : 5e-13
             for ν in νs, σ in σs
-                @test f̂(ν, σ) ≈ f(ν, σ) rtol = rtol atol = atol
+                ŷ, y = f̂(ν, σ), f(ν, σ)
+                @test ŷ ≈ y rtol = rtol atol = atol
             end
         end
     end
@@ -55,7 +58,8 @@ for T in (Float32, Float64)
             for x in pos_range_iterator(T)
                 rtol = 2 * eps(T)
                 atol = 2 * eps(T)
-                @test f̂(x) ≈ f(x) rtol = rtol atol = atol
+                ŷ, y = f̂(x), f(x)
+                @test ŷ ≈ y rtol = rtol atol = atol
             end
         end
     end

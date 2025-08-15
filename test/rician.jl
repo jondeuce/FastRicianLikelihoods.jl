@@ -55,15 +55,17 @@ end
             atol = 3 * eps(T)
             zs = range(eps(T), one(T); length = 10)
             for z in zs, (x, ν) in xν_iterator(z)
-                @test @inferred(f̂(x, ν)) ≈ f(x, ν) rtol = rtol atol = atol
+                ŷ, y = @inferred(f̂(x, ν)), f(x, ν)
+                @test ŷ ≈ y rtol = rtol atol = atol
             end
         end
         @testset "1 <= z ($T)" begin
             rtol = 3 * eps(T)
-            atol = T == Float32 ? 10 * eps(T) : 20 * eps(T)
+            atol = 3 * eps(T)
             zs = T.(exp10.([0.0:0.1:0.5; 0.75; 1.0; 2.0:10.0]))
             for z in zs, (x, ν) in xν_iterator(z)
-                @test @inferred(f̂(x, ν)) ≈ f(x, ν) rtol = rtol atol = atol
+                ŷ, y = @inferred(f̂(x, ν)), f(x, ν)
+                @test ŷ ≈ y rtol = rtol atol = atol
             end
         end
     end
@@ -74,10 +76,10 @@ end
         f̂ = neglogpdf_rician
         ∇f̂ = ∇neglogpdf_rician
         ∇f = arbify(∇f̂)
-        low, high = T(0.5), T(15.0)
+        low, high = extrema(FastRicianLikelihoods.neglogpdf_rician_parts_branches(T))
+        rtol = 3 * eps(T)
+        atol = 3 * eps(T)
         @testset "z < $(low) ($T)" begin
-            rtol = 3 * eps(T)
-            atol = 3 * eps(T)
             zs = range(eps(T), low - eps(T); length = 10)
             for z in zs, (x, ν) in xν_iterator(z)
                 ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)
@@ -88,8 +90,6 @@ end
             end
         end
         @testset "$(low) <= z < $(high) ($T)" begin
-            rtol = T == Float32 ? 3 * eps(T) : 20 * eps(T)
-            atol = T == Float32 ? 10 * eps(T) : 40 * eps(T)
             zs = range(low + eps(T), high * (1 - eps(T)); length = 10)
             for z in zs, (x, ν) in xν_iterator(z)
                 ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)
@@ -100,9 +100,7 @@ end
             end
         end
         @testset "z >= $(high) ($T)" begin
-            rtol = 3 * eps(T)
-            atol = 3 * eps(T)
-            zs = high .* (1 + eps(T)) .* T.(exp10.([0.0:0.1:0.5; 0.75; 1.0; 2.0:10.0]))
+            zs = high .* (1 + eps(T)) .* T.(exp10.([0.0:0.1:0.5; 0.75; 1.0:10.0]))
             for z in zs, (x, ν) in xν_iterator(z)
                 ∂ŷ, ∂y = @inferred(∇f̂(x, ν)), ∇f(x, ν)
                 @test ∂ŷ[1] ≈ ∂y[1] rtol = rtol atol = atol
@@ -116,12 +114,11 @@ end
 
 @testset "∇²neglogpdf_rician" begin
     for T in (Float32, Float64)
-        f̂ = neglogpdf_rician
         ∇²f̂ = ∇²neglogpdf_rician
         ∇²f = arbify(∇²f̂)
 
-        rtol = T == Float32 ? 5.0f-5 : 5e-12
-        atol = T == Float32 ? 5.0f-5 : 5e-12
+        rtol = 3 * eps(T)
+        atol = 3 * eps(T)
         zs = T.(exp10.(-5:5))
         for z in zs, (x, ν) in xν_iterator(z)
             ∂ŷ, ∂y = @inferred(∇²f̂(x, ν)), ∇²f(x, ν)
@@ -133,29 +130,50 @@ end
 end
 
 @testset "∇³neglogpdf_rician_with_gradient_and_hessian" begin
-    # Note: The Float32 tests pass with tolerances around 1f-3 for almost all inputs, but since we don't yet
-    #       have a robust implementation for r''(z) where r(z) = I1(z) / I0(z), occasionally there is catestrophic cancellation.
-    for T in (Float64,)
-        ∇²f̂_with_grad = ∇²neglogpdf_rician_with_gradient
+    for T in (Float32, Float64)
         ∇³f̂ = ∇³neglogpdf_rician_with_gradient_and_hessian
         ∇³f = arbify(∇³f̂)
 
-        rtol = T == Float32 ? 1.0f-3 : 1e-5
-        atol = T == Float32 ? 1.0f-3 : 1e-5
+        rtol = T == Float32 ? 4 * eps(T) : 5 * eps(T)
+        atol = T == Float32 ? 4 * eps(T) : 5 * eps(T)
         zs = T.(exp10.(-5:5))
         for z in zs, (x, ν) in xν_iterator(z)
             (∇ŷ, ∇²ŷ, ∇³ŷ), (_, _, ∇³y) = @inferred(∇³f̂(x, ν)), ∇³f(x, ν)
-
-            # Lower order results should be almost exactly equal to the standalone functions
-            ∇ŷ_with_grad, ∇²ŷ_with_grad = @inferred(∇²f̂_with_grad(x, ν))
-            @test all(isapprox.(∇ŷ_with_grad, ∇ŷ; rtol = 2 * eps(T), atol = 2 * eps(T)))
-            @test all(isapprox.(∇²ŷ_with_grad, ∇²ŷ; rtol = 2 * eps(T), atol = 2 * eps(T)))
 
             # Third derivative components should be approximately equal to the high precision reference
             @test ∇³ŷ[1] ≈ ∇³y[1] rtol = rtol atol = atol
             @test ∇³ŷ[2] ≈ ∇³y[2] rtol = rtol atol = atol
             @test ∇³ŷ[3] ≈ ∇³y[3] rtol = rtol atol = atol
             @test ∇³ŷ[4] ≈ ∇³y[4] rtol = rtol atol = atol
+        end
+    end
+end
+
+@testset "lower order derivatives consistency" begin
+    for T in (Float32, Float64)
+        rtol = eps(T)
+        atol = eps(T)
+
+        ∇f̂ = ∇neglogpdf_rician
+        ∇²f̂ = ∇²neglogpdf_rician
+        ∇²f̂_with_grad = ∇²neglogpdf_rician_with_gradient
+        ∇³f̂_with_grad_and_hess = ∇³neglogpdf_rician_with_gradient_and_hessian
+
+        zs = T.(exp10.(-5:5))
+        for z in zs, (x, ν) in xν_iterator(z)
+            ∇ŷ = @inferred ∇f̂(x, ν)
+            ∇²ŷ = @inferred ∇²f̂(x, ν)
+
+            ∇ŷ₂, ∇²ŷ₂ = @inferred ∇²f̂_with_grad(x, ν)
+            @test all(isapprox.(∇ŷ₂, ∇ŷ; rtol, atol))
+            @test all(isapprox.(∇²ŷ₂, ∇²ŷ; rtol, atol))
+
+            ∇ŷ₃, ∇²ŷ₃, _ = @inferred ∇³f̂_with_grad_and_hess(x, ν)
+            @test all(isapprox.(∇ŷ₃, ∇ŷ; rtol, atol))
+            @test all(isapprox.(∇²ŷ₃, ∇²ŷ; rtol, atol))
+
+            @test all(isapprox.(∇ŷ₂, ∇ŷ₃; rtol, atol))
+            @test all(isapprox.(∇²ŷ₂, ∇²ŷ₃; rtol, atol))
         end
     end
 end
