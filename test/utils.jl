@@ -8,7 +8,7 @@ using QuadGK: quadgk
 using Zygote: Zygote
 
 using FastRicianLikelihoods: FastRicianLikelihoods, ForwardDiff, SpecialFunctions, StaticArrays
-using FastRicianLikelihoods: neglogpdf_rician, ∇neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician
+using FastRicianLikelihoods: neglogpdf_rician, ∇neglogpdf_rician, ∇²neglogpdf_rician, neglogpdf_qrician, ∇neglogpdf_qrician, ∇²neglogpdf_qrician
 using .StaticArrays: SVector
 
 Base.setprecision(BigFloat, 500)
@@ -26,10 +26,10 @@ ArbNumerics.setextrabits(128)
 arbify(x) = x
 arbify(x::Real) = error("Expected typeof(x) = $(typeof(x)) <: Union{Float32, Float64}")
 arbify(x::Union{Float32, Float64}) = ArbReal(x)::ArbReal
-arbify(f::Function) = function f_arbified(args...)
+arbify(f::Function) = function f_arbified(args...; kwargs...)
     T = common_float_type(args)
     xs = arbify.(args)
-    y = f(xs...)
+    y = f(xs...; kwargs...)
     return dearbify(T, y)
 end
 dearbify(::Type{T}, x::Number) where {T} = convert(T, x)
@@ -43,6 +43,21 @@ const DEFAULT_FORWARD_FDM = FiniteDifferences.forward_fdm(4, 1)
 
 ∇Fwd(f, args::Real...) = Tuple(ForwardDiff.gradient(Base.splat(f), SVector(args)))
 ∇Zyg(f, args::Real...) = Zygote.gradient(f, args...)
+
+function ∇FD_nonneg(f, x, ϵ; log_transform::Bool)
+    @assert x >= 0 "x must be nonnegative; got x = $x"
+    if log_transform && x > 0
+        # Second order central difference on log(x): df/dx = df/dlogx * dlogx/dx = df/dlogx / x
+        logx = log(x)
+        return (f(exp(logx + ϵ)) .- f(exp(logx - ϵ))) ./ (2 * ϵ * x)
+    elseif x - ϵ >= 0
+        # Second order central difference on x: df/dx = (f(x + ϵ) - f(x - ϵ)) / (2 * ϵ)
+        return (f(x + ϵ) .- f(x - ϵ)) ./ (2 * ϵ)
+    else
+        # Second order forward difference on x: df/dx = (-3 * f(x) + 4 * f(x + ϵ) - f(x + 2 * ϵ)) / (2 * ϵ)
+        return (-3 .* f(x) .+ 4 .* f(x + ϵ) .- f(x + 2 * ϵ)) ./ (2 * ϵ)
+    end
+end
 
 #### ArbReal extensions
 
@@ -134,7 +149,19 @@ end
 
 neglogpdf_qrician_arbreal_eps() = ArbReal(1e-30)
 
-function FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, order::Int = 21)
+function FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, ::Val{order}; method::Symbol, quadgk_order::Int = 21) where {order}
+    if method === :analytic
+        return neglogpdf_qrician_integrate(x, ν, δ; quadgk_order)
+    elseif method === :gausslegendre
+        f = Base.Fix2(neglogpdf_rician, ν)
+        return FastRicianLikelihoods.neglogf_quadrature(f, ArbReal, x, δ, Val(order))
+    else
+        error("Unsupported method: $method")
+    end
+end
+FastRicianLikelihoods.gausslegendre_unit_interval(order::Val, ::Type{ArbReal}) = map(x -> ArbReal.(x), FastRicianLikelihoods.gausslegendre_unit_interval(order, BigFloat))
+
+function neglogpdf_qrician_integrate(x::ArbReal, ν::ArbReal, δ::ArbReal; quadgk_order::Int = 21)
     rtol, atol = neglogpdf_qrician_arbreal_eps(), ArbReal(0)
     μ = FastRicianLikelihoods.mode_rician(ν)
     σ = √FastRicianLikelihoods.var_mode_rician(ν)
@@ -142,10 +169,10 @@ function FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::Ar
 
     if x < μ < x + δ && μ - x > Δσ && x + δ - μ > Δσ
         Ω2 = neglogpdf_rician(x + δ, ν) # minimum on [x + δ, Inf)
-        I2 = qrician_integrate(Ω2, x + δ, ArbReal(Inf), ν; rtol, atol, order)
+        I2, _ = qrician_integrate(Ω2, x + δ, ArbReal(Inf), ν; rtol, atol, quadgk_order)
         if x > 0
             Ω1 = neglogpdf_rician(x, ν) # minimum on [0, x]
-            I1 = qrician_integrate(Ω1, ArbReal(0), x, ν; rtol, atol, order)
+            I1, _ = qrician_integrate(Ω1, ArbReal(0), x, ν; rtol, atol, quadgk_order)
             out = -log1p(-(exp(-Ω1) * I1 + exp(-Ω2) * I2))
         else
             out = -log1p(-exp(-Ω2) * I2)
@@ -158,48 +185,87 @@ function FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::Ar
         else # x + δ <= μ
             Ω = neglogpdf_rician(x + δ, ν) # minimum on [x, x + δ]
         end
-        I = qrician_integrate(Ω, x, x + δ, ν; rtol, atol, order)
+        I, _ = qrician_integrate(Ω, x, x + δ, ν; rtol, atol, quadgk_order)
         out = Ω - log(I)
     end
 
     return out
 end
-FastRicianLikelihoods.neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, ::Val{order}) where {order} = neglogpdf_qrician(x, ν, δ, order)
 
-function qrician_integrate(f::Function, Ω::ArbReal, a::ArbReal, b::ArbReal, ν::ArbReal; rtol::ArbReal, atol::ArbReal, order::Int)
+function qrician_integrate(f::Function, Ω::ArbReal, a::ArbReal, b::ArbReal, ν::ArbReal; rtol::ArbReal, atol::ArbReal, quadgk_order::Int = 21)
     if isfinite(b)
-        I, E = quadgk(a, b; rtol, atol, order) do x̃
+        I, E = quadgk(a, b; rtol, atol, order = quadgk_order) do x̃
             return exp(Ω - neglogpdf_rician(x̃, ν)) * f(x̃)
         end
     else
         # Change of variables: x = a + (1 - t) / t where t ∈ (0, 1)
-        #   #TODO: quadgk should do this internally, but `ArbReal` arguments cause it to fail?
+        #TODO: quadgk should do this internally; `ArbReal` used to cause this to fail, but it's now fixed on master: https://github.com/JuliaMath/QuadGK.jl/commit/0c479123a0756b79f1056a41302dbf3a35eda7cd
         @assert isfinite(a)
-        I, E = quadgk(ArbReal(0), ArbReal(1); rtol, atol, order) do t̃
+        I, E = quadgk(ArbReal(0), ArbReal(1); rtol, atol, order = quadgk_order) do t̃
             x̃ = a + (1 - t̃) / t̃
             return exp(Ω - neglogpdf_rician(x̃, ν)) * f(x̃) / t̃^2
         end
     end
-    return I
+    return I, E
 end
 qrician_integrate(Ω::ArbReal, args...; kwargs...) = qrician_integrate(_ -> ArbReal(1), Ω, args...; kwargs...)
 
-function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, order::Int = 21, method = :analytic)
+function FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, ::Val{order}; method::Symbol, quadgk_order::Int = 21) where {order}
     if method === :analytic
         rtol, atol = neglogpdf_qrician_arbreal_eps(), ArbReal(0)
-        Ω = neglogpdf_qrician(x, ν, δ, order)
-        ∂ν = qrician_integrate(x̃ -> ∇neglogpdf_rician(x̃, ν)[2], Ω, x, x + δ, ν; rtol, atol, order)
-        ∂δ = -exp(Ω - neglogpdf_rician(x + δ, ν))
-        ∂x = ∂δ + exp(Ω - neglogpdf_rician(x, ν))
-    else # method === :numeric
+        Ω = neglogpdf_qrician(x, ν, δ, Val(nothing); method = :analytic, quadgk_order)
+        ∂ν, _ = qrician_integrate(x̃ -> ∇neglogpdf_rician(x̃, ν)[2], Ω, x, x + δ, ν; rtol, atol, quadgk_order) # differentiate the integrand
+        ∂δ = -exp(Ω - neglogpdf_rician(x + δ, ν)) # FTC: ∂Ω/∂δ = ∂/∂δ [-log(F(x+δ) - F(x))] = -∂/∂δ [F(x+δ) - F(x)] / exp(-Ω) = -exp(Ω) * f(x+δ) = -exp(Ω - ω(x+δ))
+        ∂x = ∂δ + exp(Ω - neglogpdf_rician(x, ν)) # FTC: ∂Ω/∂x = ∂/∂x [-log(F(x+δ) - F(x))] = -∂/∂x [F(x+δ) - F(x)] / exp(-Ω) = -exp(Ω) * (f(x+δ) - f(x)) = exp(Ω - ω(x)) - exp(Ω - ω(x+δ))
+    elseif method === :finitediff
         ϵ = sqrt(neglogpdf_qrician_arbreal_eps())
-        ∂x = (neglogpdf_qrician(x + ϵ, ν, δ, order) - neglogpdf_qrician(x - ϵ, ν, δ, order)) / 2ϵ
-        ∂ν = (neglogpdf_qrician(x, ν + ϵ, δ, order) - neglogpdf_qrician(x, ν - ϵ, δ, order)) / 2ϵ
-        ∂δ = (neglogpdf_qrician(x, ν, δ + ϵ, order) - neglogpdf_qrician(x, ν, δ - ϵ, order)) / 2ϵ
+        ∂x = ∇FD_nonneg(x′ -> neglogpdf_qrician(x′, ν, δ, Val(nothing); method = :analytic), x, ϵ; log_transform = true)
+        ∂ν = ∇FD_nonneg(ν′ -> neglogpdf_qrician(x, ν′, δ, Val(nothing); method = :analytic), ν, ϵ; log_transform = true)
+        ∂δ = ∇FD_nonneg(δ′ -> neglogpdf_qrician(x, ν, δ′, Val(nothing); method = :analytic), δ, ϵ; log_transform = true)
+    elseif method === :gausslegendre
+        ϵ = sqrt(neglogpdf_qrician_arbreal_eps())
+        ∂x = ∇FD_nonneg(x′ -> neglogpdf_qrician(x′, ν, δ, Val(order); method = :gausslegendre), x, ϵ; log_transform = true)
+        ∂ν = ∇FD_nonneg(ν′ -> neglogpdf_qrician(x, ν′, δ, Val(order); method = :gausslegendre), ν, ϵ; log_transform = true)
+        ∂δ = ∇FD_nonneg(δ′ -> neglogpdf_qrician(x, ν, δ′, Val(order); method = :gausslegendre), δ, ϵ; log_transform = true)
+    else
+        error("Unsupported method: $method")
     end
     return (∂x, ∂ν, ∂δ)
 end
-FastRicianLikelihoods.∇neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, ::Val{order}) where {order} = ∇neglogpdf_qrician(x, ν, δ, order)
+
+function FastRicianLikelihoods.∇²neglogpdf_qrician(x::ArbReal, ν::ArbReal, δ::ArbReal, ::Val{order}; method::Symbol, quadgk_order::Int = 21) where {order}
+    if method === :analytic
+        rtol, atol = neglogpdf_qrician_arbreal_eps(), ArbReal(0)
+        Ω = neglogpdf_qrician(x, ν, δ, Val(nothing); method = :analytic, quadgk_order)
+        ∂x, ∂ν, ∂δ = ∇neglogpdf_qrician(x, ν, δ, Val(order); method = :analytic, quadgk_order)
+
+        p₀ = exp(Ω - neglogpdf_rician(x, ν))
+        p₁ = exp(Ω - neglogpdf_rician(x + δ, ν))
+        ∇x₀, ∇ν₀ = ∇neglogpdf_rician(x, ν)
+        ∇x₁, ∇ν₁ = ∇neglogpdf_rician(x + δ, ν)
+
+        ∂xx = (∇x₁ * p₁ - ∇x₀ * p₀) + ∂x * ∂x
+        ∂xν = (∇ν₁ * p₁ - ∇ν₀ * p₀) + ∂x * ∂ν
+        ∂xδ = ∇x₁ * p₁ + ∂x * ∂δ
+        ∂νδ = ∇ν₁ * p₁ + ∂ν * ∂δ
+        ∂δδ = ∇x₁ * p₁ + ∂δ * ∂δ
+
+        E_∇νν, _ = qrician_integrate(y -> ∇²neglogpdf_rician(y, ν)[3], Ω, x, x + δ, ν; rtol, atol, quadgk_order)
+        Var_∇ν, _ = qrician_integrate(y -> (∇neglogpdf_rician(y, ν)[2] - ∂ν)^2, Ω, x, x + δ, ν; rtol, atol, quadgk_order)
+        ∂νν = E_∇νν - Var_∇ν
+
+    elseif method === :finitediff || method === :gausslegendre
+        ϵ = sqrt(neglogpdf_qrician_arbreal_eps())
+        ∂Ω(x, ν, δ) = ∇neglogpdf_qrician(x, ν, δ, Val(order); method, quadgk_order)
+        ∂xx, ∂νx, ∂δx = ∇FD_nonneg(x′ -> ∂Ω(x′, ν, δ), x, ϵ; log_transform = true)
+        ∂xν, ∂νν, ∂δν = ∇FD_nonneg(ν′ -> ∂Ω(x, ν′, δ), ν, ϵ; log_transform = true)
+        ∂xδ, ∂νδ, ∂δδ = ∇FD_nonneg(δ′ -> ∂Ω(x, ν, δ′), δ, ϵ; log_transform = true)
+        ∂xν, ∂xδ, ∂νδ = (∂xν + ∂νx) / 2, (∂xδ + ∂δx) / 2, (∂νδ + ∂δν) / 2
+    else
+        error("Unsupported method: $method")
+    end
+    return (∂xx, ∂xν, ∂xδ, ∂νν, ∂νδ, ∂δδ)
+end
 
 function FastRicianLikelihoods.neglogpdf_rician(x::ArbReal, ν::ArbReal, logσ::ArbReal)
     σ⁻¹ = exp(-logσ)

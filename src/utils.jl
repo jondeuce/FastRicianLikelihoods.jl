@@ -5,25 +5,27 @@
 @inline basefloattype(::Type{T}) where {T} = error("Argument is not a floating-point type: T = $T.")
 @inline basefloattype(::Type{T}) where {T <: AbstractFloat} = T
 @inline basefloattype(::Type{D}) where {T, D <: ForwardDiff.Dual{<:Any, T}} = basefloattype(T)
-
-@generated function checkedfloattype(::Ts) where {Ts <: Tuple}
-    Tfs = unique(map(basefloattype, Ts.types))
-    if length(Tfs) == 1 && (Tf = Tfs[1]) <: Union{Float32, Float64}
-        return Tf
-    else
-        error("Incompatible types: $Ts.\nBase float types must all be Float32 or Float64, but found the following types: $((Tfs...,)).")
-    end
-end
-@inline checkedfloattype(xs::Number...) = checkedfloattype(xs)
+@inline basefloattype(x::Number) = basefloattype(typeof(x))
+@inline basefloattype(x1::Number, x2::Number, xs::Number...) = promote_type(basefloattype(x1), basefloattype(x2), map(basefloattype, xs)...)
 
 @inline function checkedfloattype(::Type{T}) where {T}
-    Tf = basefloattype(T)
-    if Tf <: Union{Float32, Float64}
-        return Tf
+    TF = basefloattype(T)
+    if TF <: Union{Float32, Float64}
+        return TF
     else
         error("Base float type is not Float32 or Float64; found T = $T.")
     end
 end
+@inline function checkedfloattype(::Type{T1}, ::Type{T2}) where {T1, T2}
+    TF1, TF2 = basefloattype(T1), basefloattype(T2)
+    if TF1 === TF2
+        return TF1
+    else
+        error("Incompatible types: $T1 and $T2.\nBase float types must all be Float32 or Float64, but found the following types: $(TF1), $(TF2).")
+    end
+end
+@inline checkedfloattype(T1::Type, T2::Type, T3::Type, Ts::Type...) = checkedfloattype(checkedfloattype(T1, T2), T3, Ts...)
+@inline checkedfloattype(xs::Number...) = checkedfloattype(map(typeof, xs)...)
 
 #### Tuple utilities
 

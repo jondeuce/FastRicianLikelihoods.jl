@@ -174,7 +174,7 @@ function g_newton!(Jdiags, F, g, γ; maxiter = 20, verbose = false)
     for i in 1:maxiter
         F = F!(F, g, γ) # Recurrence equation Fᵢ where `i ∈ 2:N-1`
         J = J!(Jdiags, g, γ) # Tridiagonal Jacobian ∂Fᵢ/∂gⱼ where `i,j ∈ 2:N-1`
-        Δg = J \ F # TODO: in-place Tridiagonal solve?
+        Δg = J \ F #TODO: in-place Tridiagonal solve?
         @views g[3:end-1] .-= Δg # Update estimates for {g₂, g₃, ..., g_{N-1}}
 
         g_max = @views maximum(abs, g[3:end-1])

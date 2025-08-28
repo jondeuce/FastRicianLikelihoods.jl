@@ -218,19 +218,24 @@ end
 @inline besseli1i0_mid4_den_coefs(::Type{Float64}) = (1.0, 0.10403308063121751, 0.0014947027941623618, 5.324010820694674e-6, 4.567138270589379e-9)
 @inline besseli1i0c_tail_coefs(::Type{Float64}) = (0.125, 0.12500000000000067, 0.19531249999896427, 0.40625000063246103, 1.047851363431197, 3.218786836985941, 11.46216325763734, 46.805884323072455, 194.8624724456196, 1595.7616954693328, -4511.937268947673, 139379.87983903964)
 
-@inline function _neglogpdf_rician_parts(z::Real)
+@inline function _neglogpdf_rician_parts(z::Real, ::Val{degree}) where {degree}
     T = checkedfloattype(z)
     low, mid1, mid2, mid3, mid4, high, tail = neglogpdf_rician_parts_branches(T)
+    r_tail = r′ = r′′ = one_minus_r_minus_z_r′ = two_r′_plus_z_r′′ = T(NaN)
     if z < low
         z² = z^2
         a1 = evalpoly(z², a1_taylor_coefs(T))
         a0 = T(0.5) + z² * a1
         a0² = a0 * a0
         r = z * a0
-        r_tail = T(NaN)
-        r′ = one(T) - z² * a0² - a0
-        r′′ = z * ((T(2) * a1 + a0 * (T(3) * a0 - T(2))) + T(2) * z² * a0 * a0²)
-        two_r′_plus_z_r′′ = 2 * r′ + z * r′′
+        if degree >= 1
+            r′ = one(T) - z² * a0² - a0
+            one_minus_r_minus_z_r′ = one(T) - (r + z * r′)
+        end
+        if degree >= 2
+            r′′ = z * ((T(2) * a1 + a0 * (T(3) * a0 - T(2))) + T(2) * z² * a0 * a0²)
+            two_r′_plus_z_r′′ = 2 * r′ + z * r′′
+        end
     else
         u = inv(z)
         if z < mid1
@@ -253,14 +258,20 @@ end
         b0 = T(0.5) * (one(T) + u * b1)
         b0², b1² = b0 * b0, b1 * b1
         u² = u^2
-        halfu³ = T(0.5) * u * u²
+        halfu² = T(0.5) * u²
+        halfu³ = halfu² * u
         r = one(T) - u * b0
         r_tail = b0
-        r′ = u² * (b1 + b0 * (one(T) - b0))
-        r′′ = halfu³ * (b0² * (T(-2) + T(-4) * b0) - b2 + u * b1 * (T(3) * b1 + T(4) * b0))
-        two_r′_plus_z_r′′ = halfu³ * (b1² - b3 + (b2 - u * b1²) * (T(0.5) + b0))
+        if degree >= 1
+            r′ = u² * (b1 + b0 * (one(T) - b0))
+            one_minus_r_minus_z_r′ = halfu² * (b1 + T(-0.5) * (b2 - u * b1²))
+        end
+        if degree >= 2
+            r′′ = halfu³ * (b0² * (T(-2) + T(-4) * b0) - b2 + u * b1 * (T(3) * b1 + T(4) * b0))
+            two_r′_plus_z_r′′ = halfu³ * (b1² - b3 + (b2 - u * b1²) * (T(0.5) + b0))
+        end
     end
-    return r, r_tail, r′, r′′, two_r′_plus_z_r′′
+    return r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′
 end
 
 @inline neglogpdf_rician_parts_branches(::Type{Float32}) = (2.0f0, 2.6060996f0, 3.5124323f0, 4.822016f0, 6.7038217f0, 11.265795f0, 30.0f0)

@@ -40,34 +40,35 @@ Similarly, the derivatives of $\log p$ with respect to $x$, $\nu$, and $\sigma$ 
 %
 \begin{align}
   \frac{\partial \log p}{\partial x}      = -\frac{1}{\sigma} \frac{\partial f}{\partial x'},                                                                                        \qquad
-  \frac{\partial \log p}{\partial \nu}    = -\frac{1}{\sigma} \frac{\partial f}{\partial \nu'}                                                                                      \qquad
-  \frac{\partial \log p}{\partial \sigma} = \frac{x}{\sigma^2} \frac{\partial f}{\partial x'} + \frac{\nu}{\sigma^2} \frac{\partial f}{\partial \nu'} - \frac{1}{\sigma}
+  \frac{\partial \log p}{\partial \nu}    = -\frac{1}{\sigma} \frac{\partial f}{\partial \nu'},                                                                                      \qquad
+  \frac{\partial \log p}{\partial \sigma} = \frac{1}{\sigma} \left( x' \frac{\partial f}{\partial x'} + \nu' \frac{\partial f}{\partial \nu'} - 1 \right)
 \end{align}
 %
 and likewise for higher-order derivatives.
 
 Henceforth we take $\sigma=1$ and, by slight abuse of notation, write $x, \nu$ for the rescaled variables $x', \nu'$.
 We will show that the key to numerically stable evaluation of $f$ and its derivatives is to carefully consider the limiting behavior in the regimes where $z = x\nu \ll 1$ and $z \gg 1 \Leftrightarrow u=1/z \ll 1$.
-Na\"ive differentiation produces expressions with catastrophic cancellation in both regimes.
-To evaluate $f$ and its derivatives in a numerically stable way, we branch on the value of $z$ and derive algebraic simplifications in each branch.
+Naive evaluation of $f$ and its derivatives produces expressions with catastrophic cancellation in both regimes.
+To evaluate these expressions in a numerically stable way, we derive algebraic simplifications in both the $z \ll 1$ and $z \gg 1$ regimes.
 
 \section{The Rician log-likelihood and basic simplifications}
 
 With $\sigma=1$, the Rician negative log-likelihood is given by
 %
 \begin{align}
-  f(x, \nu) & \eqqcolon -\log p(x \mid \nu, \sigma=1)                                                                                                                       \\
-            & = \frac{x^2 + \nu^2}{2} - \log x - \log I_0(z) \label{eq:rician-neg-log-likelihood}                                                                           \\
-            & = \frac{(x-\nu)^2}{2} - \frac{1}{2}\log\left(\frac{x}{\nu}\right) - \log \hat{I}_0(x \nu) + \frac{1}{2}\log(2\pi) \label{eq:rician-neg-log-likelihood-scaled}
+  f(x, \nu) & \eqqcolon -\log p(x \mid \nu, \sigma=1)                                                                                                                        \\
+            & = \frac{x^2 + \nu^2}{2} - \log x - \log I_0(z) \label{eq:rician-neg-log-likelihood}                                                                            \\
+            & = \frac{(x-\nu)^2}{2} - \frac{1}{2}\log\left(\frac{x}{\nu}\right) - \log \hat{I}_0(x \nu) + \frac{1}{2}\log(2\pi). \label{eq:rician-neg-log-likelihood-scaled}
 \end{align}
 %
-where $\hat{I}_0$ is the scaled modified Bessel function of the first kind
+Here, $\hat{I}_0$ is the modified Bessel function of the first kind normalized such that $\lim_{z\to\infty} \hat{I}_0(z) = 1$:
 %
 \begin{align}
-  \hat{I}_0(z) = \frac{I_0(z)}{e^{z}/\sqrt{2\pi z}}.
+  I_0(z) = \frac{e^z}{\sqrt{2\pi z}} \hat{I}_0(z) \quad \Leftrightarrow \quad \hat{I}_0(z) = \sqrt{2\pi z} e^{-z} I_0(z)
 \end{align}
-
-We now consider the numerical stability of these algebraically equivalent forms of $f$.
+%
+where $z = x\nu \ge 0$.
+Next, we consider the numerical stability of these algebraically equivalent forms of $f$.
 
 \paragraph{Small $z \ll 1$.}
 
@@ -93,7 +94,8 @@ The terms in this expression are generally not of the same order of magnitude --
 
 \paragraph{High SNR $x \approx \nu \approx \sqrt{z} \gg 1$.}
 
-A common case in practice is when the signal-to-noise ratio (SNR) is large: observations are concentrated near the noncentrality parameter such that $x \approx \nu \pm 1$ (recall that the noise level is normalized to $\sigma=1$).
+A common case in practice is when the signal-to-noise ratio (SNR) is large:
+observations are concentrated near the noncentrality parameter such that $x \approx \nu \pm 1$ (recall that the noise level is normalized to $\sigma=1$).
 As was the case for large $z$, we should use the scaled form~\eqref{eq:rician-neg-log-likelihood-scaled} but with a stable evaluation of $\log(x/\nu)$:
 %
 \begin{align}
@@ -103,7 +105,7 @@ As was the case for large $z$, we should use the scaled form~\eqref{eq:rician-ne
   \end{cases}
 \end{align}
 %
-where $\log(1 + t) = t - t^2/2 + \mathcal{O}(t^3)$ is computed using the common special-function routine \texttt{log1p(t)} which is designed to be accurate when $t$ is small.
+where $\log(1 + \epsilon) = \epsilon - \epsilon^2/2 + \mathcal{O}(\epsilon^3)$ is computed using the common special-function routine \texttt{log1p($\epsilon$)} which is designed to be accurate when $\epsilon$ is small.
 With this modification, equation~\eqref{eq:rician-neg-log-likelihood-scaled} is accurate for all $z \gg 1$.
 
 We note that~\eqref{eq:rician-neg-log-likelihood} is not stable in the high SNR regime, since $\log I_0(z) = \log \hat{I}_0(z) + z - \frac{1}{2}\log(2\pi z)$ has a large component $z$ which catastrophically cancels with $(x^2 + \nu^2) / 2 \approx z$.
@@ -145,7 +147,8 @@ where the last equality in~\eqref{eq:second-derivatives-unsimplified-x-nu} follo
 
 \subsection{Third derivatives}
 
-Differentiate once more to obtain third derivatives; each depends only on $r'$ and $r''$:
+Differentiate once more to obtain third derivatives;
+each depends only on $r'$ and $r''$:
 %
 \begin{align}
   f_{xxx}       & = \frac{\partial}{\partial x}\left(1+\frac{1}{x^2}-\nu^2 r'(z)\right) = -\frac{2}{x^3} - \nu^3 r'' \label{eq:third-derivatives-unsimplified-x-x-x}                                 \\
@@ -560,6 +563,345 @@ With these stable forms, the third derivatives for large $z$ are computed as:
       f_{\nu\nu\nu} & = -x^3 r''
     \end{aligned}
   }
+\end{align}
+
+\section{The Quantized Rician distribution}
+
+In magnetic resonance imaging (MRI), the magnitude of the signal in the presence of noise is often modeled with a Gaussian distribution for simplicity.
+However, a more physically accurate model is the Rician distribution, which correctly accounts for the non-negativity of magnitude data.
+Furthermore, MRI data is invariably quantized during acquisition, meaning the continuous signal is stored as discrete integer values.
+A truly faithful statistical model must therefore account for this quantization step.
+This leads us to the Quantized Rician distribution, which describes the probability of observing a signal within a specific quantization bin.
+
+Given the Rician probability density function $p(y \mid \nu, \sigma)$ from~\eqref{eq:rician-pdf}, the probability of an observation $y$ falling into a bin $[x, x+\delta]$ is given by the integral of the Rician density over the interval:
+%
+\begin{align}\label{eq:quantized-rician-pdf}
+  p(x \mid \nu, \sigma, \delta) = \int_x^{x+\delta} p(y \mid \nu, \sigma) dy.
+\end{align}
+%
+This defines the probability mass function for the Quantized Rician distribution, which we denote $\mathrm{QRice}(\nu, \sigma, \delta)$.
+
+\subsection{Numerical evaluation strategy}
+
+We are interested in performing statistical inference procedures such as maximum likelihood estimation (MLE), maximum a posteriori (MAP) estimation, and Markov-chain Monte Carlo (MCMC) sampling under a Quantized Rician likelihood model.
+These methods require many evaluations of the likelihood and its gradient, necessitating fast and accurate evaluation of the defining integral~\eqref{eq:quantized-rician-pdf}.
+While adaptive quadrature routines can compute the integral to arbitrary precision, they are generally too slow for this context, especially for GPU-based implementations.
+Our goal is to use a fixed-order, non-adaptive quadrature scheme which is significantly faster.
+
+The suitability of such a scheme depends on the integration regime.
+Integrating an exponentially decaying function over a large interval in its tails, for example, can be numerically catastrophic for a fixed-order rule.
+Fortunately, the nature of statistical inference itself ensures that we predominantly operate in a numerically favourable regime when the noise scale $\sigma$ is a nuisance parameter which is to be estimated jointly with other model parameters.
+Crucially, the inference algorithms operate in high-likelihood regions:
+%
+\begin{itemize}
+  \item MLE and MAP explicitly drive the parameters $(\nu,\sigma)$ toward the mode of the likelihood or posterior.
+  \item MCMC methods spend the most time sampling from regions of high posterior density, visiting the tails only rarely.
+\end{itemize}
+%
+This behavior is made concrete by considering the high signal-to-noise ratio (SNR) regime, where the Rician distribution is well-approximated by a Gaussian.
+For a Gaussian model, a property of the MLE is that the noise variance estimate equals the mean squared error:
+%
+\begin{align}
+  \hat{\sigma}^2 = \frac{1}{n} \sum_{i=1}^n (x_i - \nu_i)^2.
+\end{align}
+%
+This implies that for a well-fit model the residuals satisfy $|x_i - \nu_i| = \mathcal{O}(\sigma)$, i.e., the normalized residual is on the order of one, $|x' - \nu'| = \mathcal{O}(1)$.
+Thus, inference naturally results in evaluation of the density near the mode.
+Pathological cases where $|x'-\nu'| \gg 1$ correspond to regions of low likelihood that are comparatively less important;
+coarse estimates suffice there.
+
+This operating regime is further constrained by practical considerations from signal acquisition.
+The signal-to-quantization-noise ratio (SQNR) is engineered to exceed the physical SNR, ensuring quantization error is a smaller source of variance than the physical noise of the signal.
+Empirically, the ratio of maximum signal magnitude to quantization bin width is large ($\sim\!500$--$1000$), and with 16-bit signal magnitude quantization (Int16) the dynamic range allows a theoretical upper bound of about $2^{15} \approx 30000$.
+Consequently, the signal-to-bin-width ratio typically exceeds the SNR, i.e. $x/\delta \gtrsim x/\sigma$, which implies that the normalized integration width satisfies $\delta' = \delta/\sigma \lesssim 1$.
+Thus, we have reasonable justification for the following two assumptions about the model parameters:
+%
+\begin{enumerate}
+  \item The observed magnitude $x$ is close to the noncentrality parameter $\nu$, i.e., $|x - \nu| \lesssim \sigma \Rightarrow |x' - \nu'| \lesssim 1$.
+  \item The quantization width $\delta$ is not larger than the noise level $\sigma$, i.e. $\delta' = \delta / \sigma \lesssim 1$.
+\end{enumerate}
+%
+Combined, these factors create a best-case scenario for numerical integration:
+we are integrating a smooth, well-behaved density over a short interval located near its mode.
+This justifies the use of a fixed-order quadrature rule.
+As a safeguard, on the rare occasions where a poor parameter choice leads to evaluating the likelihood in the tails (i.e., $|x'-\nu'| \gg 1$), one could temporarily increase the quadrature order or fall back to an adaptive routine;
+under normal inference, these cases are exceptional.
+
+\subsection{Gauss-Legendre quadrature}
+
+We choose Gauss-Legendre quadrature to approximate the likelihood integral.
+On the canonical interval $[-1,1]$, the $N$‑point Gauss–Legendre rule approximates
+%
+\begin{align}
+  \int_{-1}^{1} g(x) \, dx \approx \sum_{i=1}^{N} w_i g(x_i),
+\end{align}
+%
+where $\{x_i\}_{i=1}^N$ are the Legendre nodes, defined as the roots of the $N^\text{th}$ Legendre polynomial $P_N(x)$, and $\{w_i\}_{i=1}^N$ the associated positive weights.
+This rule is extremely powerful despite its simplicity:
+it is exact for all polynomials of degree up to $2N-1$, and for analytic functions the approximation error decreases exponentially fast as $N$ increases.
+The rule's fixed nodes and weights are easy to precompute, and the positivity of the weights ensures that no additional cancellation issues are introduced.
+Furthermore, the weighted sum structure is trivial to differentiate, making it straightforward to compute gradients and Hessians of the integral approximation.
+
+To apply the rule on $[0,1]$, use the affine change of variables $t = (x+1)/2$, transforming the nodes and weights to $t_i = (x_i+1)/2$ and $w_i/2$, respectively:
+%
+\begin{align}
+  \int_{0}^{1} g(t) \, dt \approx \frac{1}{2} \sum_{i=1}^{N} w_i g(t_i).
+\end{align}
+%
+To integrate over $[x, x+\delta]$, change variables to $y = x + \delta t$ with $t\in[0,1]$ and $dy = \delta dt$:
+%
+\begin{align}
+  \int_{x}^{x+\delta} g(y) \, dy = \int_{0}^{1} g(x + \delta t) \, \delta dt
+  \approx \frac{\delta}{2} \sum_{i=1}^{N} w_i g(x + \delta t_i).
+\end{align}
+%
+In our regime, $\delta$ is small and $g$ is smooth, so moderate orders $N \approx 8\!-\!16$ achieve high accuracy.
+
+\subsection{Log-likelihood formulation and simplification}
+
+Before deriving expressions for the gradient and Hessian, we first simplify the problem by exploiting the scale-invariance of the Quantized Rician distribution.
+If we change variables in the integrand to $y' = y / a$ for some $a > 0$ and similarly rescale $x$, $\nu$, $\sigma$, and $\delta$, the Rician pdf transforms as
+%
+\begin{align}
+  p(a y' \mid a \nu', a \sigma')
+  = \frac{a y'}{(a \sigma')^2} \exp\left(-\frac{(a y')^2+(a \nu')^2}{2(a \sigma')^2}\right) I_0\left(\frac{a y' (a \nu')}{(a \sigma')^2}\right)
+  = \frac{1}{a} p(y' \mid \nu', \sigma').
+\end{align}
+%
+Thus, the quantized likelihood integral is scale-invariant:
+%
+\begin{align}
+  p(x \mid \nu, \sigma, \delta)
+  = \int_{x/a}^{(x+\delta)/a} p(a y' \mid a\nu', a\sigma') (a dy') = \int_{x'}^{x'+\delta'} p(y' \mid \nu', \sigma') dy'
+  = p(x' \mid \nu', \sigma', \delta').
+\end{align}
+%
+Similar to the Rician distribution analysis, we choose $a = \sigma$ such that $\sigma'=1$;
+for the remainder of this analysis, we will work with these normalized parameters and write $p(x \mid \nu, \delta)$ as shorthand for $p(x \mid \nu, \sigma=1, \delta)$, dropping the prime annotations.
+
+In terms of $f$, the negative log-likelihood of the standard Rician distribution from~\eqref{eq:rician-neg-log-likelihood}, the Quantized Rician likelihood is given by
+%
+\begin{align}
+  p(x \mid \nu, \delta) = \int_x^{x+\delta} \exp(-f(y, \nu)) dy \coloneqq I(\theta)
+\end{align}
+%
+where we have introduced a shorthand notation for the normalized parameters $\theta = (x, \nu, \delta)$ and the integral $I(\theta)$.
+Similarly, we introduce $\Omega(\theta) = -\log I(\theta)$ for the negative logarithm of the quantized likelihood:
+%
+\begin{align}
+  -\log p(x \mid \nu, \delta) = -\log I(\theta) \coloneqq \Omega(\theta).
+\end{align}
+%
+We now make the affine change variables $y = x + \delta t$ such that the integration bounds are independent of $\theta$, resulting in an integral over the unit interval $t \in [0, 1]$:
+%
+\begin{align}
+  I(\theta)                  & = \int_0^1 \exp(-f(x + \delta t, \nu)) \cdot \delta \, dt                    \\
+  \Rightarrow \Omega(\theta) & = -\log\left(\int_0^1 \exp(-f(x + \delta t, \nu)) \, dt\right) - \log\delta.
+\end{align}
+%
+This expression has the form of a log-partition function;
+denote the energy function as $\tilde{f}(t, \theta) = f(x + \delta t, \nu)$ and the partition function as
+%
+\begin{align}
+  Z(\theta) = \int_0^1 \exp(-\tilde{f}(t, \theta)) \, dt.
+\end{align}
+%
+Then, $\Omega(\theta) = -\log Z(\theta) - \log\delta$, and we can define a probability density over $t \in [0,1]$ as
+%
+\begin{align}
+  P(t \mid \theta) = \frac{\exp(-\tilde{f}(t, \theta))}{Z(\theta)}.
+\end{align}
+%
+This formulation will prove useful for computing gradients and higher derivatives of $\Omega$.
+For example, let $g : [0, 1] \times \mathbb{R}^3 \to \mathbb{R}^m$, and denote as $\mathbb{E}[g] \in \mathbb{R}^m$ the expectation of $g(t, \theta)$ with respect to the density $P(t \mid \theta)$.
+Then, the Jacobian $\nabla_\theta \mathbb{E}[g] \in \mathbb{R}^{m \times 3}$ of this expectation is given by
+%
+\begin{align}\label{eq:gradient-expectation-covariance}
+  \nabla_\theta \mathbb{E}[g] = \mathbb{E}[\nabla_\theta g] - \mathrm{Cov}(g, \nabla_\theta \tilde{f})
+  % = \mathbb{E}[\nabla_\theta g] - \left( \mathbb{E}[g (\nabla_\theta \tilde{f})^T] - \mathbb{E}[g] \mathbb{E}[\nabla_\theta \tilde{f}]^T \right)
+\end{align}
+%
+where $\mathrm{Cov}(g, h) = \mathbb{E}[g h^T] - \mathbb{E}[g]\mathbb{E}[h]^T$ is the covariance between $g$ and $h$ w.r.t. $P$.
+
+\subsection{The residual likelihood method}
+
+Since the quadrature scheme approximates the partition function $Z(\theta)$ as a weighted sum of positive terms, $\log Z(\theta)$ can be stably computed using the log-sum-exp trick:
+%
+\begin{align}
+  -\log Z(\theta)
+  = -\log\left(\frac{1}{2} \sum_i w_i \exp(-\tilde{f}(t_i, \theta))\right)
+  = \tilde{f}_{\min}(\theta) - \log\left(\frac{1}{2} \sum_i w_i \exp(\tilde{f}_{\min}(\theta) - \tilde{f}(t_i, \theta))\right)
+\end{align}
+%
+where $\tilde{f}_{\min}(\theta) = \min_i \tilde{f}(t_i, \theta)$, avoiding naive overflow.
+However, a more subtle numerical issue arises at high SNR ($x \approx \nu$).
+In this regime, the Rician negative log-likelihood $f$ is very nearly Gaussian:
+%
+\begin{align}
+  f(x, \nu) \approx f_G(x,\nu) = \frac{(x-\nu)^2}{2} + \frac{1}{2}\log(2\pi).
+\end{align}
+%
+In other words, the residual energy $\tilde{r}(t,\theta) = \tilde{f}(t,\theta) - f_G(x,\nu) = f(x + \delta t, \nu) - f_G(x,\nu)$ is relatively small.
+Since both integration and Gauss-Legendre quadrature are linear functionals, we can factor $\exp(-f_G(x,\nu))$ out of the $Z(\theta)$ integral, resulting in a better-conditioned quadrature problem via the residual energy $\tilde{r}$:
+%
+\begin{align}
+  \log Z(\theta)
+  = - \log\left(\int_0^1 \exp(-(\tilde{r}(t,\theta) + f_G(x,\nu))) \, dt \right)
+  = f_G(x,\nu) - \log\left(\int_0^1 \exp(-\tilde{r}(t,\theta)) \, dt \right).
+\end{align}
+%
+This transformation is most beneficial at large $z$ but -- as we will see -- introduces no numerical issues at small $z$, so we apply it universally for simplicity.
+
+\subsubsection{Properties of the residual energy}
+
+Since $f_G$ is quadratic in $x$ and $\nu$ and independent of $\delta$, it follows from $\tilde{r} = \tilde{f} - f_G$ that third and higher-order partial derivatives of $\tilde{r}$ with respect to $x$ and $\nu$ are equal to those of $\tilde{f}$.
+Similarly, any partial derivative of $\tilde{r}$ with respect to $\delta$ equals that of $\tilde{f}$.
+We therefore need only derive stable expressions for $\tilde{r}$ and its first and second partial derivatives with respect to $x$ and $\nu$.
+From equation~\eqref{eq:rician-neg-log-likelihood-scaled}, we have:
+%
+\begin{align}
+  \tilde{r}(t,\theta) = f(y, \nu) - f_G(x,\nu) & = \frac{(y-\nu)^2 - (x-\nu)^2}{2} - \frac{1}{2}\log\left(\frac{y}{\nu}\right) - \log \hat{I}_0(y \nu)                                               \\
+                                               & = \delta t \left(x - \nu + \frac{\delta t}{2}\right) - \frac{1}{2}\log\left(\frac{y}{\nu}\right) - \log \hat{I}_0(y \nu) \label{eq:residual-energy}
+\end{align}
+%
+where $y = x + \delta t$.
+The first term in~\eqref{eq:residual-energy} is small when $|x-\nu| \lesssim 1$ and $\delta \lesssim 1$.
+The size of the second and third terms $\tilde{c}(y,\nu) = \frac{1}{2}\log(y/\nu) + \log\hat{I}_0(y\nu)$ depends on the regime of $z=y\nu$.
+
+\paragraph{Small $z=y\nu$}
+
+Rewriting $\tilde{c}(y,\nu) = \log y + \frac{1}{2}\log(2\pi) + \log I_0(z) - z$ and Taylor expanding $\log I_0(z)$, we have
+%
+\begin{align}\label{eq:c-small-z}
+  \tilde{c}(y,\nu) = \log y + \frac{1}{2}\log(2\pi) - z + \frac{z^2}{4} + \mathcal{O}(z^4).
+\end{align}
+
+\paragraph{Large $z=y\nu$}
+
+Using the asymptotic expansion $\log \hat{I}_0(z) = \frac{1}{8z} + \mathcal{O}(z^{-2})$, we have
+%
+\begin{align}\label{eq:c-large-z}
+  \tilde{c}(y,\nu) = \frac{1}{2}\log\left(\frac{y}{\nu}\right) + \frac{1}{8z} + \mathcal{O}(z^{-2}).
+\end{align}
+
+\paragraph{High-SNR $\nu \approx y \gg 1$}
+
+Let $y = x + \delta t = \nu + \epsilon$ with $|\epsilon| = |x - \nu + \delta t| \lesssim 1$ and $\nu$ large.
+Then, expanding~\eqref{eq:c-large-z} to first order in $\epsilon/\nu \ll 1$ gives:
+%
+\begin{align}
+  \tilde{c}(\nu+\epsilon, \nu) & = \frac{1}{2}\log\left(1 + \frac{\epsilon}{\nu}\right) + \frac{1}{8\nu(\nu+\epsilon)} + \mathcal{O}(z^{-2})                                                                                                   \\
+                               & = \frac{\epsilon}{2\nu} + \mathcal{O}\left(\frac{\epsilon^2}{\nu^2}\right) + \frac{1}{8\nu^2}\left(1 - \frac{\epsilon}{\nu} + \mathcal{O}\left(\frac{\epsilon^2}{\nu^2}\right)\right) + \mathcal{O}(\nu^{-4}) \\
+                               & = \frac{\epsilon}{2\nu}\left(1 - \frac{1}{4\nu^2}\right) + \frac{1}{8\nu^2} + \mathcal{O}\left(\frac{\epsilon^2}{\nu^2}\right).
+\end{align}
+%
+Thus, $\tilde{c}$ is small in the high-SNR regime and therefore $\tilde{r} = \delta t (\epsilon - \frac{\delta t}{2}) - \tilde{c}$ is also small when $\delta \lesssim 1$.
+
+\subsubsection{First derivatives of the residual}\label{sec:first-derivatives-residual}
+
+The first partial derivatives of $\tilde{r}$ can be simplified using equations~\eqref{eq:first-derivatives-simplified-x} and~\eqref{eq:first-derivatives-simplified-nu}:
+%
+\begin{align}
+  \tilde{r}_x   & = f_x(y,\nu) - (x-\nu) = (y - \nu r - \frac{1}{y}) - (x-\nu) = \delta t  + \nu (1 - r) - \frac{1}{y} \\
+  \tilde{r}_\nu & = f_\nu(y,\nu) - (\nu-x) = (\nu - y r) - (\nu-x) = -\delta t r + x (1 - r)
+\end{align}
+%
+These forms are stable for small $z = y \nu$, but for large $z$, we substitute $1-r = \frac{b_0}{z}$ from~\eqref{eq:r-large-reparametrized}:
+%
+\begin{align}
+  \tilde{r}_x   & = \delta t  + \nu (1 - r) - \frac{1}{y} = \delta t - \frac{1 - b_0}{y}          \\
+  \tilde{r}_\nu & = -\delta t r + x (1 - r) = -\delta t + y (1 - r) = -\delta t + \frac{b_0}{\nu}
+\end{align}
+
+\subsubsection{Second derivatives of the residual}\label{sec:second-derivatives-residual}
+
+The second partial derivatives of the $\tilde{r}$ can be simplified using equations~\eqref{eq:second-derivatives-unsimplified-x-x}-\eqref{eq:second-derivatives-unsimplified-nu-nu}:
+%
+\begin{align}
+  \tilde{r}_{xx}     & = f_{xx} - 1     = \frac{1}{y^2} - \nu^2 r'        \\
+  \tilde{r}_{x\nu}   & = f_{x\nu} + 1   = 1 - (r + z r') = 1 - z(1 - r^2) \\
+  \tilde{r}_{\nu\nu} & = f_{\nu\nu} - 1 = - y^2 r'
+\end{align}
+%
+Similar to the small- and large $z$ expressions in equations~\eqref{eq:second-derivatives-small-z} and~\eqref{eq:second-derivatives-large-z}, the above expressions for $\tilde{r}_{xx}$ and $\tilde{r}_{\nu\nu}$ are numerically stable.
+However, for large $z$, the mixed-derivative $\tilde{r}_{x\nu}$ requires some care, since $f_{x\nu} = -1 + \mathcal{O}(\frac{1}{z^2})$ and so computing $\tilde{r}_{x\nu} = \mathcal{O}(\frac{1}{z^2})$ naively leads to catastrophic cancellation.
+A stable form can be derived by substituting the large-$z$ reparametrizations $1 - r = u b_0$, $2 b_0 - 1 = u b_1$, and $4 b_1 - 1 = u b_2$ where $u = \frac{1}{z}$:
+%
+\begin{align}
+  \tilde{r}_{x\nu} & = 1 - z(1 - r)(1 + r) = 1 - b_0 (1 + r) = 1 - b_0(2 - u b_0)                       \\
+                   & = (1 - 2 b_0) + u b_0^2 = -u b_1 + u b_0^2 = u (b_0^2 - b_1)                       \\
+                   & = u ((\frac{1 + u b_1}{2})^2 - b_1) = \frac{u}{4} (1 - 4b_1 + 2u b_1 + u^2 b_1^2)  \\
+                   & = \frac{u}{4}(-u b_2 + 2u b_1 + u^2 b_1^2) = \frac{u^2}{4}(2 b_1 - b_2 + u b_1^2).
+\end{align}
+%
+This final expression is stable to compute and $\mathcal{O}(\frac{1}{z^2})$ as expected.
+
+\subsubsection{Expectations over $P(t \mid \theta)$}
+
+Since $f_G(x,\nu)$ is constant with respect to $t$, we can factor $\exp(-f_G(x,\nu))$ out of the numerator and denominator of $P(t \mid \theta)$, resulting in the more numerically stable form
+%
+\begin{align}
+  P(t \mid \theta)
+  = \frac{\exp(-\tilde{f}(t, \theta))}{\int_0^1 \exp(-\tilde{f}(t', \theta)) \, dt'}
+  = \frac{\exp(-\tilde{r}(t, \theta))}{\int_0^1 \exp(-\tilde{r}(t', \theta)) \, dt'}.
+\end{align}
+%
+In the high SNR regime with $\delta$ small such that $\tilde{r}$ is small, we can compute $\log P$ in a more stable form:
+%
+\begin{align}
+  \log P(t \mid \theta)
+   & = -\log \left( \int_0^1 \exp(\tilde{r}(t, \theta) - \tilde{r}(t', \theta)) \, dt' \right)        \\
+   & = -\log \left(1 + \int_0^1 \exp(\tilde{r}(t, \theta) - \tilde{r}(t', \theta)) - 1 \, dt' \right)
+\end{align}
+%
+where $\log(1 + \epsilon)$ and $\exp(\epsilon - 1)$ are computed stably for small $\epsilon$ using the special-function routines \texttt{log1p($\epsilon$)} and \texttt{expm1($\epsilon$)}.
+
+\subsection{Gradient}
+
+We compute the gradient of $\Omega(\theta) = -\log Z(\theta) - \log\delta$ in terms of the gradient of $\log Z$:
+%
+\begin{align}
+  \nabla_{\theta} \log Z(\theta) = \frac{1}{Z(\theta)}\nabla_{\theta} Z(\theta) = \frac{1}{Z(\theta)}\int_0^1 -\nabla_{\theta}\tilde{f} \cdot \exp(-\tilde{f}) \, dt = -\mathbb{E}[\nabla_{\theta}\tilde{f}].
+\end{align}
+%
+Rewriting the expectation in terms of the residual energy $\tilde{r}$, we have
+%
+\begin{align}
+  \mathbb{E}[\nabla_{\theta}\tilde{f}] = \mathbb{E}[\nabla_{\theta} (\tilde{r} + f_G)] = \mathbb{E}[\nabla_{\theta} \tilde{r}] + \nabla_{\theta} f_G
+\end{align}
+%
+since $f_G$ is constant with respect to $t$.
+Finally, the gradient $\nabla_{\theta} \Omega$ simplifies to
+%
+\begin{align}
+  \nabla_{\theta} \Omega & = - \nabla_\theta \log Z(\theta) - \nabla_\theta \log\delta = \mathbb{E}[\nabla_{\theta} \tilde{f}] - (0, 0, \delta^{-1})^T \\
+                         & = \mathbb{E}\left[ \begin{pmatrix} \tilde{r}_x \\ \tilde{r}_\nu \\ t \tilde{f}_x \end{pmatrix} \right]
+  + \begin{pmatrix} x - \nu \\ \nu - x \\ -\delta^{-1} \end{pmatrix}
+\end{align}
+%
+where $\frac{\partial}{\partial x} f_G = x - \nu$, $\frac{\partial}{\partial \nu} f_G = \nu - x$, and $\tilde{r}_x$, $\tilde{r}_\nu$, and $f_x$ are evaluated at $y=x+\delta t$.
+
+\subsection{Hessian}
+
+We can compute the Hessian of $\Omega$ by differentiating $\nabla_{\theta} \Omega$ using the gradient of the expectation identity~\eqref{eq:gradient-expectation-covariance}:
+%
+\begin{align}
+  \nabla_{\theta}^2 \Omega & = \nabla_\theta \left( \mathbb{E}[\nabla_{\theta} \tilde{f}] - (0, 0, \delta^{-1})^T \right)                                                       \\
+                           & = \mathbb{E}[\nabla_{\theta}^2 \tilde{f}] - \mathrm{Cov}(\nabla_{\theta} \tilde{f}, \nabla_{\theta} \tilde{f}) + \mathrm{diag}(0, 0, \delta^{-2}).
+\end{align}
+%
+Substituting $\tilde{f} = \tilde{r} + f_G$ and pulling $f_G$ out of the expectation, we have
+%
+\begin{align}
+  \nabla_{\theta}^2 \Omega
+   & = \mathbb{E}[\nabla_{\theta}^2 \tilde{r}] + \nabla_{\theta}^2 f_G - \mathrm{Cov}(\nabla_{\theta} \tilde{r}, \nabla_{\theta} \tilde{r}) + \mathrm{diag}(0, 0, \delta^{-2}) \\
+   & = \mathbb{E}[\nabla_{\theta}^2 \tilde{r}] - \mathrm{Cov}(\nabla_{\theta} \tilde{r}, \nabla_{\theta} \tilde{r}) + \begin{pmatrix} 1 & -1 & 0 \\ -1 & 1 & 0 \\ 0 & 0 & \delta^{-2} \end{pmatrix}
+\end{align}
+%
+where $\frac{\partial^2}{\partial x^2} f_G = \frac{\partial^2}{\partial \nu^2} f_G = 1$, $\frac{\partial^2}{\partial x \partial \nu} f_G = -1$, and the Hessian of the residual energy $\nabla_{\theta}^2 \tilde{r}$ is
+%
+\begin{align}
+  \nabla_{\theta}^2 \tilde{r} = \begin{pmatrix} \tilde{r}_{xx} & \tilde{r}_{x\nu} & t \tilde{f}_{xx} \\ \tilde{r}_{x\nu} & \tilde{r}_{\nu\nu} & t \tilde{f}_{x\nu} \\ t \tilde{f}_{xx} & t \tilde{f}_{x\nu} & t^2 f_{xx} \end{pmatrix}.
 \end{align}
 
 \end{document}

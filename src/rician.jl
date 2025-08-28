@@ -48,13 +48,12 @@ end
     #                 ≈  1/2z - 1 + z/2 - z^3/16 + z^5/96 - 11*z^7/6144 + 𝒪(z^9)                        (z << 1)
     #   ∂/∂x logÎ₀(z) = ν * d/dz logÎ₀(z)
     #   ∂/∂ν logÎ₀(z) = x * d/dz logÎ₀(z)
-
-    # Note: there are really three relevant limits: z << 1, z >> 1, and x ≈ ν.
-    # Could plausibly better account for the latter case, though it is tested quite robustly
+    #
+    # Note: there are really three relevant limits: z << 1, z >> 1, and the high-SNR case x ≈ ν ≈ √z >> 1.
     z = x * ν
     T = checkedfloattype(z)
 
-    r, r_tail, r′, r′′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z)
+    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(0))
     if z < first(neglogpdf_rician_parts_branches(T))
         ∂x = x - r * ν - inv(x)
         ∂ν = ν - r * x
@@ -73,7 +72,7 @@ end
     z = x * ν
     T = checkedfloattype(z)
 
-    r, r_tail, r′, r′′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z)
+    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(1))
     if z < first(neglogpdf_rician_parts_branches(T))
         ∂xx = inv(x)^2 + (one(T) - ν^2 * r′)
         ∂xν = -(r + z * r′)
@@ -91,7 +90,7 @@ end
     z = x * ν
     T = checkedfloattype(z)
 
-    r, r_tail, r′, r′′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z)
+    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(1))
     if z < first(neglogpdf_rician_parts_branches(T))
         x⁻¹ = inv(x)
         ∂x = x - r * ν - x⁻¹
@@ -115,7 +114,7 @@ end
     z = x * ν
     T = checkedfloattype(z)
 
-    r, r_tail, r′, r′′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z)
+    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(2))
     if z < first(neglogpdf_rician_parts_branches(T))
         x⁻¹ = inv(x)
         x⁻² = x⁻¹ * x⁻¹
@@ -149,6 +148,63 @@ end
     ∂xxx, ∂xxν, ∂xνν, ∂ννν = J[3], J[4], J[5], J[10]
 
     return (∂x, ∂ν), (∂xx, ∂xν, ∂νν), (∂xxx, ∂xxν, ∂xνν, ∂ννν)
+end
+
+@inline function _neglogpdf_rician_residual(x::D, ν::D, Δx::D) where {D}
+    # Negative Rician log-likelihood residual `-logp(x + Δx | ν, σ = 1) - (x - ν)^2 / 2 - log(√2π)`
+    Δ = x - ν
+    y = x + Δx
+    z = y * ν
+    T = checkedfloattype(z)
+    if z < first(logbesseli0x_branches(T))
+        return Δx * (Δ + Δx / 2) + z - logbesseli0_taylor(z) - log(y) - T(log2π) / 2
+    elseif z < last(logbesseli0x_branches(T))
+        return Δx * (Δ + Δx / 2) - logbesseli0x_middle(z) - log(y) - T(log2π) / 2
+    else
+        return Δx * (Δ + Δx / 2) - logratio(y, ν) / 2 - logbesseli0x_scaled_tail(z)
+    end
+end
+
+@inline function _∇neglogpdf_rician_residual(x::D, ν::D, Δx::D) where {D}
+    y = x + Δx
+    z = y * ν
+    T = checkedfloattype(z)
+
+    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(0))
+    if z < first(neglogpdf_rician_parts_branches(T))
+        ∂x = ((one(T) - r) * ν + Δx) - inv(y)
+        ∂ν = (one(T) - r) * x - r * Δx
+    else
+        ∂x = Δx - inv(y) * (one(T) - r_tail)
+        ∂ν = -(Δx - inv(ν) * r_tail)
+    end
+
+    return (∂x, ∂ν)
+end
+
+@inline function _∇²neglogpdf_rician_residual_with_gradient(x::D, ν::D, Δx::D) where {D}
+    y = x + Δx
+    z = y * ν
+    T = checkedfloattype(z)
+
+    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(1))
+    if z < first(neglogpdf_rician_parts_branches(T))
+        y⁻¹ = inv(y)
+        ∂x = ((one(T) - r) * ν + Δx) - y⁻¹
+        ∂ν = (one(T) - r) * x - r * Δx
+        ∂xx = y⁻¹ * y⁻¹ - ν^2 * r′
+        ∂xν = one(T) - (r + z * r′)
+        ∂νν = -y^2 * r′
+    else
+        y⁻¹, ν⁻¹ = inv(y), inv(ν)
+        ∂x = Δx - y⁻¹ * (one(T) - r_tail)
+        ∂ν = -(Δx - ν⁻¹ * r_tail)
+        ∂xx = y⁻¹ * y⁻¹ * (one(T) - z^2 * r′)
+        ∂xν = one_minus_r_minus_z_r′
+        ∂νν = -y^2 * r′
+    end
+
+    return (∂x, ∂ν), (∂xx, ∂xν, ∂νν)
 end
 
 ####
@@ -192,10 +248,30 @@ end
 
 #### Internal methods with strict type signatures (enables dual number overloads with single method)
 
-@inline _neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = neglogf_quadrature(Base.Fix2(_neglogpdf_rician, ν), x, δ, order)
-@inline _∇neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = last(_∇neglogpdf_qrician_with_primal(x, ν, δ, order))
+@inline function _neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D}
+    Ω₀ = neglogf_quadrature_unit_interval(D, order) do t
+        δt = δ * t
+        return _neglogpdf_rician_residual(x, ν, δt)
+    end
+    return Ω₀ + ((x - ν)^2 + log2π) / 2 - log(δ)
+end
+# @inline _neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = neglogf_quadrature(Base.Fix2(_neglogpdf_rician, ν), x, δ, order)
 
 @inline function _∇neglogpdf_qrician_with_primal(x::D, ν::D, δ::D, order::Val) where {D}
+    Δ = x - ν
+    logδ, δ⁻¹ = log(δ), inv(δ)
+    Ω₀, (E_rx, E_rν, E_rδ) = f_quadrature_weighted_unit_interval(D, order) do t
+        δt = δ * t
+        rx, rν = _∇neglogpdf_rician_residual(x, ν, δt)
+        rδ = t * (rx + Δ)
+        return _neglogpdf_rician_residual(x, ν, δt), SVector{3, D}(rx, rν, rδ)
+    end
+    Ω = Ω₀ + (Δ^2 + log2π) / 2 - logδ
+    ∂x = E_rx + Δ
+    ∂ν = E_rν - Δ
+    ∂δ = E_rδ - δ⁻¹
+
+    #=
     # Differentiate the approximation:
     # ω(t) = neglogpdf_rician(t, ν)
     #    I = ∫_{x}^{x+δ} exp(-ω(x′)) dx′ = ∫_{0}^{1} exp(-ω(x + δ * t)) * δ dt
@@ -203,13 +279,15 @@ end
     #   ∂Ω = -∂(logI) = -∂I / I
     #      = -exp(Ω) * ∫_{0}^{1} ∂(exp(-ω(x + δ * t)) * δ) dt
     # where Ω = -logI is constant w.r.t. ∂.
+    δ⁻¹ = inv(δ)
     Ω₀, (∂x, ∂ν, ∂δ) = f_quadrature_weighted_unit_interval(D, order) do t
         x′ = x + δ * t
         ∇x, ∇ν = _∇neglogpdf_rician(x′, ν)
-        ∇δ = t * ∇x - inv(δ)
+        ∇δ = t * ∇x - δ⁻¹
         return _neglogpdf_rician(x′, ν), SVector{3, D}(∇x, ∇ν, ∇δ)
     end
     Ω = Ω₀ - log(δ)
+    =#
 
     #=
     # Differentiate the approximation (using precomputed Ω)
@@ -246,11 +324,42 @@ end
 
     return Ω, (∂x, ∂ν, ∂δ)
 end
+@inline _∇neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = last(_∇neglogpdf_qrician_with_primal(x, ν, δ, order))
 
 @scalar_rule _neglogpdf_qrician(x, ν, δ, order::Val) (_∇neglogpdf_qrician_with_primal(x, ν, δ, order)[2]..., NoTangent())
 @dual_rule_from_frule _neglogpdf_qrician(x, ν, δ, !(order::Val))
 
 @inline function _∇²neglogpdf_qrician_with_primal_and_gradient(x::D, ν::D, δ::D, order::Val) where {D}
+    Δ = x - ν
+    logδ, δ⁻¹ = log(δ), inv(δ)
+    Ω₀, (E_rx, E_rν, E_rδ, E_hxx, E_hxν, E_hxδ, E_hνν, E_hνδ, E_hδδ) = f_quadrature_weighted_unit_interval(D, order) do t
+        δt = δ * t
+        (rx, rν), (rxx, rxν, rνν) = _∇²neglogpdf_rician_residual_with_gradient(x, ν, δt)
+        rδ = t * (rx + Δ)
+        hxx = rxx - rx * rx
+        hxν = rxν - rx * rν
+        hνν = rνν - rν * rν
+        hxδ = t * ((hxx - Δ * rx) + 1)
+        hνδ = t * ((hxν - Δ * rν) - 1)
+        hδδ = t^2 * ((hxx - Δ * (2 * rx + Δ)) + 1)
+        return _neglogpdf_rician_residual(x, ν, δt), SVector{9, D}(rx, rν, rδ, hxx, hxν, hxδ, hνν, hνδ, hδδ)
+    end
+    Ω = Ω₀ + (Δ^2 + log2π) / 2 - logδ
+
+    ∇x = E_rx + Δ
+    ∇ν = E_rν - Δ
+    ∇δ = E_rδ - δ⁻¹
+
+    ∇xx = (E_hxx + E_rx * E_rx) + 1
+    ∇xν = (E_hxν + E_rx * E_rν) - 1
+    ∇xδ = E_hxδ + E_rx * E_rδ
+    ∇νν = (E_hνν + E_rν * E_rν) + 1
+    ∇νδ = E_hνδ + E_rν * E_rδ
+    ∇δδ = (E_hδδ + E_rδ * E_rδ) + δ⁻¹ * δ⁻¹
+
+    return Ω, (∇x, ∇ν, ∇δ), (∇xx, ∇xν, ∇xδ, ∇νν, ∇νδ, ∇δδ)
+
+    #=
     # Differentiate the approximation, i.e. differentiate through the quadrature:
     #  ω(t) = neglogpdf_rician(t, ν)
     #     I = ∫_{x}^{x+δ} exp(-ω(x′)) dx′ = ∫_{0}^{1} exp(-ω(x + δ * t)) * δ dt
@@ -272,6 +381,7 @@ end
     Ω = Ω₀ - logδ
 
     return Ω, (∂x, ∂ν, ∂δ), (∂x * ∂x + ∂x∂x, ∂x * ∂ν + ∂x∂ν, ∂x * ∂δ + ∂x∂δ, ∂ν * ∂ν + ∂ν∂ν, ∂ν * ∂δ + ∂ν∂δ, ∂δ * ∂δ + ∂δ∂δ)
+    =#
 
     #=
     # Differentiate the approximation (using precomputed Ω)
@@ -432,10 +542,11 @@ end
 
 @inline function _∇²neglogpdf_qrician_jvp_via_two_pass(Δ::SVector{9, D}, x::D, ν::D, δ::D, order::Val) where {D}
     # First pass to compute E[∇ω] needed for Δϕ and covariance term in second integrand
+    δ⁻¹ = inv(δ)
     _, E_∇ω, t_nodes, w_nodes = f_quadrature_weighted_unit_interval(D, order) do t
         local x′ = x + δ * t
         local ∇x, ∇ν = _∇neglogpdf_rician(x′, ν)
-        return _neglogpdf_rician(x′, ν), SVector(∇x, ∇ν, t * ∇x - inv(δ))
+        return _neglogpdf_rician(x′, ν), SVector(∇x, ∇ν, t * ∇x - δ⁻¹)
     end
 
     # Assemble the transformed sensitivity vector Δϕ, which is now constant for the main pass
@@ -710,39 +821,40 @@ end
 const DEFAULT_GAUSSLEGENDRE_ORDER = 16
 const DEFAULT_GAUSSLAGUERRE_ORDER = 16
 
-@generated function gausslegendre_unit_interval(::Val{order}, ::Type{T}) where {order, T <: AbstractFloat}
-    x, w = gausslegendre(order)
-    x = SVector{order, T}(@. T((1 + x) / 2)) # rescale from [-1, 1] to [0, 1]
-    w = SVector{order, T}(@. T(w / 2)) # adjust weights to account for rescaling
+@generated function gausslegendre_unit_interval(::Val{order}, ::Type{T}) where {order, T}
+    x, w = GaussLegendre.gausslegendre(order, BigFloat) # compute nodes and weights in `BigFloat`, then convert to type `T`
+    x = SVector{order, T}((1 .+ x) ./ 2) # rescale from [-1, 1] to [0, 1]
+    w = SVector{order, T}(w ./ 2) # adjust weights to account for rescaling
     return :($x, $w)
 end
 
-@generated function gausslaguerre_positive_real_axis(::Val{order}, ::Type{T}) where {order, T <: AbstractFloat}
-    x, w = gausslaguerre(order)
-    x = SVector{order, T}(T.(x)) # nodes lie in [0, ∞)
-    w = SVector{order, T}(T.(w)) # exponentially decreasing weights
+@generated function gausslaguerre_positive_real_axis(::Val{order}, ::Type{Float64}) where {order}
+    x, w = gausslaguerre(order) # note: nodes and weights are hardcoded to Float64 in FastGaussQuadrature.jl
+    x = SVector{order, Float64}(x) # nodes lie in [0, ∞)
+    w = SVector{order, Float64}(w) # exponentially decreasing weights
     return :($x, $w)
 end
+@inline gausslaguerre_positive_real_axis(::Val{order}, ::Type{T}) where {order, T} = map(Base.Fix1(convert, SVector{order, T}), gausslaguerre_positive_real_axis(Val(order), Float64))
 
-@generated function gausshalfhermite_positive_real_axis(::Val{order}, ::Type{T}, ::Val{γ}) where {order, T <: AbstractFloat, γ}
+@generated function gausshalfhermite_positive_real_axis(::Val{order}, ::Type{T}, ::Val{γ}) where {order, T, γ}
     @assert γ > -1 "γ must be greater than -1"
-    x, w = gausshalfhermite_gw(order, BigFloat(γ); normalize = true)
+    x, w = gausshalfhermite_gw(order, BigFloat(γ); normalize = true) # compute nodes and weights in `BigFloat`, then convert to type `T`
     x = SVector{order, T}(T.(x)) # nodes lie in [0, ∞)
     w = SVector{order, T}(T.(w)) # exponentially decreasing weights
     return :($x, $w)
 end
 
-@inline function f_quadrature(f::F, x₀::Real, δ::Real, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, order}
+@inline function f_quadrature(f::F, ::Type{T}, x₀::Real, δ::Real, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, T, order}
     # I = ∫_{x₀}^{x₀ + δ} [f(t)] dt
-    T = checkedfloattype(x₀, δ)
     x, w = gausslegendre_unit_interval(Val(order), T)
     y = @. f(x₀ + δ * x)
     return vecdot(w, y) * δ
 end
+@inline f_quadrature(f::F, x₀::Real, δ::Real, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, order} = f_quadrature(f, basefloattype(x₀, δ), x₀, δ, Val(order))
 
 @inline function f_quadrature_weighted_unit_interval(f::F, ::Type{T}, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, T, order}
     # I = ∫_{0}^{1} [exp(Ω - ω(t)) f(t)] dt where Ω = -log(∫_{0}^{1} exp(-ω(t)) dt)
-    x, w = gausslegendre_unit_interval(Val(order), checkedfloattype(T))
+    x, w = gausslegendre_unit_interval(Val(order), T)
     ω_and_y = @. f(x)
     ω, y = first.(ω_and_y), last.(ω_and_y)
     Ω = weighted_neglogsumexp(w, ω)
@@ -751,29 +863,36 @@ end
     return Ω, I, x, w′
 end
 
-@inline function neglogf_quadrature(neglogf::F, x₀::Real, δ::Real, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, order}
+@inline function neglogf_quadrature(neglogf::F, ::Type{T}, x₀::Real, δ::Real, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, T, order}
     # I = ∫_{x₀}^{x₀ + δ} [f(t)] dt, where f(t) = exp(-neglogf(t))
-    T = checkedfloattype(x₀, δ)
     x, w = gausslegendre_unit_interval(Val(order), T)
     neglogy = @. neglogf(x₀ + δ * x)
     return weighted_neglogsumexp(w, neglogy) .- log(δ)
 end
+@inline neglogf_quadrature(neglogf::F, x₀::Real, δ::Real, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, order} = neglogf_quadrature(neglogf, basefloattype(x₀, δ), x₀, δ, Val(order))
 
-@inline function f_laguerre_tail_quadrature(f::F, λ::Real, ::Val{order} = Val(DEFAULT_GAUSSLAGUERRE_ORDER)) where {F, order}
+@inline function neglogf_quadrature_unit_interval(neglogf::F, ::Type{T}, ::Val{order} = Val(DEFAULT_GAUSSLEGENDRE_ORDER)) where {F, T, order}
+    # I = ∫_{0}^{1} [f(t)] dt, where f(t) = exp(-neglogf(t))
+    x, w = gausslegendre_unit_interval(Val(order), T)
+    neglogy = @. neglogf(x)
+    return weighted_neglogsumexp(w, neglogy)
+end
+
+@inline function f_laguerre_tail_quadrature(f::F, ::Type{T}, λ::Real, ::Val{order} = Val(DEFAULT_GAUSSLAGUERRE_ORDER)) where {F, T, order}
     # I = ∫_{0}^{∞} [exp(-λt) f(t)] dt
-    T = checkedfloattype(λ)
     x, w = gausslaguerre_positive_real_axis(Val(order), T)
     y = @. f(x / λ)
     return vecdot(w, y) / λ
 end
+@inline f_laguerre_tail_quadrature(f::F, λ::Real, ::Val{order} = Val(DEFAULT_GAUSSLAGUERRE_ORDER)) where {F, order} = f_laguerre_tail_quadrature(f, basefloattype(λ), λ, Val(order))
 
-@inline function f_halfhermite_tail_quadrature(f::F, ::Val{γ}, ::Val{order} = Val(DEFAULT_GAUSSLAGUERRE_ORDER)) where {F, order, γ}
+@inline function f_halfhermite_tail_quadrature(f::F, ::Type{T}, ::Val{γ}, ::Val{order} = Val(DEFAULT_GAUSSLAGUERRE_ORDER)) where {F, T, order, γ}
     # I = ∫_{0}^{∞} [x^γ exp(-t^2/2) f(t)] / √(2π) dt
-    T = checkedfloattype(γ)
     x, w = gausshalfhermite_positive_real_axis(Val(order), T, Val(γ))
     y = @. f(x)
     return vecdot(w, y)
 end
+@inline f_halfhermite_tail_quadrature(f::F, ::Val{γ}, ::Val{order} = Val(DEFAULT_GAUSSLAGUERRE_ORDER)) where {F, order, γ} = f_halfhermite_tail_quadrature(f, basefloattype(γ), Val(γ), Val(order))
 
 @inline function weighted_neglogsumexp(w::SVector{N}, y::SVector{N}) where {N}
     min_y = minimum(y)

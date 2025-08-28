@@ -20,6 +20,9 @@ export Rice, neglogpdf_rician, neglogpdf_qrician
 include(to_muladd, "gausshalfhermite.jl")
 using .GaussHalfHermite: GaussHalfHermite, gausshalfhermite_gw
 
+include(to_muladd, "gausslegendre.jl")
+using .GaussLegendre: GaussLegendre
+
 include(to_muladd, "utils.jl")
 include(to_muladd, "forwarddiff.jl")
 include(to_muladd, "bessels.jl")

@@ -30,7 +30,7 @@ doublify(x::Number) = Double64(x)
 doublify(x::Tuple) = map(doublify, x)
 
 """
-Run Caratheodory–Fejér minimax over a Double64 domain while evaluating f in ArbReal.
+Run Caratheodory-Fejér minimax over a Double64 domain while evaluating f in ArbReal.
 """
 function cf_minimax(f::Function, dom::Tuple{<:Real, <:Real}, m::Integer, n::Integer)
     return minimax(doublify(f), (Double64(dom[1]), Double64(dom[2])), m, n)
