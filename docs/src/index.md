@@ -10,5 +10,5 @@ Documentation for [FastRicianLikelihoods](https://github.com/jondeuce/FastRician
 ```
 
 ```@autodocs
-Modules = [FastRicianLikelihoods]
+Modules = [FastRicianLikelihoods, FastRicianLikelihoods.GaussHalfHermite, FastRicianLikelihoods.GaussLegendre]
 ```

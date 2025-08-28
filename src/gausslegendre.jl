@@ -1,10 +1,47 @@
-"""
-This module is a copy of the `gausslegendre.jl` file from the `FastGaussQuadrature.jl` package, with the following changes:
+#=
+The MIT License (MIT)
 
-  - extend from hard-coded `Float64` to arbitrary types `T`
-  - add `refine` keyword argument to `gausslegendre` to optionally refine the asymptotic nodes and weights using Newton iterations
+Copyright (c) 2014 Alex Townsend
 
-See: https://github.com/JuliaApproximation/FastGaussQuadrature.jl/blob/b654654677bc254e8f936c54bd2128a6dda57bba/src/gausslegendre.jl
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+=#
+
+@doc raw"""
+    GaussLegendre
+
+Compute nodes `x` and weights `w` for Gauss–Legendre quadrature on `[-1, 1]`.
+
+```math
+\int_{-1}^{1} f(x)\,dx \approx \sum_{i=1}^{n} w_i f(x_i)
+```
+
+Numerical method:
+- For `n ≤ 60`, roots are found by Newton’s method; Legendre polynomials are evaluated via a three‑term recurrence.
+- For `n > 60`, an `O(n)` asymptotic expansion provides nodes and weights; optional refinement by Newton is available via `refine=true`.
+
+Porting notes:
+- Adapted from `FastGaussQuadrature.jl` (`gausslegendre.jl`), generalized from `Float64` to arbitrary `T`.
+- Added `refine` keyword to control Newton refinement for large `n`.
+- Source: https://github.com/JuliaApproximation/FastGaussQuadrature.jl/blob/b654654677bc254e8f936c54bd2128a6dda57bba/src/gausslegendre.jl
+
+Exported:
+- `gausslegendre(n::Integer, ::Type{T}=Float64; refine=true) -> x, w`
 """
 module GaussLegendre
 
@@ -22,7 +59,7 @@ Return nodes `x` and weights `w` of [Gauss-Legendre quadrature](https://en.wikip
 
 # Examples
 ```jldoctest
-julia> x, w = gausslegendre(3);
+julia> x, w = GaussLegendre.gausslegendre(3);
 
 julia> f(x) = x^4;
 

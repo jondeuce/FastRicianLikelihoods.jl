@@ -1,7 +1,17 @@
 using FastRicianLikelihoods
 using Documenter
 
-DocMeta.setdocmeta!(FastRicianLikelihoods, :DocTestSetup, :(using FastRicianLikelihoods); recursive = true)
+DocMeta.setdocmeta!(
+    FastRicianLikelihoods,
+    :DocTestSetup,
+    quote
+        using FastRicianLikelihoods
+        using FastRicianLikelihoods.LinearAlgebra
+        using FastRicianLikelihoods.GaussHalfHermite
+        using FastRicianLikelihoods.GaussLegendre
+    end,
+    recursive = true,
+)
 
 makedocs(;
     modules = [FastRicianLikelihoods],

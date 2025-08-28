@@ -604,7 +604,7 @@ end
     ϕ = SVector{9, D}(∇x, ∇ν, ∇δ, dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ)
 
     # Analytically compute the Jacobian of ϕ w.r.t. p = (x, ν, δ)
-    δt, δ⁻², t² = δ * t, δ⁻¹^2, t^2
+    δt, δ⁻², t² = δ * t, δ⁻¹ * δ⁻¹, t^2
     dxdxdx, dxdxdν, dνdνdx, dνdνdν = ∇xxx - 2 * ∇x * ∇xx, ∇xxν - 2 * ∇x * ∇xν, ∇xνν - 2 * ∇ν * ∇xν, ∇ννν - 2 * ∇ν * ∇νν
     dxdνdx, dxdνdν = ∇xxν - ∇xx * ∇ν - ∇x * ∇xν, ∇xνν - ∇xν * ∇ν - ∇x * ∇νν
     Jϕ = SMatrix{9, 3, D}(
@@ -623,7 +623,7 @@ end
 
     # Compute the full 9-element vector ϕ from the core derivatives
     δ⁻¹ = inv(δ)
-    δ⁻² = δ⁻¹^2
+    δ⁻² = δ⁻¹ * δ⁻¹
     ∇δ = t * ∇x - δ⁻¹
     dxdx, dxdν, dνdν = ∇xx - ∇x * ∇x, ∇xν - ∇x * ∇ν, ∇νν - ∇ν * ∇ν
     dxdδ, dνdδ, dδdδ = t * dxdx + ∇x * δ⁻¹, t * dxdν + ∇ν * δ⁻¹, t * (t * dxdx + 2 * ∇x * δ⁻¹)

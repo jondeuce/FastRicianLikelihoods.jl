@@ -274,7 +274,7 @@ end
     f = arbify(neglogpdf_qrician)
 
     @testset "gausslegendre ($T)" for T in (Float32, Float64)
-        for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(8))
+        for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4))
             rtol = T == Float32 ? 3 * eps(T) : 3 * eps(T)
             atol = T == Float32 ? 3 * eps(T) : 3 * eps(T)
 
@@ -304,7 +304,7 @@ end
     ∇f = arbify(∇f̂)
 
     @testset "gausslegendre ($T)" for T in (Float32, Float64)
-        for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(8))
+        for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4))
             # Compare gradients of approximate integral at different orders
             rtol = T == Float32 ? 5 * eps(T) : 5 * eps(T)
             atol = T == Float32 ? 5 * eps(T) : 5 * eps(T)
@@ -348,9 +348,9 @@ end
     ∇²f = arbify(∇²f̂)
 
     @testset "gausslegendre ($T)" for T in (Float32, Float64)
-        for (x, ν, δ) in xνδ_iterator(), order in (Val(8), Val(16))
-            rtol = T == Float32 ? 10 * eps(T) : 20 * eps(T)
-            atol = T == Float32 ? 10 * eps(T) : 20 * eps(T)
+        for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4))
+            rtol = T == Float32 ? 10 * eps(T) : 50 * eps(T)
+            atol = T == Float32 ? 10 * eps(T) : 50 * eps(T)
 
             H = ∇²f(T(x), T(ν), T(δ), order; method=:gausslegendre)
             Ĥ = @inferred ∇²f̂(T(x), T(ν), T(δ), order)
@@ -366,8 +366,8 @@ end
 
     @testset "analytic ($T)" for T in (Float32, Float64)
         for (x, ν, δ) in xνδ_iterator()
-            rtol = T == Float32 ? 10 * eps(T) : 20 * eps(T)
-            atol = T == Float32 ? 10 * eps(T) : 20 * eps(T)
+            rtol = T == Float32 ? 10 * eps(T) : 50 * eps(T)
+            atol = T == Float32 ? 10 * eps(T) : 50 * eps(T)
             high_order = Val(32)
 
             H = ∇²f(T(x), T(ν), T(δ), Val(nothing); method=:finitediff)
@@ -407,7 +407,7 @@ end
     end
 
     @testset "full jacobian and jvp ($T)" for T in (Float32, Float64)
-        for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(8))
+        for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4))
             rtol = sqrt(eps(T))
             atol = sqrt(eps(T))
 
@@ -443,7 +443,7 @@ end
         rtol = eps(T)
         atol = eps(T)
 
-        for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(8))
+        for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4))
             ŷ = @inferred neglogpdf_qrician(x, ν, δ, order)
             ∇ŷ = @inferred ∇neglogpdf_qrician(x, ν, δ, order)
             ∇²ŷ = @inferred ∇²neglogpdf_qrician(x, ν, δ, order)

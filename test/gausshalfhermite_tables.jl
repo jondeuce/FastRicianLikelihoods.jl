@@ -25,7 +25,7 @@ TABLE_1_GALANT_1969() = [
 ]
 
 # A Gaussian Quadrature Procedure for Use in the Solution of the Boltzmann Equation and Related Problems
-#   [1] Shizgal B. A Gaussian quadrature procedure for use in the solution of the Boltzmann equation and related problems. Journal of Computational Physics 1981; 41: 309–328.
+#   [2] Shizgal B. A Gaussian quadrature procedure for use in the solution of the Boltzmann equation and related problems. Journal of Computational Physics 1981; 41: 309–328.
 
 TABLE_IIa_SHIZGAL_1981() = Dict{Int, Matrix}(
     2 => [
@@ -148,7 +148,7 @@ TABLE_IIc_SHIZGAL_1981() = Dict{Int, Matrix}(
         big"0.5156826768007481e+1"  big"0.4828081616137754e-10"
         big"0.5878114489155572e+1"  big"0.2840126937112534e-13"
         # Note: Digit ^ removed here (misprint). There was an additional `8`, i.e. ...44(8)891...
-        #       This was noted by Ball[1], and confirmed here.
-        #   [1] Ball J. Half-Range Generalized Hermite Polynomials and the Related Gaussian Quadratures. SIAM J Numerical Analysis 2002; 40: 2311–2317.
+        #       This was noted by Ball[3], and confirmed here.
+        #   [3] Ball J. Half-Range Generalized Hermite Polynomials and the Related Gaussian Quadratures. SIAM J Numerical Analysis 2002; 40: 2311–2317.
     ],
 )

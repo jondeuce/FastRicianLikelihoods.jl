@@ -1,5 +1,30 @@
 #### Gaussian quadrature, positive real line
 
+@doc raw"""
+    GaussHalfHermite
+
+Compute nodes `x` and weights `w` for Gauss–Half–Hermite quadrature on `[0, ∞)` with weight
+`w(x) = x^γ * exp(-x^2)`.
+
+```math
+\int_{0}^{\infty} x^{\gamma} e^{-x^{2}} f(x)\,dx \approx \sum_{i=1}^{N} w_i f(x_i)
+```
+
+Numerical method:
+- Stable recurrence coefficients `(α_n, β_n)` via Ball’s reparameterization `g_n` and Newton’s method
+  (tridiagonal Jacobian; `O(N)` per iteration).
+- Nodes/weights from the symmetric Jacobi matrix via Golub–Welsch.
+
+Exported:
+- `gausshalfhermite_gw(N, γ; normalize=false) -> x, w`
+- `gausshalfhermite_rec_coeffs(N, γ) -> α, β`
+
+References:
+- Ball J. (2002) SIAM J. Numer. Anal. 40:2311–2317.
+- Golub GH, Welsch JH. (1969) Math. Comp. 23:221–230.
+- Shizgal B. (1981) J. Comput. Phys. 41:309–328.
+- Galant D. (1969) Math. Comp. 23:674–s39.
+"""
 module GaussHalfHermite
 
 using FastRicianLikelihoods: SpecialFunctions, IrrationalConstants
@@ -218,6 +243,21 @@ function g_heuristic(N, γ)
     return g
 end
 
+@doc raw"""
+    gausshalfhermite_rec_coeffs(N, γ) -> (α, β)
+
+Recurrence coefficients for monic polynomials orthogonal w.r.t. `w(x) = x^γ * exp(-x^2)` on `[0, ∞)`.
+
+Three-term recurrence:
+`P_{n+1}(x) = (x - α_n) P_n(x) - β_n P_{n-1}(x)`
+
+Arguments:
+- `N::Integer`: number of coefficients; returns `α₀:α_{N-1}` and `β₀:β_{N-1}`
+- `γ::Real`: exponent in the weight (`γ > -1`)
+
+Returns:
+- `(α, β)`: diagonal `α` and off-diagonal squares `β` of the Jacobi matrix
+"""
 function gausshalfhermite_rec_coeffs(N, γ)
     γ = float(γ)
     T = typeof(γ)
@@ -235,6 +275,28 @@ function gausshalfhermite_rec_coeffs(N, γ)
     return α, β
 end
 
+@doc raw"""
+    gausshalfhermite_gw(N, γ; normalize = false) -> (x, w)
+
+Nodes `x` and weights `w` for `N`‑point Gauss–Half–Hermite quadrature.
+
+```math
+\int_{0}^{\infty} x^{\gamma} e^{-x^{2}} f(x)\,dx \approx \sum_{i=1}^{N} w_i f(x_i)
+```
+
+Method: Golub–Welsch on the symmetric Jacobi matrix from `(α, β)` computed by `gausshalfhermite_rec_coeffs`.
+If `normalize=true`, scale to weight `x^γ * exp(-x^2 / 2) / √(2π)` and set `x ← √2 * x`.
+
+Arguments:
+- `N::Integer`
+- `γ::Real` (`γ > -1`)
+
+Keyword arguments:
+- `normalize::Bool=false`
+
+Returns:
+- `(x, w)`: nodes and weights
+"""
 function gausshalfhermite_gw(N, γ; normalize = false)
     # Golub-Welsch algorithm for computing nodes and weights from recurrence coefficients
     #   see: https://en.wikipedia.org/wiki/Gaussian_quadrature#The_Golub-Welsch_algorithm
