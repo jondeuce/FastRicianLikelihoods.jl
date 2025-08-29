@@ -3,6 +3,7 @@
 \usepackage{amssymb}
 \usepackage{hyperref}
 \usepackage{mathtools}
+\usepackage{cleveref}
 \usepackage[margin=1in]{geometry}
 
 \title{Stable, efficient evaluation of gradients and Hessians for the Rician log-likelihood}
@@ -30,7 +31,7 @@ If we define
   f(x, \nu) \coloneqq -\log p(x \mid \nu, \sigma = 1),
 \end{align}
 %
-then the log of the likelihood~\eqref{eq:rician-pdf} can be given in terms of $f$ via
+then the log of the likelihood of \cref{eq:rician-pdf} can be given in terms of $f$ via
 %
 \begin{align}
   \log p(x \mid \nu, \sigma) = \log\sigma - f\left(\frac{x}{\sigma}, \frac{\nu}{\sigma}\right).
@@ -72,7 +73,7 @@ Next, we consider the numerical stability of these algebraically equivalent form
 
 \paragraph{Small $z \ll 1$.}
 
-For small $z$, we have that $\log I_0(z) = z^2/4 + \mathcal{O}(z^4)$, and thus~\eqref{eq:rician-neg-log-likelihood} becomes
+For small $z$, we have that $\log I_0(z) = z^2/4 + \mathcal{O}(z^4)$, and thus \cref{eq:rician-neg-log-likelihood} becomes
 %
 \begin{align}
   f(x, \nu) = \frac{x^2 + \nu^2}{2} - \log x - \frac{z^2}{4} + \mathcal{O}(z^4).
@@ -84,7 +85,7 @@ The terms in this expression are generally not of the same order of magnitude, s
 
 \paragraph{Large $z \gg 1$.}
 
-For large $z$, we have that $\log \hat{I}_0(z) = \frac{1}{8 z} + \mathcal{O}(z^{-2})$, and thus~\eqref{eq:rician-neg-log-likelihood-scaled} becomes
+For large $z$, we have that $\log \hat{I}_0(z) = \frac{1}{8 z} + \mathcal{O}(z^{-2})$, and thus \cref{eq:rician-neg-log-likelihood-scaled} becomes
 %
 \begin{align}
   f(x, \nu) = \frac{(x-\nu)^2}{2} - \frac{1}{2}\log\left(\frac{x}{\nu}\right) + \frac{1}{2}\log(2\pi) - \frac{1}{8 z} + \mathcal{O}(z^{-2}).
@@ -96,7 +97,7 @@ The terms in this expression are generally not of the same order of magnitude --
 
 A common case in practice is when the signal-to-noise ratio (SNR) is large:
 observations are concentrated near the noncentrality parameter such that $x \approx \nu \pm 1$ (recall that the noise level is normalized to $\sigma=1$).
-As was the case for large $z$, we should use the scaled form~\eqref{eq:rician-neg-log-likelihood-scaled} but with a stable evaluation of $\log(x/\nu)$:
+As was the case for large $z$, we should use the scaled form of \cref{eq:rician-neg-log-likelihood-scaled} but with a stable evaluation of $\log(x/\nu)$:
 %
 \begin{align}
   \log\left(\frac{x}{\nu}\right) = \begin{cases}
@@ -106,9 +107,9 @@ As was the case for large $z$, we should use the scaled form~\eqref{eq:rician-ne
 \end{align}
 %
 where $\log(1 + \epsilon) = \epsilon - \epsilon^2/2 + \mathcal{O}(\epsilon^3)$ is computed using the common special-function routine \texttt{log1p($\epsilon$)} which is designed to be accurate when $\epsilon$ is small.
-With this modification, equation~\eqref{eq:rician-neg-log-likelihood-scaled} is accurate for all $z \gg 1$.
+With this modification, \cref{eq:rician-neg-log-likelihood-scaled} is accurate for all $z \gg 1$.
 
-We note that~\eqref{eq:rician-neg-log-likelihood} is not stable in the high SNR regime, since $\log I_0(z) = \log \hat{I}_0(z) + z - \frac{1}{2}\log(2\pi z)$ has a large component $z$ which catastrophically cancels with $(x^2 + \nu^2) / 2 \approx z$.
+We note that \cref{eq:rician-neg-log-likelihood} is not stable in the high SNR regime, since $\log I_0(z) = \log \hat{I}_0(z) + z - \frac{1}{2}\log(2\pi z)$ has a large component $z$ which catastrophically cancels with $(x^2 + \nu^2) / 2 \approx z$.
 
 \subsection{First derivatives}
 
@@ -126,7 +127,7 @@ where
   r(z)                         & = \frac{I_1(z)}{I_0(z)}. \label{eq:ratio-r}
 \end{align}
 %
-Substituting~\eqref{eq:log-scaled-bessel-derivative} and $z=x\nu$ into~\eqref{eq:first-derivatives-unsimplified-x} and~\eqref{eq:first-derivatives-unsimplified-nu} gives
+Substituting \cref{eq:log-scaled-bessel-derivative} and $z=x\nu$ into \cref{eq:first-derivatives-unsimplified-x,eq:first-derivatives-unsimplified-nu} gives
 %
 \begin{align}
   f_x   & = x - \nu r - \frac{1}{x} \label{eq:first-derivatives-simplified-x} \\
@@ -135,7 +136,7 @@ Substituting~\eqref{eq:log-scaled-bessel-derivative} and $z=x\nu$ into~\eqref{eq
 
 \subsection{Second derivatives}
 
-Next, we differentiate the simplified first derivatives~\eqref{eq:first-derivatives-simplified-x} and~\eqref{eq:first-derivatives-simplified-nu} to obtain the second derivatives:
+Next, we differentiate the simplified first derivatives in \cref{eq:first-derivatives-simplified-x,eq:first-derivatives-simplified-nu} to obtain the second derivatives:
 %
 \begin{align}
   f_{xx}     & = \frac{\partial}{\partial x}\left(x - \nu r(z) - \frac{1}{x}\right) = 1 + \frac{1}{x^2} - \nu^2 r' \label{eq:second-derivatives-unsimplified-x-x} \\
@@ -143,7 +144,7 @@ Next, we differentiate the simplified first derivatives~\eqref{eq:first-derivati
   f_{\nu\nu} & = \frac{\partial}{\partial \nu}\left(\nu - x r(z)\right) = 1 - x^2 r' \label{eq:second-derivatives-unsimplified-nu-nu}
 \end{align}
 %
-where the last equality in~\eqref{eq:second-derivatives-unsimplified-x-nu} follows from the recurrence relation~\eqref{eq:r-prime-recurrence}.
+where the last equality in \cref{eq:second-derivatives-unsimplified-x-nu} follows from the recurrence relation \cref{eq:r-prime-recurrence}.
 
 \subsection{Third derivatives}
 
@@ -224,10 +225,9 @@ We can then rewrite the second derivative into a numerically stable form using $
   \boxed{r''(z) = z (2a_1 + a_0 (3 a_0 - 2)) + 2 z^3 a_0^3} \label{eq:r-second-derivative-reparametrized}
 \end{align}
 %
-We also note that the quantity $2r' + z r''$ from equations~\eqref{eq:third-derivatives-unsimplified-x-x-nu} and
-\eqref{eq:third-derivatives-unsimplified-x-nu-nu} does not suffer cancellation issues, since $2r' = 1 + \mathcal{O}(z^2)$ and $z r'' = \mathcal{O}(z^2)$.
+We also note that the quantity $2r' + z r''$ from \cref{eq:third-derivatives-unsimplified-x-x-nu,eq:third-derivatives-unsimplified-x-nu-nu} does not suffer cancellation issues, since $2r' = 1 + \mathcal{O}(z^2)$ and $z r'' = \mathcal{O}(z^2)$.
 
-Thus, we need only fit one minimax polynomial to equation~\eqref{eq:a1-reparametrized} to estimate $a_1(z)$, and then $r$, $r'$, and $r''$ can be formed from $a_1$ and $a_0 = \frac{1}{2} + z^2 a_1$ without catastrophic cancellation using equations~\eqref{eq:r-prime-reparametrized} and~\eqref{eq:r-second-derivative-reparametrized}.
+Thus, we need only fit one minimax polynomial to \cref{eq:a1-reparametrized} to estimate $a_1(z)$, and then $r$, $r'$, and $r''$ can be formed from $a_1$ and $a_0 = \frac{1}{2} + z^2 a_1$ without catastrophic cancellation using \cref{eq:r-prime-reparametrized,eq:r-second-derivative-reparametrized}.
 
 % We can then rewrite the first and second derivatives of $r$ as
 % %
@@ -243,8 +243,7 @@ Thus, we need only fit one minimax polynomial to equation~\eqref{eq:a1-reparamet
 %          & = z (2a_1 - \frac{1}{2}) + \frac{1}{4} z^3 + z^5 a_1 (\frac{3}{2} + 2 a_1) + z^7 (3 a_1^2) + z^9 (2 a_1^3)
 % \end{align}
 
-% Finally, we see from equations~\eqref{eq:third-derivatives-unsimplified-x-x-nu} and
-% \eqref{eq:third-derivatives-unsimplified-x-nu-nu} that we should double-check the quantity $2r' + zr''$ for cancellation issues:
+% Finally, we see from \cref{eq:third-derivatives-unsimplified-x-x-nu,eq:third-derivatives-unsimplified-x-nu-nu} that we should double-check the quantity $2r' + zr''$ for cancellation issues:
 % %
 % \begin{align}
 %   2r' + zr'' & = 2(1 - a_0 - z^2 a_0^2) + z(z (2a_1 + a_0 (3 a_0 - 2)) + 2 z^3 a_0^3) \\
@@ -324,7 +323,7 @@ Then, we have
                   & = \frac{1}{2} u (-b_2 + 2 b_1) + \frac{1}{2} u^2 b_1^2
 \end{align}
 %
-which we substitute into equation~\eqref{eq:r-second-derivative-large-reparametrized-unsimplified} and simplify to obtain
+which we substitute into \cref{eq:r-second-derivative-large-reparametrized-unsimplified} and simplify to obtain
 %
 \begin{align}
   r'' & = u^2 (2 b_0^2 - 2 b_1) - u^3 (b_0^2 (1 + 2 b_0) + b_1) + u^4 b_1(b_1 + 2 b_0)                          \\
@@ -338,7 +337,7 @@ and finally
   \boxed{r'' = -\frac{1}{2} u^3 (b_2 + 2 b_0^2 (1 + 2 b_0) - u b_1 (3 b_1 + 4 b_0))}
 \end{align}
 %
-Thus, we need only fit one minimax polynomial to equation~\eqref{eq:b2-reparametrized} to estimate $b_2(u)$, and then $r$, $r'$, and $r''$ can be formed from $b_2$, $b_1 = \frac{1 + u b_2}{4}$, and $b_0 = \frac{1 + u b_1}{2}$ using equations~\eqref{eq:r-prime-large-reparametrized} and~\eqref{eq:r-second-derivative-large-reparametrized} without catastrophic cancellation.
+Thus, we need only fit one minimax polynomial to \cref{eq:b2-reparametrized} to estimate $b_2(u)$, and then $r$, $r'$, and $r''$ can be formed from $b_2$, $b_1 = \frac{1 + u b_2}{4}$, and $b_0 = \frac{1 + u b_1}{2}$ using \cref{eq:r-prime-large-reparametrized,eq:r-second-derivative-large-reparametrized} without catastrophic cancellation.
 
 % \section{Intermediate-$z$ analysis}
 %
@@ -346,12 +345,12 @@ Thus, we need only fit one minimax polynomial to equation~\eqref{eq:b2-reparamet
 
 \section{Further Rician derivative simplifications}
 
-\subsection{First derivatives}
+\subsection{First derivatives}\label{sec:rician-first-derivatives}
 
 \paragraph{Small-$z$}
 
-The algebraic simplification of equations~\eqref{eq:first-derivatives-unsimplified-x} and~\eqref{eq:first-derivatives-unsimplified-nu} leading to equations~\eqref{eq:first-derivatives-simplified-x} and~\eqref{eq:first-derivatives-simplified-nu} is sufficient to avoid catastrophic cancellation.
-In particular, when $\nu \ll 1$, the problematic $\frac{1}{2\nu}$ and $\frac{-x}{2z} = \frac{-1}{2\nu}$ terms in~\eqref{eq:first-derivatives-unsimplified-nu} are cancelled analytically, avoiding subtraction of two $\mathcal{O}(1/\nu)$ terms.
+The algebraic simplification of \cref{eq:first-derivatives-unsimplified-x,eq:first-derivatives-unsimplified-nu} leading to \cref{eq:first-derivatives-simplified-x,eq:first-derivatives-simplified-nu} is sufficient to avoid catastrophic cancellation.
+In particular, when $\nu \ll 1$, the problematic $\frac{1}{2\nu}$ and $\frac{-x}{2z} = \frac{-1}{2\nu}$ terms in \cref{eq:first-derivatives-unsimplified-nu} are cancelled analytically, avoiding subtraction of two $\mathcal{O}(1/\nu)$ terms.
 %
 \begin{align}\label{eq:first-derivatives-small-z}
   \boxed{
@@ -364,7 +363,7 @@ In particular, when $\nu \ll 1$, the problematic $\frac{1}{2\nu}$ and $\frac{-x}
 
 \paragraph{Large-$z$}
 
-For $z \gg 1$, we have $r = 1 - b_0(1/z) / z$ from equation~\eqref{eq:r-large-reparametrized}, resulting in
+For $z \gg 1$, we have $r = 1 - b_0(1/z) / z$ from \cref{eq:r-large-reparametrized}, resulting in
 %
 \begin{align}
   f_x   & = x - \nu (1 - \frac{b_0}{z}) - \frac{1}{x}
@@ -388,11 +387,11 @@ Since $z = x\nu \gg 1$ and the relative errors $|\delta_r|$ and $|\delta_b|$ are
   }
 \end{align}
 
-\subsection{Second derivatives}
+\subsection{Second derivatives}\label{sec:rician-second-derivatives}
 
 \paragraph{Small-$z$}
 
-Similar to the first derivatives, the algebraically simplified equations~\eqref{eq:second-derivatives-unsimplified-x-x}, \eqref{eq:second-derivatives-unsimplified-x-nu}, and \eqref{eq:second-derivatives-unsimplified-nu-nu} are sufficient to avoid catastrophic cancellation.
+Similar to the first derivatives, the algebraically simplified expressions in \cref{eq:second-derivatives-unsimplified-x-x,eq:second-derivatives-unsimplified-x-nu,eq:second-derivatives-unsimplified-nu-nu} are sufficient to avoid catastrophic cancellation.
 %
 %
 \begin{align}\label{eq:second-derivatives-small-z}
@@ -411,7 +410,7 @@ since $r \approx z/2$ and $zr' \approx z/2$, the former subtracts terms of diffe
 
 \paragraph{Large-$z$}
 
-We start by rewriting the forms of the second derivatives expressions~\eqref{eq:second-derivatives-unsimplified-x-x}, \eqref{eq:second-derivatives-unsimplified-x-nu}, and \eqref{eq:second-derivatives-unsimplified-nu-nu} for stability at large-$z$:
+We start by rewriting the second derivatives expressions in \cref{eq:second-derivatives-unsimplified-x-x,eq:second-derivatives-unsimplified-x-nu,eq:second-derivatives-unsimplified-nu-nu} for stability at large-$z$:
 %
 \begin{align}
   f_{xx}     & = 1 + \frac{1}{x^2} - \nu^2 r' = 1 + \frac{1}{x^2}(1 - z^2 r') \\
@@ -419,7 +418,7 @@ We start by rewriting the forms of the second derivatives expressions~\eqref{eq:
   f_{\nu\nu} & = 1 - x^2 r'
 \end{align}
 %
-Recall that for large-$z$, we have from~\eqref{eq:r-large-reparametrized} and~\eqref{eq:r-prime-large-reparametrized-simplified} that
+Recall that for large-$z$, we have from \cref{eq:r-large-reparametrized,eq:r-prime-large-reparametrized-simplified} that
 \begin{align}
   r                      & = 1 - \frac{b_0}{z} = 1 - \frac{1}{2z} - \frac{1}{8z^2} + \mathcal{O}(1/z^3)                \\
   r'                     & = \frac{1}{z^2} (b_1 + b_0(1 - b_0)) = \frac{1}{2z^2} + \frac{1}{4z^3} + \mathcal{O}(1/z^4) \\
@@ -449,7 +448,7 @@ and therefore the stable forms are:
 
 % \subsubsection{Error analysis}
 %
-% Following the large-$z$ analysis for the first derivatives, we substitute $r = 1 - \frac{b_0}{z}$ from~\eqref{eq:r-large-reparametrized} and $r' = \frac{1}{z^2} (b_1 + b_0(1 - b_0))$ from~\eqref{eq:r-prime-large-reparametrized-simplified} into the second derivatives expressions~\eqref{eq:second-derivatives-unsimplified-x-x}, \eqref{eq:second-derivatives-unsimplified-x-nu}, and \eqref{eq:second-derivatives-unsimplified-nu-nu}:
+% Following the large-$z$ analysis for the first derivatives, we substitute $r = 1 - \frac{b_0}{z}$ from \cref{eq:r-large-reparametrized} and $r' = \frac{1}{z^2} (b_1 + b_0(1 - b_0))$ from \cref{eq:r-prime-large-reparametrized-simplified} into the second derivatives expressions \cref{eq:second-derivatives-unsimplified-x-x,eq:second-derivatives-unsimplified-x-nu,eq:second-derivatives-unsimplified-nu-nu}:
 % %
 % \begin{align}\label{eq:second-derivatives-large-z}
 %   \boxed{
@@ -487,12 +486,12 @@ and therefore the stable forms are:
 %   |\hat{f}_{x\nu} - f_{x\nu}|     & = | 2 (b_0 - \hat{b}_0) + \frac{\hat{b}_0^2 - b_0^2}{z} | \le 2 (|b_0| + \frac{|b_0||\hat{b}_0 + b_0|}{z}) |\delta_{b_0}|.
 % \end{align}
 
-\subsection{Third derivatives}
+\subsection{Third derivatives}\label{sec:rician-third-derivatives}
 
 \paragraph{Small-$z$}
 
-We begin by noting that the third derivative expressions from~\eqref{eq:third-derivatives-unsimplified-x-x-x}--\eqref{eq:third-derivatives-unsimplified-nu-nu-nu} depend only on $r'$ and $r''$.
-Recall the small-$z$ parametrizations for $r'$ and $r''$ from~\eqref{eq:r-prime-reparametrized} and~\eqref{eq:r-second-derivative-reparametrized}:
+We begin by noting that the third derivative expressions in \cref{eq:third-derivatives-unsimplified-x-x-x,eq:third-derivatives-unsimplified-nu-nu-nu} depend only on $r'$ and $r''$.
+Recall the small-$z$ parametrizations for $r'$ and $r''$ from \cref{eq:r-prime-reparametrized,eq:r-second-derivative-reparametrized}:
 %
 \begin{align}
   r'                      & = 1 - a_0 - z^2 a_0^2 = \frac{1}{2} - \frac{3}{16}z^2 + \mathcal{O}(z^4)                          \\
@@ -501,7 +500,7 @@ Recall the small-$z$ parametrizations for $r'$ and $r''$ from~\eqref{eq:r-prime-
 \end{align}
 %
 where $a_0 = \frac{r}{z}$ and $a_1 = \frac{1}{z^2} (a_0 - \frac{1}{2})$.
-We see that for small-$z$, the original simplified expressions~\eqref{eq:third-derivatives-unsimplified-x-x-x}--\eqref{eq:third-derivatives-unsimplified-nu-nu-nu}
+We see that for small-$z$, the original simplified expressions in \cref{eq:third-derivatives-unsimplified-x-x-x,eq:third-derivatives-unsimplified-nu-nu-nu}
 %
 \begin{align}
   \boxed{
@@ -518,9 +517,9 @@ are stable to compute, since neither $r''$ nor $2r' + z r''$ suffer cancellation
 
 \paragraph{Large-$z$}
 
-For large $z$, the expression for $r''$ from~\eqref{eq:r-second-derivative-large-reparametrized} is stable.
+For large $z$, the expression for $r''$ in \cref{eq:r-second-derivative-large-reparametrized} is stable.
 The term $2r'+zr''$ is more delicate.
-We derive a stable form from the identity $2r' + zr'' = r' + r/z - 2zrr'$ which follows from~\eqref{eq:r-prime-large-reparametrized-simplified} and~\eqref{eq:r-second-derivative-large-reparametrized}.
+We derive a stable form from the identity $2r' + zr'' = r' + r/z - 2zrr'$ which follows from \cref{eq:r-prime-large-reparametrized-simplified,eq:r-second-derivative-large-reparametrized}.
 Substituting $r=1-ub_0$ and $r'=u^2(b_1+b_0(1-b_0))$ gives
 %
 \begin{align}
@@ -573,7 +572,7 @@ Furthermore, MRI data is invariably quantized during acquisition, meaning the co
 A truly faithful statistical model must therefore account for this quantization step.
 This leads us to the Quantized Rician distribution, which describes the probability of observing a signal within a specific quantization bin.
 
-Given the Rician probability density function $p(y \mid \nu, \sigma)$ from~\eqref{eq:rician-pdf}, the probability of an observation $y$ falling into a bin $[x, x+\delta]$ is given by the integral of the Rician density over the interval:
+Given the Rician probability density function $p(y \mid \nu, \sigma)$ from \cref{eq:rician-pdf}, the probability of an observation $y$ falling into a bin $[x, x+\delta]$ is given by the integral of the Rician density over the interval:
 %
 \begin{align}\label{eq:quantized-rician-pdf}
   p(x \mid \nu, \sigma, \delta) = \int_x^{x+\delta} p(y \mid \nu, \sigma) dy.
@@ -584,7 +583,7 @@ This defines the probability mass function for the Quantized Rician distribution
 \subsection{Numerical evaluation strategy}
 
 We are interested in performing statistical inference procedures such as maximum likelihood estimation (MLE), maximum a posteriori (MAP) estimation, and Markov-chain Monte Carlo (MCMC) sampling under a Quantized Rician likelihood model.
-These methods require many evaluations of the likelihood and its gradient, necessitating fast and accurate evaluation of the defining integral~\eqref{eq:quantized-rician-pdf}.
+These methods require many evaluations of the likelihood and its gradient, necessitating fast and accurate evaluation of the defining integral in \cref{eq:quantized-rician-pdf}.
 While adaptive quadrature routines can compute the integral to arbitrary precision, they are generally too slow for this context, especially for GPU-based implementations.
 Our goal is to use a fixed-order, non-adaptive quadrature scheme which is significantly faster.
 
@@ -645,14 +644,14 @@ Furthermore, the weighted sum structure is trivial to differentiate, making it s
 To apply the rule on $[0,1]$, use the affine change of variables $t = (x+1)/2$, transforming the nodes and weights to $t_i = (x_i+1)/2$ and $w_i/2$, respectively:
 %
 \begin{align}
-  \int_{0}^{1} g(t) \, dt \approx \frac{1}{2} \sum_{i=1}^{N} w_i g(t_i).
+  \int_{0}^{1} g(t) \, dt \approx \sum_{i=1}^{N} \frac{w_i}{2} g(t_i).
 \end{align}
 %
 To integrate over $[x, x+\delta]$, change variables to $y = x + \delta t$ with $t\in[0,1]$ and $dy = \delta dt$:
 %
 \begin{align}
   \int_{x}^{x+\delta} g(y) \, dy = \int_{0}^{1} g(x + \delta t) \, \delta dt
-  \approx \frac{\delta}{2} \sum_{i=1}^{N} w_i g(x + \delta t_i).
+  \approx \delta \sum_{i=1}^{N} \frac{w_i}{2} g(x + \delta t_i).
 \end{align}
 %
 In our regime, $\delta$ is small and $g$ is smooth, so moderate orders $N \approx 8\!-\!16$ achieve high accuracy.
@@ -679,7 +678,7 @@ Thus, the quantized likelihood integral is scale-invariant:
 Similar to the Rician distribution analysis, we choose $a = \sigma$ such that $\sigma'=1$;
 for the remainder of this analysis, we will work with these normalized parameters and write $p(x \mid \nu, \delta)$ as shorthand for $p(x \mid \nu, \sigma=1, \delta)$, dropping the prime annotations.
 
-In terms of $f$, the negative log-likelihood of the standard Rician distribution from~\eqref{eq:rician-neg-log-likelihood}, the Quantized Rician likelihood is given by
+In terms of $f$, the negative log-likelihood of the standard Rician distribution from \cref{eq:rician-neg-log-likelihood}, the Quantized Rician likelihood is given by
 %
 \begin{align}
   p(x \mid \nu, \delta) = \int_x^{x+\delta} \exp(-f(y, \nu)) dy \coloneqq I(\theta)
@@ -713,15 +712,6 @@ Then, $\Omega(\theta) = -\log Z(\theta) - \log\delta$, and we can define a proba
 \end{align}
 %
 This formulation will prove useful for computing gradients and higher derivatives of $\Omega$.
-For example, let $g : [0, 1] \times \mathbb{R}^3 \to \mathbb{R}^m$, and denote as $\mathbb{E}[g] \in \mathbb{R}^m$ the expectation of $g(t, \theta)$ with respect to the density $P(t \mid \theta)$.
-Then, the Jacobian $\nabla_\theta \mathbb{E}[g] \in \mathbb{R}^{m \times 3}$ of this expectation is given by
-%
-\begin{align}\label{eq:gradient-expectation-covariance}
-  \nabla_\theta \mathbb{E}[g] = \mathbb{E}[\nabla_\theta g] - \mathrm{Cov}(g, \nabla_\theta \tilde{f})
-  % = \mathbb{E}[\nabla_\theta g] - \left( \mathbb{E}[g (\nabla_\theta \tilde{f})^T] - \mathbb{E}[g] \mathbb{E}[\nabla_\theta \tilde{f}]^T \right)
-\end{align}
-%
-where $\mathrm{Cov}(g, h) = \mathbb{E}[g h^T] - \mathbb{E}[g]\mathbb{E}[h]^T$ is the covariance between $g$ and $h$ w.r.t. $P$.
 
 \subsection{The residual likelihood method}
 
@@ -729,8 +719,8 @@ Since the quadrature scheme approximates the partition function $Z(\theta)$ as a
 %
 \begin{align}
   -\log Z(\theta)
-  = -\log\left(\frac{1}{2} \sum_i w_i \exp(-\tilde{f}(t_i, \theta))\right)
-  = \tilde{f}_{\min}(\theta) - \log\left(\frac{1}{2} \sum_i w_i \exp(\tilde{f}_{\min}(\theta) - \tilde{f}(t_i, \theta))\right)
+  = -\log\left(\sum_i \frac{w_i}{2} \exp(-\tilde{f}(t_i, \theta))\right)
+  = \tilde{f}_{\min}(\theta) - \log\left(\sum_i \frac{w_i}{2} \exp(\tilde{f}_{\min}(\theta) - \tilde{f}(t_i, \theta))\right)
 \end{align}
 %
 where $\tilde{f}_{\min}(\theta) = \min_i \tilde{f}(t_i, \theta)$, avoiding naive overflow.
@@ -757,7 +747,7 @@ This transformation is most beneficial at large $z$ but -- as we will see -- int
 Since $f_G$ is quadratic in $x$ and $\nu$ and independent of $\delta$, it follows from $\tilde{r} = \tilde{f} - f_G$ that third and higher-order partial derivatives of $\tilde{r}$ with respect to $x$ and $\nu$ are equal to those of $\tilde{f}$.
 Similarly, any partial derivative of $\tilde{r}$ with respect to $\delta$ equals that of $\tilde{f}$.
 We therefore need only derive stable expressions for $\tilde{r}$ and its first and second partial derivatives with respect to $x$ and $\nu$.
-From equation~\eqref{eq:rician-neg-log-likelihood-scaled}, we have:
+From \cref{eq:rician-neg-log-likelihood-scaled}, we have:
 %
 \begin{align}
   \tilde{r}(t,\theta) = f(y, \nu) - f_G(x,\nu) & = \frac{(y-\nu)^2 - (x-\nu)^2}{2} - \frac{1}{2}\log\left(\frac{y}{\nu}\right) - \log \hat{I}_0(y \nu)                                               \\
@@ -765,7 +755,7 @@ From equation~\eqref{eq:rician-neg-log-likelihood-scaled}, we have:
 \end{align}
 %
 where $y = x + \delta t$.
-The first term in~\eqref{eq:residual-energy} is small when $|x-\nu| \lesssim 1$ and $\delta \lesssim 1$.
+The first term in \cref{eq:residual-energy} is small when $|x-\nu| \lesssim 1$ and $\delta \lesssim 1$.
 The size of the second and third terms $\tilde{c}(y,\nu) = \frac{1}{2}\log(y/\nu) + \log\hat{I}_0(y\nu)$ depends on the regime of $z=y\nu$.
 
 \paragraph{Small $z=y\nu$}
@@ -787,7 +777,7 @@ Using the asymptotic expansion $\log \hat{I}_0(z) = \frac{1}{8z} + \mathcal{O}(z
 \paragraph{High-SNR $\nu \approx y \gg 1$}
 
 Let $y = x + \delta t = \nu + \epsilon$ with $|\epsilon| = |x - \nu + \delta t| \lesssim 1$ and $\nu$ large.
-Then, expanding~\eqref{eq:c-large-z} to first order in $\epsilon/\nu \ll 1$ gives:
+Then, expanding \cref{eq:c-large-z} to first order in $\epsilon/\nu \ll 1$ gives:
 %
 \begin{align}
   \tilde{c}(\nu+\epsilon, \nu) & = \frac{1}{2}\log\left(1 + \frac{\epsilon}{\nu}\right) + \frac{1}{8\nu(\nu+\epsilon)} + \mathcal{O}(z^{-2})                                                                                                   \\
@@ -799,14 +789,14 @@ Thus, $\tilde{c}$ is small in the high-SNR regime and therefore $\tilde{r} = \de
 
 \subsubsection{First derivatives of the residual}\label{sec:first-derivatives-residual}
 
-The first partial derivatives of $\tilde{r}$ can be simplified using equations~\eqref{eq:first-derivatives-simplified-x} and~\eqref{eq:first-derivatives-simplified-nu}:
+The first partial derivatives of $\tilde{r}$ can be simplified using \cref{eq:first-derivatives-simplified-x,eq:first-derivatives-simplified-nu}:
 %
 \begin{align}
   \tilde{r}_x   & = f_x(y,\nu) - (x-\nu) = (y - \nu r - \frac{1}{y}) - (x-\nu) = \delta t  + \nu (1 - r) - \frac{1}{y} \\
   \tilde{r}_\nu & = f_\nu(y,\nu) - (\nu-x) = (\nu - y r) - (\nu-x) = -\delta t r + x (1 - r)
 \end{align}
 %
-These forms are stable for small $z = y \nu$, but for large $z$, we substitute $1-r = \frac{b_0}{z}$ from~\eqref{eq:r-large-reparametrized}:
+These forms are stable for small $z = y \nu$, but for large $z$, we substitute $1-r = \frac{b_0}{z}$ from \cref{eq:r-large-reparametrized}:
 %
 \begin{align}
   \tilde{r}_x   & = \delta t  + \nu (1 - r) - \frac{1}{y} = \delta t - \frac{1 - b_0}{y}          \\
@@ -815,7 +805,7 @@ These forms are stable for small $z = y \nu$, but for large $z$, we substitute $
 
 \subsubsection{Second derivatives of the residual}\label{sec:second-derivatives-residual}
 
-The second partial derivatives of the $\tilde{r}$ can be simplified using equations~\eqref{eq:second-derivatives-unsimplified-x-x}-\eqref{eq:second-derivatives-unsimplified-nu-nu}:
+The second partial derivatives of the $\tilde{r}$ can be simplified using \cref{eq:second-derivatives-unsimplified-x-x,eq:second-derivatives-unsimplified-x-nu,eq:second-derivatives-unsimplified-nu-nu}:
 %
 \begin{align}
   \tilde{r}_{xx}     & = f_{xx} - 1     = \frac{1}{y^2} - \nu^2 r'        \\
@@ -823,7 +813,7 @@ The second partial derivatives of the $\tilde{r}$ can be simplified using equati
   \tilde{r}_{\nu\nu} & = f_{\nu\nu} - 1 = - y^2 r'
 \end{align}
 %
-Similar to the small- and large $z$ expressions in equations~\eqref{eq:second-derivatives-small-z} and~\eqref{eq:second-derivatives-large-z}, the above expressions for $\tilde{r}_{xx}$ and $\tilde{r}_{\nu\nu}$ are numerically stable.
+Similar to the small- and large $z$ expressions in \cref{eq:second-derivatives-small-z,eq:second-derivatives-large-z}, the above expressions for $\tilde{r}_{xx}$ and $\tilde{r}_{\nu\nu}$ are numerically stable.
 However, for large $z$, the mixed-derivative $\tilde{r}_{x\nu}$ requires some care, since $f_{x\nu} = -1 + \mathcal{O}(\frac{1}{z^2})$ and so computing $\tilde{r}_{x\nu} = \mathcal{O}(\frac{1}{z^2})$ naively leads to catastrophic cancellation.
 A stable form can be derived by substituting the large-$z$ reparametrizations $1 - r = u b_0$, $2 b_0 - 1 = u b_1$, and $4 b_1 - 1 = u b_2$ where $u = \frac{1}{z}$:
 %
@@ -836,7 +826,7 @@ A stable form can be derived by substituting the large-$z$ reparametrizations $1
 %
 This final expression is stable to compute and $\mathcal{O}(\frac{1}{z^2})$ as expected.
 
-\subsubsection{Expectations over $P(t \mid \theta)$}
+\subsubsection{Expectations over $P(t \mid \theta)$}\label{sec:expectation-covariance}
 
 Since $f_G(x,\nu)$ is constant with respect to $t$, we can factor $\exp(-f_G(x,\nu))$ out of the numerator and denominator of $P(t \mid \theta)$, resulting in the more numerically stable form
 %
@@ -856,7 +846,114 @@ In the high SNR regime with $\delta$ small such that $\tilde{r}$ is small, we ca
 %
 where $\log(1 + \epsilon)$ and $\exp(\epsilon - 1)$ are computed stably for small $\epsilon$ using the special-function routines \texttt{log1p($\epsilon$)} and \texttt{expm1($\epsilon$)}.
 
-\subsection{Gradient}
+\subsubsection{Differentiating expectations over $P(t \mid \theta)$}\label{sec:jacobian-expectation-covariance}
+
+Let $g : [0, 1] \times \mathbb{R}^3 \to \mathbb{R}^m$, and denote as $\mathbb{E}[g] \in \mathbb{R}^m$ the expectation of $g(t, \theta)$ with respect to the density $P(t \mid \theta)$.
+The Jacobian $\nabla_\theta \mathbb{E}[g] \in \mathbb{R}^{m \times 3}$ is given by
+%
+\begin{align}
+  \nabla_\theta \mathbb{E}[g] & = \mathbb{E}[\nabla_\theta g] - \mathrm{Cov}(g, \nabla_\theta \tilde{f}) \label{eq:gradient-expectation-covariance}          \\
+                              & = \mathbb{E}[\nabla_\theta g] - \mathrm{Cov}(g, \nabla_\theta \tilde{r}) \label{eq:gradient-expectation-covariance-residual}
+\end{align}
+%
+where, letting $\mu_g = \mathbb{E}[g]$ and $\mu_h = \mathbb{E}[h]$, the covariance is defined as
+%
+\begin{align}
+  \mathrm{Cov}(g, h) = \mathbb{E}[(g - \mu_g)(h - \mu_h)^T] = \mathbb{E}[g h^T] - \mu_g \mu_h^T.
+\end{align}
+%
+This result follows from differentiating the definition of the expectation, $\mathbb{E}[g] = Z^{-1} \int_0^1 g \exp(-\tilde{f})$.
+Crucially, this identity holds exactly even when the expectation is computed via a fixed-node quadrature, $\mathbb{E}[g] \approx \sum_i \frac{w_i}{2} g(t_i) P(t_i \mid \theta)$, because both integration and finite summation are linear functionals that commute with differentiation.
+
+\paragraph{Proof of \cref{eq:gradient-expectation-covariance}}
+
+We start with the definition of the expectation and apply the product rule:
+%
+\begin{align}
+  \nabla_\theta \mathbb{E}[g] & = \nabla_\theta \left( Z(\theta)^{-1} \int_0^1 g(t,\theta) \exp(-\tilde{r}(t,\theta)) \, dt \right)                                            \\
+                              & = \left(\int_0^1 g e^{-\tilde{r}} \, dt\right) (\nabla_\theta Z^{-1})^T + Z^{-1} \nabla_\theta \left( \int_0^1 g e^{-\tilde{r}} \, dt \right).
+\end{align}
+%
+The first term simplifies using the identity $\nabla_\theta Z^{-1} = -Z^{-1} \nabla_\theta \log Z$:
+%
+\begin{align}
+  \left(Z \mathbb{E}[g]\right) \left(-Z^{-1} \nabla_\theta \log Z\right)^T = -\mathbb{E}[g] (\nabla_\theta \log Z)^T.
+\end{align}
+%
+For the second term, we move the derivative inside the integral and apply the product rule again:
+%
+\begin{align}
+  Z^{-1} \int_0^1 \nabla_\theta(g e^{-\tilde{r}}) \, dt & = Z^{-1} \int_0^1 \left( (\nabla_\theta g) e^{-\tilde{r}} - g (\nabla_\theta \tilde{r})^T e^{-\tilde{r}} \right) \, dt \\
+                                                        & = \mathbb{E}[\nabla_\theta g] - \mathbb{E}[g (\nabla_\theta \tilde{r})^T].
+\end{align}
+%
+Combining these results gives
+%
+\begin{align}
+  \nabla_\theta \mathbb{E}[g] = \mathbb{E}[\nabla_\theta g] - \mathbb{E}[g (\nabla_\theta \tilde{r})^T] - \mathbb{E}[g](\nabla_\theta \log Z)^T.
+\end{align}
+%
+To simplify the final term, we find the gradient of the log-partition function:
+%
+\begin{align}
+  \nabla_\theta \log Z = \frac{\nabla_\theta Z}{Z} = Z^{-1} \int_0^1 \nabla_\theta e^{-\tilde{r}} \, dt = -Z^{-1} \int_0^1 \nabla_\theta \tilde{r} e^{-\tilde{r}} \, dt = -\mathbb{E}[\nabla_\theta \tilde{r}].
+\end{align}
+%
+Substituting this back yields the final identity:
+%
+\begin{align}
+  \nabla_\theta \mathbb{E}[g] & = \mathbb{E}[\nabla_\theta g] - \mathbb{E}[g (\nabla_\theta \tilde{r})^T] - \mathbb{E}[g] (-\mathbb{E}[\nabla_\theta \tilde{r}])^T \\
+                              & = \mathbb{E}[\nabla_\theta g] - (\mathbb{E}[g (\nabla_\theta \tilde{r})^T] - \mathbb{E}[g] \mathbb{E}[\nabla_\theta \tilde{r}]^T)  \\
+                              & = \mathbb{E}[\nabla_\theta g] - \mathrm{Cov}(g, \nabla_\theta \tilde{r}).
+\end{align}
+%
+This proof relies only on the linearity of differentiation and integration (or finite summation for quadrature), so the identity holds for both the continuous integral and its discrete quadrature approximation.
+
+\subsubsection{Differentiating covariances with respect to $P(t \mid \theta)$}\label{sec:derivative-covariance}
+
+For any two scalar functions $g(t,\theta)$ and $h(t,\theta)$, the derivative of their covariance with respect to a parameter $\alpha \in \{x, \nu, \delta\}$ is given by
+%
+\begin{align}\label{eq:derivative-covariance-identity}
+  \partial_\alpha \mathrm{Cov}(g, h) = \mathrm{Cov}(\partial_\alpha g, h) + \mathrm{Cov}(g, \partial_\alpha h) - \mathrm{Cov3}(g, h, \partial_\alpha \tilde{r}),
+\end{align}
+%
+where $\mathrm{Cov3}(a,b,c) = \mathbb{E}[(a-\mathbb{E}[a])(b-\mathbb{E}[b])(c-\mathbb{E}[c])]$ is the third joint central moment.
+
+\paragraph{Proof of \cref{eq:derivative-covariance-identity}}
+
+We start from the definition of covariance and apply the product rule:
+%
+\begin{align}
+  \partial_\alpha \mathrm{Cov}(g, h) & = \partial_\alpha \left( \mathbb{E}[g h] - \mathbb{E}[g]\mathbb{E}[h] \right) = \partial_\alpha \mathbb{E}[g h] - (\partial_\alpha \mathbb{E}[g]) \mathbb{E}[h] - \mathbb{E}[g] (\partial_\alpha \mathbb{E}[h]).
+\end{align}
+%
+Next, we apply the gradient-of-expectation identity from \cref{eq:gradient-expectation-covariance-residual} to each of the three derivative terms:
+%
+\begin{align}
+  \partial_\alpha \mathbb{E}[g h] & = \mathbb{E}[\partial_\alpha(g h)] - \mathrm{Cov}(g h, \partial_\alpha \tilde{r}) = \mathbb{E}[(\partial_\alpha g) h + g (\partial_\alpha h)] - \mathrm{Cov}(g h, \partial_\alpha \tilde{r}) \\
+  \partial_\alpha \mathbb{E}[g]   & = \mathbb{E}[\partial_\alpha g] - \mathrm{Cov}(g, \partial_\alpha \tilde{r})                                                                                                                 \\
+  \partial_\alpha \mathbb{E}[h]   & = \mathbb{E}[\partial_\alpha h] - \mathrm{Cov}(h, \partial_\alpha \tilde{r}).
+\end{align}
+%
+Substituting these back into the main expression and grouping terms yields:
+%
+\begin{align}
+  \partial_\alpha \mathrm{Cov}(g, h) & = \left( \mathbb{E}[(\partial_\alpha g) h] - \mathbb{E}[\partial_\alpha g] \mathbb{E}[h] \right) + \left( \mathbb{E}[g (\partial_\alpha h)] - \mathbb{E}[g] \mathbb{E}[\partial_\alpha h] \right) \\
+                                     & - \mathrm{Cov}(g h, \partial_\alpha \tilde{r}) + \mathrm{Cov}(g, \partial_\alpha \tilde{r}) \mathbb{E}[h] + \mathbb{E}[g] \mathrm{Cov}(h, \partial_\alpha \tilde{r}).
+\end{align}
+%
+The term in the parenthesis is the third joint central moment, or third-order covariance, of $(g, h, \partial_\alpha\tilde{r})$. Expanding the definition of the third central moment confirms its equivalence to this term:
+%
+\begin{align}
+  \mathrm{Cov3}(g, h, \partial_\alpha \tilde{r}) & = \mathbb{E}[(g-\mathbb{E}[g])(h-\mathbb{E}[h])(\partial_\alpha \tilde{r}-\mathbb{E}[\partial_\alpha \tilde{r}])]                                                                                                                                                                   \\
+                                                 & = \mathbb{E}[(gh - g\mathbb{E}[h] - h\mathbb{E}[g] + \mathbb{E}[g]\mathbb{E}[h])(\partial_\alpha \tilde{r} - \mathbb{E}[\partial_\alpha \tilde{r}])]                                                                                                                                \\
+                                                 & = \mathbb{E}[gh(\partial_\alpha \tilde{r} - \mathbb{E}[\partial_\alpha \tilde{r}])] - \mathbb{E}[h]\mathbb{E}[g(\partial_\alpha \tilde{r} - \mathbb{E}[\partial_\alpha \tilde{r}])] - \mathbb{E}[g]\mathbb{E}[h(\partial_\alpha \tilde{r} - \mathbb{E}[\partial_\alpha \tilde{r}])] \\
+                                                 & = \mathrm{Cov}(gh, \partial_\alpha \tilde{r}) - \mathbb{E}[h]\mathrm{Cov}(g, \partial_\alpha \tilde{r}) - \mathbb{E}[g]\mathrm{Cov}(h, \partial_\alpha \tilde{r}).
+\end{align}
+%
+Substituting this back gives the final expression for the derivative of the covariance.
+
+\subsection{Residual gradient}
 
 We compute the gradient of $\Omega(\theta) = -\log Z(\theta) - \log\delta$ in terms of the gradient of $\log Z$:
 %
@@ -879,29 +976,144 @@ Finally, the gradient $\nabla_{\theta} \Omega$ simplifies to
   + \begin{pmatrix} x - \nu \\ \nu - x \\ -\delta^{-1} \end{pmatrix}
 \end{align}
 %
-where $\frac{\partial}{\partial x} f_G = x - \nu$, $\frac{\partial}{\partial \nu} f_G = \nu - x$, and $\tilde{r}_x$, $\tilde{r}_\nu$, and $f_x$ are evaluated at $y=x+\delta t$.
+where $\frac{\partial}{\partial x} f_G = x - \nu$, $\frac{\partial}{\partial \nu} f_G = \nu - x$, and $\tilde{r}_x$, $\tilde{r}_\nu$, and $f_x$ are evaluated at $y=x+\delta t$ as in \cref{sec:first-derivatives-residual}.
 
-\subsection{Hessian}
+\subsection{Residual Hessian}
 
-We can compute the Hessian of $\Omega$ by differentiating $\nabla_{\theta} \Omega$ using the gradient of the expectation identity~\eqref{eq:gradient-expectation-covariance}:
+We can compute the Hessian of $\Omega$ by differentiating $\nabla_{\theta} \Omega$ using the gradient of the expectation identity \cref{eq:gradient-expectation-covariance}:
 %
 \begin{align}
   \nabla_{\theta}^2 \Omega & = \nabla_\theta \left( \mathbb{E}[\nabla_{\theta} \tilde{f}] - (0, 0, \delta^{-1})^T \right)                                                       \\
                            & = \mathbb{E}[\nabla_{\theta}^2 \tilde{f}] - \mathrm{Cov}(\nabla_{\theta} \tilde{f}, \nabla_{\theta} \tilde{f}) + \mathrm{diag}(0, 0, \delta^{-2}).
 \end{align}
 %
-Substituting $\tilde{f} = \tilde{r} + f_G$ and pulling $f_G$ out of the expectation, we have
+Substituting $\tilde{f} = \tilde{r} + f_G$ and recalling that $f_G$ is constant with respect to $t$, we have
 %
 \begin{align}
   \nabla_{\theta}^2 \Omega
-   & = \mathbb{E}[\nabla_{\theta}^2 \tilde{r}] + \nabla_{\theta}^2 f_G - \mathrm{Cov}(\nabla_{\theta} \tilde{r}, \nabla_{\theta} \tilde{r}) + \mathrm{diag}(0, 0, \delta^{-2}) \\
-   & = \mathbb{E}[\nabla_{\theta}^2 \tilde{r}] - \mathrm{Cov}(\nabla_{\theta} \tilde{r}, \nabla_{\theta} \tilde{r}) + \begin{pmatrix} 1 & -1 & 0 \\ -1 & 1 & 0 \\ 0 & 0 & \delta^{-2} \end{pmatrix}
+   & = \mathbb{E}[\nabla_{\theta}^2 \tilde{r} + \nabla_{\theta}^2 f_G] - \mathrm{Cov}(\nabla_{\theta} \tilde{r} + \nabla_{\theta} f_G, \nabla_{\theta} \tilde{r} + \nabla_{\theta} f_G) + \mathrm{diag}(0, 0, \delta^{-2}) \\
+   & = \mathbb{E}[\nabla_{\theta}^2 \tilde{r}] + \nabla_{\theta}^2 f_G - \mathrm{Cov}(\nabla_{\theta} \tilde{r}, \nabla_{\theta} \tilde{r}) + \mathrm{diag}(0, 0, \delta^{-2}) \label{eq:residual-hessian-full}            \\
+   & = \mathbb{E}[\nabla_{\theta}^2 \tilde{r}] - \mathrm{Cov}(\nabla_{\theta} \tilde{r}, \nabla_{\theta} \tilde{r}) + \begin{pmatrix} 1 & -1 & 0 \\ -1 & 1 & 0 \\ 0 & 0 & \delta^{-2} \end{pmatrix} \label{eq:residual-hessian-full-simplified}
 \end{align}
 %
-where $\frac{\partial^2}{\partial x^2} f_G = \frac{\partial^2}{\partial \nu^2} f_G = 1$, $\frac{\partial^2}{\partial x \partial \nu} f_G = -1$, and the Hessian of the residual energy $\nabla_{\theta}^2 \tilde{r}$ is
+where $\frac{\partial^2}{\partial x^2} f_G = \frac{\partial^2}{\partial \nu^2} f_G = 1$, $\frac{\partial^2}{\partial x \partial \nu} f_G = -1$.
+The Hessian of the residual energy $\nabla_{\theta}^2 \tilde{r}$ is
 %
 \begin{align}
-  \nabla_{\theta}^2 \tilde{r} = \begin{pmatrix} \tilde{r}_{xx} & \tilde{r}_{x\nu} & t \tilde{f}_{xx} \\ \tilde{r}_{x\nu} & \tilde{r}_{\nu\nu} & t \tilde{f}_{x\nu} \\ t \tilde{f}_{xx} & t \tilde{f}_{x\nu} & t^2 f_{xx} \end{pmatrix}.
+  \nabla_{\theta}^2 \tilde{r} = \begin{pmatrix} \tilde{r}_{xx} & \tilde{r}_{x\nu} & t \tilde{f}_{xx} \\ \tilde{r}_{x\nu} & \tilde{r}_{\nu\nu} & t \tilde{f}_{x\nu} \\ t \tilde{f}_{xx} & t \tilde{f}_{x\nu} & t^2 f_{xx} \end{pmatrix}
 \end{align}
+%
+where $\tilde{r}_{xx}$, $\tilde{r}_{x\nu}$, and $\tilde{r}_{\nu\nu}$ are evaluated at $y=x+\delta t$ as in \cref{sec:second-derivatives-residual}.
+
+\section{Third-Order Derivatives and Vector-Jacobian Products}
+
+For applications requiring differentiation through statistical inference procedures, it may be necessary to compute the derivatives of the gradient and Hessian of the log-likelihood.
+We define a single vector containing these quantities:
+%
+\begin{align}
+  \Phi(\theta) = \left( \nabla_\theta \Omega(\theta), \ \mathrm{vech}(\nabla_\theta^2 \Omega(\theta)) \right)^T \in \mathbb{R}^9,
+\end{align}
+%
+where $\theta = (x, \nu, \delta)$ and $\mathrm{vech}$ stacks the lower–triangular elements of the symmetric Hessian.
+This section details the computation of the Jacobian of $\Phi$ and the corresponding vector-Jacobian product (VJP).
+
+\subsection{Third derivatives of the log-likelihood}
+
+The Jacobian of $\Phi$ contains the Hessian of $\Omega$ in its first three rows and the third-order partial derivatives of $\Omega$ in its last six rows. We derive the third derivatives by differentiating the Hessian of $\Omega$ from \cref{eq:residual-hessian-full} with respect to a parameter $\theta_k$ for $k \in \{x, \nu, \delta\}$:
+%
+\begin{align}
+  \partial_k(\nabla_\theta^2 \Omega) = \partial_k \mathbb{E}[\nabla_\theta^2 \tilde{r}] - \partial_k\mathrm{Cov}(\nabla_\theta \tilde{r}, \nabla_\theta \tilde{r}) + \mathrm{diag}(0,0,-2\delta^{-3}).
+\end{align}
+%
+The components of the third-derivative tensor are given by applying \cref{eq:gradient-expectation-covariance-residual,eq:derivative-covariance-identity} to differentiate the expectation and covariance terms:
+%
+\begin{align}
+  \partial_{ijk} \Omega & = \left( \mathbb{E}[\partial_{ijk} \tilde{r}] - \mathrm{Cov}(\partial_{ij}\tilde{r}, \partial_k \tilde{f}) \right)                                                                                                                                                    \\
+                        & - \left( \mathrm{Cov}(\partial_{ki} \tilde{r}, \partial_j \tilde{r}) + \mathrm{Cov}(\partial_i \tilde{r}, \partial_{kj} \tilde{r}) - \mathrm{Cov3}(\partial_i \tilde{r}, \partial_j \tilde{r}, \partial_k \tilde{f}) \right) - 2\delta^{-3} \mathbb{I}(i=j=k=\delta).
+\end{align}
+%
+This final form, while complex, is composed entirely of expectations and covariances of quantities for which we have already derived stable numerical expressions. It can therefore be robustly evaluated using quadrature.
+
+\subsection{Vector-Jacobian product of $\Phi$}
+
+In the context of reverse-mode automatic differentiation, we require a function that computes the vector-Jacobian product (VJP) of $\Phi(\theta)$.
+Given an incoming sensitivity vector $\Delta_\Phi \in \mathbb{R}^9$, the VJP is
+%
+\begin{align}
+  (\nabla_\theta \Phi)^T \Delta_\Phi \in \mathbb{R}^3.
+\end{align}
+%
+Let $\Delta_g = (\Delta_{\Phi,1}, \Delta_{\Phi,2}, \Delta_{\Phi,3})^T$ be the sensitivity for the gradient components of $\Phi$, and let $\Delta_H$ be the $3 \times 3$ symmetric matrix formed by un-vectorizing the remaining six elements of $\Delta_\Phi$.
+The VJP can be split into two parts corresponding to the gradient and Hessian components of $\Phi$:
+%
+\begin{align}
+  (\nabla_\theta \Phi)^T \Delta_\Phi = (\nabla_\theta^2 \Omega)^T \Delta_g + (\nabla_\theta (\mathrm{vech}(\nabla_\theta^2 \Omega)))^T \mathrm{vech}(\Delta_H).
+\end{align}
+%
+The first term is simply $(\nabla_\theta^2 \Omega)^T \Delta_g = H \Delta_g$, since the Hessian $H$ is symmetric.
+The second term is a contraction of the third-derivative tensor with the sensitivity matrix $\Delta_H$. Its $k$-th component is given by the sum over the unique elements of the Hessian:
+%
+\begin{align}
+  \left[ (\nabla_\theta (\mathrm{vech}(H)))^T \mathrm{vech}(\Delta_H) \right]_k
+  = \sum_{1 \le i \le j \le 3} (\partial_k H_{ij}) (\Delta_H)_{ij}
+  = \sum_{1 \le i \le j \le 3} \partial_{ijk}\Omega \cdot (\Delta_H)_{ij}.
+\end{align}
+%
+Thus, the full VJP is given by
+%
+\begin{align}\label{eq:vjp-full}
+  \left( (\nabla_\theta \Phi)^T \Delta_\Phi \right)_k = (H \Delta_g)_k + \sum_{1 \le i \le j \le 3} \partial_{ijk}\Omega \cdot (\Delta_H)_{ij},
+\end{align}
+%
+which can be computed by first forming the Hessian and third-derivative tensor of $\Omega$ using quadrature and then performing the matrix-vector products and summations.
+
+\subsection{Application: Differentiating Through a Laplace Approximation}
+
+The need for third derivatives arises when differentiating through complex inference procedures. Consider a model where data $\{x_i\}_{i=1}^N$ are drawn from Quantized Rician distributions with parameters $\{\nu_i\}_{i=1}^N$ and a single shared noise parameter $\sigma$, with a known quantization width $\delta$. The total negative log-likelihood is
+%
+\begin{align}
+  L(\nu, \sigma) = \sum_{i=1}^N -\log p(x_i \mid \nu_i, \sigma, \delta) = \sum_{i=1}^N \Omega(x_i/\sigma, \nu_i/\sigma, \delta/\sigma),
+\end{align}
+%
+where $\nu = (\nu_1, \dots, \nu_N)^T$.
+
+Suppose we construct a factorized approximate posterior $q(\nu, \sigma) = q(\nu) q(\sigma \mid \nu)$, where the conditional for $\sigma$ is a Laplace approximation of $p(\sigma \mid x, \nu, \delta)$. For a fixed $\nu$, this approximation is a Gaussian centered at the conditional posterior mode:
+%
+\begin{align}
+  \hat{\sigma}(\nu) = \arg\min_\sigma L(\nu, \sigma).
+\end{align}
+%
+The approximation is $q(\sigma \mid \nu) = \mathcal{N}(\sigma \mid \mu=\hat{\sigma}(\nu), \Sigma=H_\sigma^{-1})$, where the precision is the Hessian at the mode:
+%
+\begin{align}
+  H_\sigma(\nu) = \nabla_\sigma^2 L(\nu, \sigma) \big|_{\sigma=\hat{\sigma}(\nu)}.
+\end{align}
+%
+If the parameters $\nu$ are themselves outputs of another model (e.g., a neural network with variational parameters $\psi$), such that $\nu = \nu(\psi)$, then the parameters of our Laplace approximation, $\hat{\sigma}(\psi)$ and $H_\sigma(\psi)$, depend on $\psi$.
+To optimize an objective function like the evidence lower bound (ELBO) in variational inference, we must differentiate a loss $J(\hat{\sigma}, H_\sigma)$ with respect to $\psi$ using reverse-mode automatic differentiation (AD).
+This requires implementing pullback functions for the maps $\psi \mapsto \hat{\sigma}$ and $\psi \mapsto H_\sigma$, which compute the corresponding VJPs.
+
+The pullback for $\hat{\sigma}$ is derived using the implicit function theorem. The mode $\hat{\sigma}$ satisfies the first-order optimality condition $\nabla_\sigma L(\nu(\psi), \hat{\sigma}(\psi)) = 0$. Differentiating this identity with respect to $\psi$ and rearranging gives the Jacobian of the map $\psi \mapsto \hat{\sigma}$:
+%
+\begin{align}
+  \nabla_\psi \hat{\sigma} = - (H_\sigma)^{-1} (\nabla_\nu \nabla_\sigma L) (\nabla_\psi \nu).
+\end{align}
+%
+Given an incoming sensitivity $\Delta_{\hat{\sigma}} = \partial J / \partial \hat{\sigma}$, the pullback computes the sensitivity with respect to $\nu$ by applying the transpose of the Jacobian:
+%
+\begin{align}
+  \Delta_\nu \mathrel{+}= (\nabla_\psi \nu)^T \left[ -(\nabla_\nu \nabla_\sigma L)^T (H_\sigma)^{-1} \Delta_{\hat{\sigma}} \right].
+\end{align}
+
+The pullback for $H_\sigma$ involves third derivatives. The map is $H_\sigma(\nu(\psi), \hat{\sigma}(\psi))$. In reverse-mode AD, we are given a sensitivity $\Delta_{H_\sigma} = \partial J / \partial H_\sigma$ and compute the sensitivities for the inputs $\nu$ and $\hat{\sigma}$, which are then propagated further back. The pullback for $H_\sigma$ is a sequence of VJPs dictated by the chain rule:
+%
+\begin{align}
+  \Delta_{\hat{\sigma}} & \mathrel{+}= (\nabla_{\hat{\sigma}} H_\sigma)^T \Delta_{H_\sigma} \\
+  \Delta_\nu            & \mathrel{+}= (\nabla_\nu H_\sigma)^T \Delta_{H_\sigma}.
+\end{align}
+%
+The term $\nabla_\nu H_\sigma = \nabla_\nu (\nabla_\sigma^2 L)$ is a third-order partial derivative tensor of $L$.
+Since $L$ is a sum over $\Omega$, calculating this VJP requires computing terms involving the third derivatives of $\Omega$, such as $\frac{\partial^3 \Omega}{\partial \nu_i \partial \sigma^2}$.
+This provides a concrete motivation for the VJP formalism developed in this section.
 
 \end{document}
