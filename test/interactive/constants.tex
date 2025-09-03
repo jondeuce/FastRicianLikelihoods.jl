@@ -34,7 +34,7 @@ If we define
 then the log of the likelihood of \cref{eq:rician-pdf} can be given in terms of $f$ via
 %
 \begin{align}
-  \log p(x \mid \nu, \sigma) = \log\sigma - f\left(\frac{x}{\sigma}, \frac{\nu}{\sigma}\right).
+  \log p(x \mid \nu, \sigma) = -\log\sigma - f\left(\frac{x}{\sigma}, \frac{\nu}{\sigma}\right).
 \end{align}
 %
 Similarly, the derivatives of $\log p$ with respect to $x$, $\nu$, and $\sigma$ are given in terms of the derivatives of $f$ evaluated at $(x', \nu') = (x / \sigma, \nu / \sigma)$:
@@ -178,7 +178,7 @@ To address this, for each of $r$, $r'$, and $r''$, we split the domain $z>0$ int
   \item Intermediate $z$: cancellation is negligible; employ a rational minimax approximant.
 \end{itemize}
 
-\section{Small-$z$ analysis}
+\section{Small-$z$ analysis}\label{sec:rician-small-z}
 
 For small $z$, $r \approx z/2$.
 Thus if we define
@@ -252,7 +252,7 @@ Thus, we need only fit one minimax polynomial to \cref{eq:a1-reparametrized} to 
 %              & = 2 - 2a_0 + z^2 (2a_1 - a_0 (2 - a_0)) + 2 a_0^3 z^4
 % \end{align}
 
-\section{Large-$z$ analysis}
+\section{Large-$z$ analysis}\label{sec:rician-large-z}
 
 As $z \to \infty$, $r \to 1$.
 To avoid cancellation issues analogous to the small-$z$ case, we work with $u=1/z$ and rescale the residual $1-r$ to obtain a well-scaled quantity.
@@ -337,7 +337,16 @@ and finally
   \boxed{r'' = -\frac{1}{2} u^3 (b_2 + 2 b_0^2 (1 + 2 b_0) - u b_1 (3 b_1 + 4 b_0))}
 \end{align}
 %
-Thus, we need only fit one minimax polynomial to \cref{eq:b2-reparametrized} to estimate $b_2(u)$, and then $r$, $r'$, and $r''$ can be formed from $b_2$, $b_1 = \frac{1 + u b_2}{4}$, and $b_0 = \frac{1 + u b_1}{2}$ using \cref{eq:r-prime-large-reparametrized,eq:r-second-derivative-large-reparametrized} without catastrophic cancellation.
+Then, $r$, $r'$, and $r''$ can be formed from $b_2$, $b_1 = \frac{1 + u b_2}{4}$, and $b_0 = \frac{1 + u b_1}{2}$ using \cref{eq:r-prime-large-reparametrized,eq:r-second-derivative-large-reparametrized} without catastrophic cancellation.
+However, as we will see in \cref{sec:rician-third-derivatives}, a final reparameterization
+%
+\begin{align}
+  b_3(u)             & = \frac{b_2(u)-1}{u} = \frac{25}{16} + \mathcal{O}(u) \\
+  \Rightarrow b_2(u) & = 1 + u b_3(u)
+\end{align}
+%
+will be required to stably compute the quantity $2r'+zr''$ needed for third derivatives of $f$ when $z \gg 1$.
+Finally, we can stably compute all of $r$, $r'$, $r''$, and $2r'+zr''$ from one minimax polynomial fit to $b_3(u)$.
 
 % \section{Intermediate-$z$ analysis}
 %
@@ -541,12 +550,12 @@ Substituting this back yields
              & = \frac{1}{2} u^2 \left( (1-b_2) + u (b_2 (\frac{1}{2}+b_0 ) + b_1^2 ) - u^2 b_1^2 (\frac{1}{2} + b_0 ) \right)
 \end{align}
 %
-but now, since $b_2 = 1 + \mathcal{O}(u)$, the term $1-b_2$ causes cancellation issues and so we must define one final change of variables $b_2 = 1 + u b_3$ to handle the cancellation.
-Substituting this gives the stable form:
+but now, as anticipated in \cref{sec:rician-large-z}, the term $1-b_2$ causes a cancellation issue since $b_2 = 1 + \mathcal{O}(u)$.
+Therefore, we make the final change of variables $b_2 = 1 + u b_3$, giving the numerically stable expression:
 %
 \begin{align}
-  2r' + zr'' & = \frac{1}{2} u^2 \left( -u b_3 + u (b_2 (\frac{1}{2}+b_0 ) + b_1^2 \right) - u^2 b_1^2 ( \frac{1}{2} + b_0 )                                \\
-             & = \frac{1}{2} u^3 \left( b_2 (\frac{1}{2}+b_0 ) + b_1^2 - b_3 - u b_1^2 (\frac{1}{2} + b_0) \right) \label{eq:2rprime-zrsecondprime-large-z}
+  2r' + zr'' & = \frac{1}{2} u^2 \left( -u b_3 + u (b_2 (\frac{1}{2}+b_0 ) + b_1^2 \right) - u^2 b_1^2 ( \frac{1}{2} + b_0 )                                     \\
+             & = \frac{1}{2} u^3 \left( b_2 (\frac{1}{2}+b_0 ) + b_1^2 - b_3 - u b_1^2 (\frac{1}{2} + b_0) \right). \label{eq:two-rprime-z-r-primeprime-large-z}
 \end{align}
 %
 This expression is $\mathcal{O}(u^3)$ with no remaining cancellation issues.
@@ -856,7 +865,7 @@ The Jacobian $\nabla_\theta \mathbb{E}[g] \in \mathbb{R}^{m \times 3}$ is given 
                               & = \mathbb{E}[\nabla_\theta g] - \mathrm{Cov}(g, \nabla_\theta \tilde{r}) \label{eq:gradient-expectation-covariance-residual}
 \end{align}
 %
-where, letting $\mu_g = \mathbb{E}[g]$ and $\mu_h = \mathbb{E}[h]$, the covariance is defined as
+where, denoting $\mu_g = \mathbb{E}[g]$ and $\mu_h = \mathbb{E}[h]$, the covariance is defined as
 %
 \begin{align}
   \mathrm{Cov}(g, h) = \mathbb{E}[(g - \mu_g)(h - \mu_h)^T] = \mathbb{E}[g h^T] - \mu_g \mu_h^T.
@@ -911,10 +920,10 @@ This proof relies only on the linearity of differentiation and integration (or f
 
 \subsubsection{Differentiating covariances with respect to $P(t \mid \theta)$}\label{sec:derivative-covariance}
 
-For any two scalar functions $g(t,\theta)$ and $h(t,\theta)$, the derivative of their covariance with respect to a parameter $\alpha \in \{x, \nu, \delta\}$ is given by
+For any two scalar functions $g(t,\theta)$ and $h(t,\theta)$, the derivative of their covariance with respect to a parameter $\gamma \in \{x, \nu, \delta\}$ is given by
 %
 \begin{align}\label{eq:derivative-covariance-identity}
-  \partial_\alpha \mathrm{Cov}(g, h) = \mathrm{Cov}(\partial_\alpha g, h) + \mathrm{Cov}(g, \partial_\alpha h) - \mathrm{Cov3}(g, h, \partial_\alpha \tilde{r}),
+  \partial_{\gamma} \mathrm{Cov}(g, h) = \mathrm{Cov}(\partial_{\gamma} g, h) + \mathrm{Cov}(g, \partial_{\gamma} h) - \mathrm{Cov3}(g, h, \partial_{\gamma} \tilde{r}),
 \end{align}
 %
 where $\mathrm{Cov3}(a,b,c) = \mathbb{E}[(a-\mathbb{E}[a])(b-\mathbb{E}[b])(c-\mathbb{E}[c])]$ is the third joint central moment.
@@ -924,31 +933,31 @@ where $\mathrm{Cov3}(a,b,c) = \mathbb{E}[(a-\mathbb{E}[a])(b-\mathbb{E}[b])(c-\m
 We start from the definition of covariance and apply the product rule:
 %
 \begin{align}
-  \partial_\alpha \mathrm{Cov}(g, h) & = \partial_\alpha \left( \mathbb{E}[g h] - \mathbb{E}[g]\mathbb{E}[h] \right) = \partial_\alpha \mathbb{E}[g h] - (\partial_\alpha \mathbb{E}[g]) \mathbb{E}[h] - \mathbb{E}[g] (\partial_\alpha \mathbb{E}[h]).
+  \partial_{\gamma} \mathrm{Cov}(g, h) & = \partial_{\gamma} \left( \mathbb{E}[g h] - \mathbb{E}[g]\mathbb{E}[h] \right) = \partial_{\gamma} \mathbb{E}[g h] - (\partial_{\gamma} \mathbb{E}[g]) \mathbb{E}[h] - \mathbb{E}[g] (\partial_{\gamma} \mathbb{E}[h]).
 \end{align}
 %
 Next, we apply the gradient-of-expectation identity from \cref{eq:gradient-expectation-covariance-residual} to each of the three derivative terms:
 %
 \begin{align}
-  \partial_\alpha \mathbb{E}[g h] & = \mathbb{E}[\partial_\alpha(g h)] - \mathrm{Cov}(g h, \partial_\alpha \tilde{r}) = \mathbb{E}[(\partial_\alpha g) h + g (\partial_\alpha h)] - \mathrm{Cov}(g h, \partial_\alpha \tilde{r}) \\
-  \partial_\alpha \mathbb{E}[g]   & = \mathbb{E}[\partial_\alpha g] - \mathrm{Cov}(g, \partial_\alpha \tilde{r})                                                                                                                 \\
-  \partial_\alpha \mathbb{E}[h]   & = \mathbb{E}[\partial_\alpha h] - \mathrm{Cov}(h, \partial_\alpha \tilde{r}).
+  \partial_{\gamma} \mathbb{E}[g h] & = \mathbb{E}[\partial_{\gamma}(g h)] - \mathrm{Cov}(g h, \partial_{\gamma} \tilde{r}) = \mathbb{E}[(\partial_{\gamma} g) h + g (\partial_{\gamma} h)] - \mathrm{Cov}(g h, \partial_{\gamma} \tilde{r}) \\
+  \partial_{\gamma} \mathbb{E}[g]   & = \mathbb{E}[\partial_{\gamma} g] - \mathrm{Cov}(g, \partial_{\gamma} \tilde{r})                                                                                                                       \\
+  \partial_{\gamma} \mathbb{E}[h]   & = \mathbb{E}[\partial_{\gamma} h] - \mathrm{Cov}(h, \partial_{\gamma} \tilde{r}).
 \end{align}
 %
 Substituting these back into the main expression and grouping terms yields:
 %
 \begin{align}
-  \partial_\alpha \mathrm{Cov}(g, h) & = \left( \mathbb{E}[(\partial_\alpha g) h] - \mathbb{E}[\partial_\alpha g] \mathbb{E}[h] \right) + \left( \mathbb{E}[g (\partial_\alpha h)] - \mathbb{E}[g] \mathbb{E}[\partial_\alpha h] \right) \\
-                                     & - \mathrm{Cov}(g h, \partial_\alpha \tilde{r}) + \mathrm{Cov}(g, \partial_\alpha \tilde{r}) \mathbb{E}[h] + \mathbb{E}[g] \mathrm{Cov}(h, \partial_\alpha \tilde{r}).
+  \partial_{\gamma} \mathrm{Cov}(g, h) & = \left( \mathbb{E}[(\partial_{\gamma} g) h] - \mathbb{E}[\partial_{\gamma} g] \mathbb{E}[h] \right) + \left( \mathbb{E}[g (\partial_{\gamma} h)] - \mathbb{E}[g] \mathbb{E}[\partial_{\gamma} h] \right) \\
+                                       & - \mathrm{Cov}(g h, \partial_{\gamma} \tilde{r}) + \mathrm{Cov}(g, \partial_{\gamma} \tilde{r}) \mathbb{E}[h] + \mathbb{E}[g] \mathrm{Cov}(h, \partial_{\gamma} \tilde{r}).
 \end{align}
 %
-The term in the parenthesis is the third joint central moment, or third-order covariance, of $(g, h, \partial_\alpha\tilde{r})$. Expanding the definition of the third central moment confirms its equivalence to this term:
+The term in the parenthesis is the third joint central moment, or third-order covariance, of $(g, h, \partial_{\gamma} \tilde{r})$. Expanding the definition of the third central moment confirms its equivalence to this term:
 %
 \begin{align}
-  \mathrm{Cov3}(g, h, \partial_\alpha \tilde{r}) & = \mathbb{E}[(g-\mathbb{E}[g])(h-\mathbb{E}[h])(\partial_\alpha \tilde{r}-\mathbb{E}[\partial_\alpha \tilde{r}])]                                                                                                                                                                   \\
-                                                 & = \mathbb{E}[(gh - g\mathbb{E}[h] - h\mathbb{E}[g] + \mathbb{E}[g]\mathbb{E}[h])(\partial_\alpha \tilde{r} - \mathbb{E}[\partial_\alpha \tilde{r}])]                                                                                                                                \\
-                                                 & = \mathbb{E}[gh(\partial_\alpha \tilde{r} - \mathbb{E}[\partial_\alpha \tilde{r}])] - \mathbb{E}[h]\mathbb{E}[g(\partial_\alpha \tilde{r} - \mathbb{E}[\partial_\alpha \tilde{r}])] - \mathbb{E}[g]\mathbb{E}[h(\partial_\alpha \tilde{r} - \mathbb{E}[\partial_\alpha \tilde{r}])] \\
-                                                 & = \mathrm{Cov}(gh, \partial_\alpha \tilde{r}) - \mathbb{E}[h]\mathrm{Cov}(g, \partial_\alpha \tilde{r}) - \mathbb{E}[g]\mathrm{Cov}(h, \partial_\alpha \tilde{r}).
+  \mathrm{Cov3}(g, h, \partial_{\gamma} \tilde{r}) & = \mathbb{E}[(g-\mathbb{E}[g])(h-\mathbb{E}[h])(\partial_{\gamma} \tilde{r}-\mathbb{E}[\partial_{\gamma} \tilde{r}])]                                                                                                                                                                           \\
+                                                   & = \mathbb{E}[(gh - g\mathbb{E}[h] - h\mathbb{E}[g] + \mathbb{E}[g]\mathbb{E}[h])(\partial_{\gamma} \tilde{r} - \mathbb{E}[\partial_{\gamma} \tilde{r}])]                                                                                                                                        \\
+                                                   & = \mathbb{E}[gh(\partial_{\gamma} \tilde{r} - \mathbb{E}[\partial_{\gamma} \tilde{r}])] - \mathbb{E}[h]\mathbb{E}[g(\partial_{\gamma} \tilde{r} - \mathbb{E}[\partial_{\gamma} \tilde{r}])] - \mathbb{E}[g]\mathbb{E}[h(\partial_{\gamma} \tilde{r} - \mathbb{E}[\partial_{\gamma} \tilde{r}])] \\
+                                                   & = \mathrm{Cov}(gh, \partial_{\gamma} \tilde{r}) - \mathbb{E}[h]\mathrm{Cov}(g, \partial_{\gamma} \tilde{r}) - \mathbb{E}[g]\mathrm{Cov}(h, \partial_{\gamma} \tilde{r}).
 \end{align}
 %
 Substituting this back gives the final expression for the derivative of the covariance.
@@ -958,13 +967,13 @@ Substituting this back gives the final expression for the derivative of the cova
 We compute the gradient of $\Omega(\theta) = -\log Z(\theta) - \log\delta$ in terms of the gradient of $\log Z$:
 %
 \begin{align}
-  \nabla_{\theta} \log Z(\theta) = \frac{1}{Z(\theta)}\nabla_{\theta} Z(\theta) = \frac{1}{Z(\theta)}\int_0^1 -\nabla_{\theta}\tilde{f} \cdot \exp(-\tilde{f}) \, dt = -\mathbb{E}[\nabla_{\theta}\tilde{f}].
+  \nabla_{\theta} \log Z(\theta) = \frac{1}{Z(\theta)}\nabla_{\theta} Z(\theta) = \frac{1}{Z(\theta)}\int_0^1 -\nabla_{\theta} \tilde{f} \cdot \exp(-\tilde{f}) \, dt = -\mathbb{E}[\nabla_{\theta} \tilde{f}].
 \end{align}
 %
 Rewriting the expectation in terms of the residual energy $\tilde{r}$, we have
 %
 \begin{align}
-  \mathbb{E}[\nabla_{\theta}\tilde{f}] = \mathbb{E}[\nabla_{\theta} (\tilde{r} + f_G)] = \mathbb{E}[\nabla_{\theta} \tilde{r}] + \nabla_{\theta} f_G
+  \mathbb{E}[\nabla_{\theta} \tilde{f}] = \mathbb{E}[\nabla_{\theta} (\tilde{r} + f_G)] = \mathbb{E}[\nabla_{\theta} \tilde{r}] + \nabla_{\theta} f_G
 \end{align}
 %
 since $f_G$ is constant with respect to $t$.
@@ -1017,19 +1026,21 @@ We define a single vector containing these quantities:
 where $\theta = (x, \nu, \delta)$ and $\mathrm{vech}$ stacks the lower–triangular elements of the symmetric Hessian.
 This section details the computation of the Jacobian of $\Phi$ and the corresponding vector-Jacobian product (VJP).
 
-\subsection{Third derivatives of the log-likelihood}
+\subsection{Third derivatives of $\Omega$}
 
-The Jacobian of $\Phi$ contains the Hessian of $\Omega$ in its first three rows and the third-order partial derivatives of $\Omega$ in its last six rows. We derive the third derivatives by differentiating the Hessian of $\Omega$ from \cref{eq:residual-hessian-full} with respect to a parameter $\theta_k$ for $k \in \{x, \nu, \delta\}$:
+The Jacobian of $\Phi$ contains the Hessian of $\Omega$ in its first three rows and the third-order partial derivatives of $\Omega$ in its last six rows. We derive the third derivatives by differentiating the Hessian of $\Omega$ from \cref{eq:residual-hessian-full} with respect to a parameter $\gamma \in \{x, \nu, \delta\}$:
 %
 \begin{align}
-  \partial_k(\nabla_\theta^2 \Omega) = \partial_k \mathbb{E}[\nabla_\theta^2 \tilde{r}] - \partial_k\mathrm{Cov}(\nabla_\theta \tilde{r}, \nabla_\theta \tilde{r}) + \mathrm{diag}(0,0,-2\delta^{-3}).
+  \partial_{\gamma}(\nabla_\theta^2 \Omega) = \partial_{\gamma} \mathbb{E}[\nabla_\theta^2 \tilde{r}] - \partial_{\gamma}\mathrm{Cov}(\nabla_\theta \tilde{r}, \nabla_\theta \tilde{r}) + \mathrm{diag}(0,0,-2\delta^{-3}).
 \end{align}
 %
-The components of the third-derivative tensor are given by applying \cref{eq:gradient-expectation-covariance-residual,eq:derivative-covariance-identity} to differentiate the expectation and covariance terms:
+The components of the third-derivative tensor follow by applying \cref{eq:gradient-expectation-covariance-residual,eq:derivative-covariance-identity} to differentiate the expectation and covariance terms:
 %
 \begin{align}
-  \partial_{ijk} \Omega & = \left( \mathbb{E}[\partial_{ijk} \tilde{r}] - \mathrm{Cov}(\partial_{ij}\tilde{r}, \partial_k \tilde{f}) \right)                                                                                                                                                    \\
-                        & - \left( \mathrm{Cov}(\partial_{ki} \tilde{r}, \partial_j \tilde{r}) + \mathrm{Cov}(\partial_i \tilde{r}, \partial_{kj} \tilde{r}) - \mathrm{Cov3}(\partial_i \tilde{r}, \partial_j \tilde{r}, \partial_k \tilde{f}) \right) - 2\delta^{-3} \mathbb{I}(i=j=k=\delta).
+  \partial_{\gamma} \mathbb{E}[\partial_{\alpha\beta} \tilde{r}]                         & = \mathbb{E}[\partial_{\alpha\beta\gamma} \tilde{r}] - \mathrm{Cov}(\partial_{\alpha\beta} \tilde{r}, \partial_{\gamma} \tilde{r})                                                                                                                                                             \\
+  \partial_{\gamma}\mathrm{Cov}(\partial_{\alpha} \tilde{r}, \partial_{\beta} \tilde{r}) & = \mathrm{Cov}(\partial_{\alpha\gamma} \tilde{r}, \partial_{\beta} \tilde{r}) + \mathrm{Cov}(\partial_{\alpha} \tilde{r}, \partial_{\beta\gamma} \tilde{r}) - \mathrm{Cov3}(\partial_{\alpha} \tilde{r}, \partial_{\beta} \tilde{r}, \partial_{\gamma} \tilde{r})                              \\
+  \Rightarrow \partial_{\alpha\beta\gamma} \Omega                                        & = \mathbb{E}[\partial_{\alpha\beta\gamma} \tilde{r}] - \mathrm{Cov}(\partial_{\alpha\beta} \tilde{r}, \partial_{\gamma} \tilde{r}) - \mathrm{Cov}(\partial_{\alpha\gamma} \tilde{r}, \partial_{\beta} \tilde{r}) - \mathrm{Cov}(\partial_{\beta\gamma} \tilde{r}, \partial_{\alpha} \tilde{r}) \\
+                                                                                         & + \mathrm{Cov3}(\partial_{\alpha} \tilde{r}, \partial_{\beta} \tilde{r}, \partial_{\gamma} \tilde{r}) - 2\delta^{-3} \mathbf{1}_{\{\alpha=\beta=\gamma=\delta\}}.
 \end{align}
 %
 This final form, while complex, is composed entirely of expectations and covariances of quantities for which we have already derived stable numerical expressions. It can therefore be robustly evaluated using quadrature.

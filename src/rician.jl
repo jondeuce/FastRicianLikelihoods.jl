@@ -33,13 +33,13 @@ end
 @inline function _∇neglogpdf_rician(x::D, ν::D) where {D}
     # Define the univariate normalized Bessel function `Î₀(z)` for `z = x * ν ≥ 0` as
     #
-    #   Î₀(z) = I₀(z) / (exp(z) / √2πz).
+    #   Î₀(z) = I₀(z) / (exp(z) / √2πz)
     #
     # The negative likelihood is then be written as
     #
-    #        -logp(x | ν, σ = 1) = (x - ν)^2 / 2 - log(x / ν) / 2 - logÎ₀(x * ν) + log√2π.
-    #   ∂/∂x -logp(x | ν, σ = 1) = x - ν - 1 / 2x - ∂/∂x logÎ₀(x * ν).
-    #   ∂/∂ν -logp(x | ν, σ = 1) = ν - x + 1 / 2ν - ∂/∂ν logÎ₀(x * ν).
+    #        -logp(x | ν, σ = 1) = (x - ν)^2 / 2 - log(x / ν) / 2 - logÎ₀(x * ν) + log√2π
+    #   ∂/∂x -logp(x | ν, σ = 1) = x - ν - 1 / 2x - ∂/∂x logÎ₀(x * ν)
+    #   ∂/∂ν -logp(x | ν, σ = 1) = ν - x + 1 / 2ν - ∂/∂ν logÎ₀(x * ν)
     #
     # All that must be approximated then is `d/dz logÎ₀(z)` where `z = x * ν`:
     #
@@ -115,8 +115,8 @@ end
     T = checkedfloattype(z)
 
     r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(2))
+    x⁻¹ = inv(x)
     if z < first(neglogpdf_rician_parts_branches(T))
-        x⁻¹ = inv(x)
         x⁻² = x⁻¹ * x⁻¹
         ∂x = x - r * ν - x⁻¹
         ∂ν = ν - r * x
@@ -124,7 +124,7 @@ end
         ∂xν = -(r + z * r′)
         ∂νν = one(T) - x^2 * r′
     else
-        x⁻¹, ν⁻¹ = inv(x), inv(ν)
+        ν⁻¹ = inv(ν)
         x⁻² = x⁻¹ * x⁻¹
         ∂x = (x - ν) - x⁻¹ * (one(T) - r_tail)
         ∂ν = (ν - x) + ν⁻¹ * r_tail
@@ -205,6 +205,36 @@ end
     end
 
     return (∂x, ∂ν), (∂xx, ∂xν, ∂νν)
+end
+
+@inline function _∇³neglogpdf_rician_residual_with_gradient_and_hessian(x::D, ν::D, Δx::D) where {D}
+    y = x + Δx
+    z = y * ν
+    T = checkedfloattype(z)
+
+    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(2))
+    y⁻¹ = inv(y)
+    y⁻² = y⁻¹ * y⁻¹
+    if z < first(neglogpdf_rician_parts_branches(T))
+        ∂x = ((one(T) - r) * ν + Δx) - y⁻¹
+        ∂ν = (one(T) - r) * x - r * Δx
+        ∂xx = y⁻² - ν^2 * r′
+        ∂xν = one(T) - (r + z * r′)
+        ∂νν = -y^2 * r′
+    else
+        ν⁻¹ = inv(ν)
+        ∂x = Δx - y⁻¹ * (one(T) - r_tail)
+        ∂ν = -(Δx - ν⁻¹ * r_tail)
+        ∂xx = y⁻² * (one(T) - z^2 * r′)
+        ∂xν = one_minus_r_minus_z_r′
+        ∂νν = -y^2 * r′
+    end
+    ∂xxx = T(-2) * y⁻¹ * y⁻² - ν^3 * r′′
+    ∂xxν = -ν * two_r′_plus_z_r′′
+    ∂xνν = -y * two_r′_plus_z_r′′
+    ∂ννν = -y^3 * r′′
+
+    return (∂x, ∂ν), (∂xx, ∂xν, ∂νν), (∂xxx, ∂xxν, ∂xνν, ∂ννν)
 end
 
 ####
@@ -452,13 +482,191 @@ end
     return Φ, JΦ' * Δ
 end
 
+@inline function _∇²neglogpdf_qrician_with_jacobian_two_pass(x::D, ν::D, δ::D, order::Val) where {D}
+    # Goal: compute JΦ where Φ(θ) = (∇Ω(θ), vech(∇²Ω(θ))) and θ = (x, ν, δ).
+    # Notation per paper:
+    #   r̃(t, θ) = f(x + δ t, ν) - f_G(x, ν),  Z(θ) = ∫ exp(-r̃) dt,  Ω(θ) = -log Z(θ) - log δ.
+    # Working identities (all expectations wrt P(t|θ) ∝ exp(-r̃)):
+    #   ∇Ω = E[∇_θ r̃] + ∇_θ f_G - (0, 0, δ⁻¹).
+    #   ∇²Ω = E[∇²_θ r̃] - Cov(∇_θ r̃, ∇_θ r̃) + diag(1, 1, δ⁻²) + offdiag(1, -1).
+    #   ∂_αβγ Ω = E[∂_αβγ r̃] - Cov(∂_αβ r̃, ∂_γ r̃) - Cov(∂_αγ r̃, ∂_β r̃) - Cov(∂_βγ r̃, ∂_α r̃) + Cov3(∂_α r̃, ∂_β r̃, ∂_γ r̃) - 2 δ⁻³ 1{α=β=γ=δ}.
+    # Implementation strategy:
+    #   Pass 1: μ = E[∇_θ r̃] (to center all covariance terms);
+    #   Pass 2: form integrands for E[h] and E[T] directly using centered quantities, then add constants.
+    Δ = x - ν
+    δ⁻¹ = inv(δ)
+    δ⁻² = δ⁻¹ * δ⁻¹
+    δ⁻³ = δ⁻² * δ⁻¹
+
+    # Pass 1: μ = E[∇_θ r̃]
+    _, (μ_rx, μ_rν, μ_rδ) = f_quadrature_weighted_unit_interval(D, order) do t
+        Δx = δ * t
+        rx, rν = _∇neglogpdf_rician_residual(x, ν, Δx)
+        fy = rx + Δ
+        rδ = t * fy
+        return _neglogpdf_rician_residual(x, ν, Δx), SVector(rx, rν, rδ)
+    end
+
+    # Pass 2: form h- and T-integrands using centered gradients c = ∇_θ r̃ - μ
+    Ω₀, (E_h, E_T) = f_quadrature_weighted_unit_interval(D, order) do t
+        Δx = δ * t
+        (rx, rν), (rxx, rxν, rνν), (rxxx, rxxν, rxνν, rννν) = _∇³neglogpdf_rician_residual_with_gradient_and_hessian(x, ν, Δx)
+
+        # Reconstruct ∂/∂δ-derivatives of r̃ from f-derivatives at y = x + δ t
+        t² = t * t; t³ = t² * t
+        fy, fyy = rx + Δ, rxx + 1
+        rδ = t * fy
+        rxδ, rνδ, rδδ = t * fyy, t * (rxν - 1), t² * fyy
+        rxxδ, rxνδ, rννδ = t * rxxx, t * rxxν, t * rxνν
+        rxδδ, rνδδ, rδδδ = t² * rxxx, t² * rxxν, t³ * rxxx
+
+        # Centered first derivatives c = ∇_θ r̃ - μ (needed for Cov and Cov3)
+        rx_c, rν_c, rδ_c = rx - μ_rx, rν - μ_rν, rδ - μ_rδ
+
+        # h-integrands: h_αβ = E[ ∂_αβ r̃ - (∂_α r̃ - μ_α)(∂_β r̃ - μ_β) ] + const
+        rxrx_c, rxrν_c, rxrδ_c = rx_c * rx_c, rx_c * rν_c, rx_c * rδ_c
+        rνrν_c, rνrδ_c, rδrδ_c = rν_c * rν_c, rν_c * rδ_c, rδ_c * rδ_c
+        h = SVector(rxx - rxrx_c, rxν - rxrν_c, rxδ - rxrδ_c, rνν - rνrν_c, rνδ - rνrδ_c, rδδ - rδrδ_c)
+
+        # T-integrands: T_αβγ integrands realize
+        #   ∂_αβγ Ω = E[∂_αβγ r̃]
+        #           - Cov(∂_αβ r̃, ∂_γ r̃) - Cov(∂_αγ r̃, ∂_β r̃) - Cov(∂_βγ r̃, ∂_α r̃)
+        #           + Cov3(∂_α r̃, ∂_β r̃, ∂_γ r̃) - 2 δ⁻³ 1{α=β=γ=δ}.
+        Txxx = rxxx - rx_c * (3 * rxx - rxrx_c)
+        Txxν = rxxν - (rxx * rν_c + rx_c * (2 * rxν - rxrν_c))
+        Txνν = rxνν - (rνν * rx_c + rν_c * (2 * rxν - rxrν_c))
+        Tννν = rννν - rν_c * (3 * rνν - rνrν_c)
+        Txxδ = rxxδ - (rxx * rδ_c + rx_c * (2 * rxδ - rxrδ_c))
+        Txνδ = rxνδ - (rxν * rδ_c + rxδ * rν_c + rx_c * (rνδ - rν_c * rδ_c))
+        Tννδ = rννδ - (rνν * rδ_c + rν_c * (2 * rνδ - rνrδ_c))
+        Txδδ = rxδδ - (rδδ * rx_c + rδ_c * (2 * rxδ - rxrδ_c))
+        Tνδδ = rνδδ - (rδδ * rν_c + rδ_c * (2 * rνδ - rνrδ_c))
+        Tδδδ = rδδδ - rδ_c * (3 * rδδ - rδrδ_c)
+        T = SVector(Txxx, Txxν, Txνν, Tννν, Txxδ, Txνδ, Tννδ, Txδδ, Tνδδ, Tδδδ)
+
+        return _neglogpdf_rician_residual(x, ν, Δx), (h, T)
+    end
+
+    # Assemble primal output Φ = (∇Ω, vech(H))
+    E_hxx, E_hxν, E_hxδ, E_hνν, E_hνδ, E_hδδ = E_h
+    E_Txxx, E_Txxν, E_Txνν, E_Tννν, E_Txxδ, E_Txνδ, E_Tννδ, E_Txδδ, E_Tνδδ, E_Tδδδ = E_T
+
+    ∇x, ∇ν, ∇δ = μ_rx + Δ, μ_rν - Δ, μ_rδ - δ⁻¹
+    Hxx, Hxν, Hxδ, Hνν, Hνδ, Hδδ = E_hxx + 1, E_hxν - 1, E_hxδ, E_hνν + 1, E_hνδ, E_hδδ + δ⁻²
+    Φ = SVector(∇x, ∇ν, ∇δ, Hxx, Hxν, Hxδ, Hνν, Hνδ, Hδδ)
+
+    # Assemble Jacobian JΦ (only E_Tδδδ carries the additional -2 δ⁻³ term)
+    JΦ = SMatrix{9, 3, D, 27}(
+        Hxx, Hxν, Hxδ, E_Txxx, E_Txxν, E_Txxδ, E_Txνν, E_Txνδ, E_Txδδ, # ∂Φ/∂x
+        Hxν, Hνν, Hνδ, E_Txxν, E_Txνν, E_Txνδ, E_Tννν, E_Tννδ, E_Tνδδ, # ∂Φ/∂ν
+        Hxδ, Hνδ, Hδδ, E_Txxδ, E_Txνδ, E_Txδδ, E_Tννδ, E_Tνδδ, E_Tδδδ - 2 * δ⁻³, # ∂Φ/∂δ
+    )
+
+    return Φ, JΦ
+end
+
+@inline function _∇²neglogpdf_qrician_with_jacobian_one_pass(x::D, ν::D, δ::D, order::Val) where {D}
+    # Goal: compute JΦ where Φ(θ) = (∇Ω(θ), vech(∇²Ω(θ))) and θ = (x, ν, δ).
+    # Notation per paper (one-pass, raw-moment formulation):
+    #   r̃(t, θ) = f(x + δ t, ν) - f_G(x, ν),  P(t|θ) ∝ exp(-r̃).
+    #   E[·] denotes expectation wrt P(t|θ).
+    # Working identities:
+    #   ∇Ω = E[∇_θ r̃] + ∇_θ f_G - (0, 0, δ⁻¹).
+    #   ∇²Ω = E[∇²_θ r̃] - (E[∇_θ r̃ ∇_θ r̃ᵀ] - μ μᵀ) + diag(1, 1, δ⁻²) + offdiag(1, -1),  μ = E[∇_θ r̃].
+    #   ∂_αβγ Ω = E[J_αβγ] + g_αβγ - 2 δ⁻³ 1{α=β=γ=δ}, where
+    #   J_αβγ = ∂_αβγ r̃ - (∂_αβ r̃ ∂_γ r̃ + ∂_αγ r̃ ∂_β r̃ + ∂_βγ r̃ ∂_α r̃) + ∂_α r̃ ∂_β r̃ ∂_γ r̃, and
+    #   g_αβγ = (μ_γ E[∂_αβ] + μ_β E[∂_αγ] + μ_α E[∂_βγ]) - (μ_γ E[∂_α ∂_β] + μ_β E[∂_α ∂_γ] + μ_α E[∂_β ∂_γ]) + 2 μ_α μ_β μ_γ.
+    # Implementation strategy: integrate the minimal raw basis (E[∂], E[∂∂ᵀ], E[∂²], E[J]), then assemble Φ and JΦ.
+    Δ = x - ν
+    δ⁻¹ = inv(δ)
+    δ⁻² = δ⁻¹ * δ⁻¹
+    δ⁻³ = δ⁻² * δ⁻¹
+
+    # Single pass: compute expectations of the minimal basis (∂, vech(∂∂ᵀ), vech(∂²), vech(J))
+    Ω₀, (E_∂, E_∂∂ᵀ, E_∂², E_J) = f_quadrature_weighted_unit_interval(D, order) do t
+        Δx = δ * t
+        (rx, rν), (rxx, rxν, rνν), (rxxx, rxxν, rxνν, rννν) = _∇³neglogpdf_rician_residual_with_gradient_and_hessian(x, ν, Δx)
+
+        t² = t * t; t³ = t² * t
+        fy, fyy = rx + Δ, rxx + 1
+        rδ = t * fy
+        rxδ, rνδ, rδδ = t * fyy, t * (rxν - 1), t² * fyy
+        rxxδ, rxνδ, rννδ = t * rxxx, t * rxxν, t * rxνν
+        rxδδ, rνδδ, rδδδ = t² * rxxx, t² * rxxν, t³ * rxxx
+        rxrx, rxrν, rxrδ, rνrν, rνrδ, rδrδ = rx^2, rx * rν, rx * rδ, rν^2, rν * rδ, rδ^2
+
+        ∂ = SVector(rx, rν, rδ) # first derivatives
+        ∂² = SVector(rxx, rxν, rxδ, rνν, rνδ, rδδ) # vech(∂²)
+        ∂∂ᵀ = SVector(rxrx, rxrν, rxrδ, rνrν, rνrδ, rδrδ) # vech(∂ ∂ᵀ)
+
+        Jxxx = rxxx - rx * (3 * rxx - rxrx)
+        Jxxν = rxxν - (rxx * rν + rx * (2 * rxν - rxrν))
+        Jxνν = rxνν - (rνν * rx + rν * (2 * rxν - rxrν))
+        Jννν = rννν - rν * (3 * rνν - rνrν)
+        Jxxδ = rxxδ - (rxx * rδ + rx * (2 * rxδ - rxrδ))
+        Jxνδ = rxνδ - (rxν * rδ + rxδ * rν + rx * (rνδ - rνrδ))
+        Jννδ = rννδ - (rνν * rδ + rν * (2 * rνδ - rνrδ))
+        Jxδδ = rxδδ - (rδδ * rx + rδ * (2 * rxδ - rxrδ))
+        Jνδδ = rνδδ - (rδδ * rν + rδ * (2 * rνδ - rνrδ))
+        Jδδδ = rδδδ - rδ * (3 * rδδ - rδrδ)
+        J = SVector(Jxxx, Jxxν, Jxνν, Jννν, Jxxδ, Jxνδ, Jννδ, Jxδδ, Jνδδ, Jδδδ) # vech(J)
+
+        return _neglogpdf_rician_residual(x, ν, Δx), (∂, ∂∂ᵀ, ∂², J)
+    end
+
+    # Unpack expectations and compute central moments
+    μ_rx, μ_rν, μ_rδ = E_∂
+    E_rxx, E_rxν, E_rxδ, E_rνν, E_rνδ, E_rδδ = E_∂²
+    E_rxrx, E_rxrν, E_rxrδ, E_rνrν, E_rνrδ, E_rδrδ = E_∂∂ᵀ
+    E_Jxxx, E_Jxxν, E_Jxνν, E_Jννν, E_Jxxδ, E_Jxνδ, E_Jννδ, E_Jxδδ, E_Jνδδ, E_Jδδδ = E_J
+
+    Cov_rx_rx = E_rxrx - μ_rx * μ_rx
+    Cov_rx_rν = E_rxrν - μ_rx * μ_rν
+    Cov_rx_rδ = E_rxrδ - μ_rx * μ_rδ
+    Cov_rν_rν = E_rνrν - μ_rν * μ_rν
+    Cov_rν_rδ = E_rνrδ - μ_rν * μ_rδ
+    Cov_rδ_rδ = E_rδrδ - μ_rδ * μ_rδ
+
+    # Assemble primal output Φ = (∇Ω, vech(H))
+    ∇x, ∇ν, ∇δ = μ_rx + Δ, μ_rν - Δ, μ_rδ - δ⁻¹
+    Hxx = E_rxx - Cov_rx_rx + 1
+    Hxν = E_rxν - Cov_rx_rν - 1
+    Hxδ = E_rxδ - Cov_rx_rδ
+    Hνν = E_rνν - Cov_rν_rν + 1
+    Hνδ = E_rνδ - Cov_rν_rδ
+    Hδδ = E_rδδ - Cov_rδ_rδ + δ⁻²
+    Φ = SVector(∇x, ∇ν, ∇δ, Hxx, Hxν, Hxδ, Hνν, Hνδ, Hδδ)
+
+    # Assemble Jacobian JΦ using third derivatives T_αβγ = ∂_αβγ Ω
+    μ_rx², μ_rν², μ_rδ² = μ_rx^2, μ_rν^2, μ_rδ^2
+    μ_rx³, μ_rν³, μ_rδ³ = μ_rx² * μ_rx, μ_rν² * μ_rν, μ_rδ² * μ_rδ
+    T_xxx = E_Jxxx + 3 * μ_rx * (E_rxx - E_rxrx) + 2 * μ_rx³
+    T_xxν = E_Jxxν + μ_rν * (E_rxx - E_rxrx) + 2 * (μ_rx * (E_rxν - E_rxrν) + μ_rx² * μ_rν)
+    T_xνν = E_Jxνν + μ_rx * (E_rνν - E_rνrν) + 2 * (μ_rν * (E_rxν - E_rxrν) + μ_rx * μ_rν²)
+    T_ννν = E_Jννν + 3 * μ_rν * (E_rνν - E_rνrν) + 2 * μ_rν³
+    T_xxδ = E_Jxxδ + μ_rδ * (E_rxx - E_rxrx) + 2 * (μ_rx * (E_rxδ - E_rxrδ) + μ_rx² * μ_rδ)
+    T_xνδ = E_Jxνδ + μ_rδ * (E_rxν - E_rxrν) + μ_rν * (E_rxδ - E_rxrδ) + μ_rx * (E_rνδ - E_rνrδ) + 2 * μ_rx * μ_rν * μ_rδ
+    T_ννδ = E_Jννδ + μ_rδ * (E_rνν - E_rνrν) + 2 * (μ_rν * (E_rνδ - E_rνrδ) + μ_rν² * μ_rδ)
+    T_xδδ = E_Jxδδ + μ_rx * (E_rδδ - E_rδrδ) + 2 * (μ_rδ * (E_rxδ - E_rxrδ) + μ_rx * μ_rδ²)
+    T_νδδ = E_Jνδδ + μ_rν * (E_rδδ - E_rδrδ) + 2 * (μ_rδ * (E_rνδ - E_rνrδ) + μ_rν * μ_rδ²)
+    T_δδδ = E_Jδδδ + 3 * μ_rδ * (E_rδδ - E_rδrδ) + 2 * μ_rδ³ - 2 * δ⁻³
+
+    JΦ = SMatrix{9, 3, D, 27}(
+        Hxx, Hxν, Hxδ, T_xxx, T_xxν, T_xxδ, T_xνν, T_xνδ, T_xδδ, # ∂Φ/∂x
+        Hxν, Hνν, Hνδ, T_xxν, T_xνν, T_xνδ, T_ννν, T_ννδ, T_νδδ, # ∂Φ/∂ν
+        Hxδ, Hνδ, Hδδ, T_xxδ, T_xνδ, T_xδδ, T_ννδ, T_νδδ, T_δδδ, # ∂Φ/∂δ
+    )
+
+    return Φ, JΦ
+end
+
 @inline function _∇²neglogpdf_qrician_with_jacobian(x::D, ν::D, δ::D, order::Val) where {D}
     # Compute primal, expectation parts, and d(E_ϕ)/dp via quadrature
     Φ, (E_∇ω, E_∇²ω, E_Jϕ_minus_E_ϕ∇ωᵀ) = _∇²neglogpdf_qrician_jac_parts(x, ν, δ, order)
     E_ϕ = SVector{9, D}(E_∇ω..., E_∇²ω...)
     J_Eϕ = E_Jϕ_minus_E_ϕ∇ωᵀ + E_ϕ * E_∇ω'
 
-    # Apply chain rule to get the full Jacobian JΦ = dΦ/dp, exploiting sparsity of dΦ/dE_ϕ.
+    # Apply chain rule to get the full Jacobian JΦ = dΦ/dp, exploiting sparsity of dΦ/dE_ϕ
     ∂x, ∂ν, ∂δ = E_∇ω
     J_Eϕ1, J_Eϕ2, J_Eϕ3 = J_Eϕ[1, :], J_Eϕ[2, :], J_Eϕ[3, :]
     JΦ = J_Eϕ + hcat(
@@ -487,7 +695,7 @@ end
 end
 
 @inline function _∇²neglogpdf_qrician_jac_parts(x::D, ν::D, δ::D, order::Val) where {D}
-    # Define a single integrand that computes all necessary terms for the primal and JVP calculations.
+    # Define a single integrand that computes all necessary terms for the primal and JVP calculations
     _, (E_∇ω, E_∇²ω, E_Jϕ_minus_E_ϕ∇ωᵀ) = f_quadrature_weighted_unit_interval(D, order) do t
         local ϕ, Jϕ = _∇²neglogpdf_qrician_inner_jac(x, ν, δ, t)
         local x′ = x + δ * t
@@ -513,7 +721,7 @@ end
     Δg = SVector{3, D}(Δgx, Δgν, Δgδ)
     ΔH = SVector{6, D}(ΔHxx, ΔHxν, ΔHxδ, ΔHνν, ΔHνδ, ΔHδδ)
 
-    # Define a single integrand that computes all necessary terms for the primal and JVP calculations.
+    # Define a single integrand that computes all necessary terms for the primal and JVP calculations
     _, (E_∇ω, E_∇²ω, E_JϕᵀΔ_minus_∇ωϕᵀΔ, E_J∇ω_minus_E_∇ω∇ωᵀ) = f_quadrature_weighted_unit_interval(D, order) do t
         local ϕ, Jϕ = _∇²neglogpdf_qrician_inner_jac(x, ν, δ, t)
         local x′ = x + δ * t
@@ -566,6 +774,7 @@ end
         return (gϕ, ∇²ω)
     end
     E_gΦ, E_∇²ω = vecdot(w_nodes, integrands)
+
     # Assemble the primal output Φ
     ∂x, ∂ν, ∂δ = E_∇ω
     dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ = E_∇²ω
