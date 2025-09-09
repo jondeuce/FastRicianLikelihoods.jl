@@ -3,8 +3,9 @@
 \usepackage{amssymb}
 \usepackage{hyperref}
 \usepackage{mathtools}
-\usepackage{cleveref}
+\usepackage[sort,compress]{cleveref}
 \usepackage[margin=1in]{geometry}
+\usepackage{natbib}
 
 \title{Stable, efficient evaluation of gradients and Hessians for the Rician log-likelihood}
 \author{Jonathan Doucette}
@@ -565,9 +566,9 @@ With these stable forms, the third derivatives for large $z$ are computed as:
 \begin{align}\label{eq:third-derivatives-large-z}
   \boxed{
     \begin{aligned}
-      f_{xxx}       & = -\frac{2}{x^3} - \nu^3 r''                                                                       \\
-      f_{xx\nu}     & = -\frac{1}{2 x z^2}   \left( b_1^2 - b_3 + (b_2  - \frac{1}{z} b_1^2) (\frac{1}{2} + b_0) \right) \\
-      f_{x\nu\nu}   & = -\frac{1}{2 \nu z^2} \left( b_1^2 - b_3 + (b_2  - \frac{1}{z} b_1^2) (\frac{1}{2} + b_0) \right) \\
+      f_{xxx}       & = -\frac{2}{x^3} - \nu^3 r''                                                                      \\
+      f_{xx\nu}     & = -\frac{1}{2 x z^2} \left( b_1^2 - b_3 + (b_2 - \frac{1}{z} b_1^2) (\frac{1}{2} + b_0) \right)   \\
+      f_{x\nu\nu}   & = -\frac{1}{2 \nu z^2} \left( b_1^2 - b_3 + (b_2 - \frac{1}{z} b_1^2) (\frac{1}{2} + b_0) \right) \\
       f_{\nu\nu\nu} & = -x^3 r''
     \end{aligned}
   }
@@ -801,14 +802,14 @@ Thus, $\tilde{c}$ is small in the high-SNR regime and therefore $\tilde{r} = \de
 The first partial derivatives of $\tilde{r}$ can be simplified using \cref{eq:first-derivatives-simplified-x,eq:first-derivatives-simplified-nu}:
 %
 \begin{align}
-  \tilde{r}_x   & = f_x(y,\nu) - (x-\nu) = (y - \nu r - \frac{1}{y}) - (x-\nu) = \delta t  + \nu (1 - r) - \frac{1}{y} \\
+  \tilde{r}_x   & = f_x(y,\nu) - (x-\nu) = (y - \nu r - \frac{1}{y}) - (x-\nu) = \delta t + \nu (1 - r) - \frac{1}{y} \\
   \tilde{r}_\nu & = f_\nu(y,\nu) - (\nu-x) = (\nu - y r) - (\nu-x) = -\delta t r + x (1 - r)
 \end{align}
 %
 These forms are stable for small $z = y \nu$, but for large $z$, we substitute $1-r = \frac{b_0}{z}$ from \cref{eq:r-large-reparametrized}:
 %
 \begin{align}
-  \tilde{r}_x   & = \delta t  + \nu (1 - r) - \frac{1}{y} = \delta t - \frac{1 - b_0}{y}          \\
+  \tilde{r}_x   & = \delta t + \nu (1 - r) - \frac{1}{y} = \delta t - \frac{1 - b_0}{y}           \\
   \tilde{r}_\nu & = -\delta t r + x (1 - r) = -\delta t + y (1 - r) = -\delta t + \frac{b_0}{\nu}
 \end{align}
 
@@ -817,8 +818,8 @@ These forms are stable for small $z = y \nu$, but for large $z$, we substitute $
 The second partial derivatives of the $\tilde{r}$ can be simplified using \cref{eq:second-derivatives-unsimplified-x-x,eq:second-derivatives-unsimplified-x-nu,eq:second-derivatives-unsimplified-nu-nu}:
 %
 \begin{align}
-  \tilde{r}_{xx}     & = f_{xx} - 1     = \frac{1}{y^2} - \nu^2 r'        \\
-  \tilde{r}_{x\nu}   & = f_{x\nu} + 1   = 1 - (r + z r') = 1 - z(1 - r^2) \\
+  \tilde{r}_{xx}     & = f_{xx} - 1 = \frac{1}{y^2} - \nu^2 r'          \\
+  \tilde{r}_{x\nu}   & = f_{x\nu} + 1 = 1 - (r + z r') = 1 - z(1 - r^2) \\
   \tilde{r}_{\nu\nu} & = f_{\nu\nu} - 1 = - y^2 r'
 \end{align}
 %
@@ -865,14 +866,14 @@ The Jacobian $\nabla_\theta \mathbb{E}[g] \in \mathbb{R}^{m \times 3}$ is given 
                               & = \mathbb{E}[\nabla_\theta g] - \mathrm{Cov}(g, \nabla_\theta \tilde{r}) \label{eq:gradient-expectation-covariance-residual}
 \end{align}
 %
-where, denoting $\mu_g = \mathbb{E}[g]$ and $\mu_h = \mathbb{E}[h]$, the covariance is defined as
+where, denoting $\mu_X = \mathbb{E}[X]$ and $\mu_Y = \mathbb{E}[Y]$, the covariance is defined as usual as
 %
 \begin{align}
-  \mathrm{Cov}(g, h) = \mathbb{E}[(g - \mu_g)(h - \mu_h)^T] = \mathbb{E}[g h^T] - \mu_g \mu_h^T.
+  \mathrm{Cov}(X, Y) = \mathbb{E}[(X - \mu_X)(Y - \mu_Y)^T] = \mathbb{E}[X Y^T] - \mu_X \mu_Y^T.
 \end{align}
 %
-This result follows from differentiating the definition of the expectation, $\mathbb{E}[g] = Z^{-1} \int_0^1 g \exp(-\tilde{f})$.
-Crucially, this identity holds exactly even when the expectation is computed via a fixed-node quadrature, $\mathbb{E}[g] \approx \sum_i \frac{w_i}{2} g(t_i) P(t_i \mid \theta)$, because both integration and finite summation are linear functionals that commute with differentiation.
+\Cref{eq:gradient-expectation-covariance,eq:gradient-expectation-covariance-residual} follow from differentiating the definition of the expectation $\mathbb{E}[g] = \int_0^1 g(t, \theta) P(t \mid \theta) \, dt$.
+Crucially, \cref{eq:gradient-expectation-covariance,eq:gradient-expectation-covariance-residual} also hold exactly when the expectation is computed via a fixed-node quadrature, $\mathbb{E}[g] \approx \sum_i \frac{w_i}{2} g(t_i, \theta) P(t_i \mid \theta)$, since both integration and quadrature are linear functionals of the integrand $g(\cdot,\theta) P(\cdot \mid \theta)$ and thus commute with differentiation.
 
 \paragraph{Proof of \cref{eq:gradient-expectation-covariance}}
 
@@ -926,7 +927,7 @@ For any two scalar functions $g(t,\theta)$ and $h(t,\theta)$, the derivative of 
   \partial_{\gamma} \mathrm{Cov}(g, h) = \mathrm{Cov}(\partial_{\gamma} g, h) + \mathrm{Cov}(g, \partial_{\gamma} h) - \mathrm{Cov3}(g, h, \partial_{\gamma} \tilde{r}),
 \end{align}
 %
-where $\mathrm{Cov3}(a,b,c) = \mathbb{E}[(a-\mathbb{E}[a])(b-\mathbb{E}[b])(c-\mathbb{E}[c])]$ is the third joint central moment.
+where $\mathrm{Cov3}(X,Y,Z) = \mathbb{E}[(X-\mathbb{E}[X])(Y-\mathbb{E}[Y])(Z-\mathbb{E}[Z])]$ is the third joint central moment.
 
 \paragraph{Proof of \cref{eq:derivative-covariance-identity}}
 
@@ -947,11 +948,12 @@ Next, we apply the gradient-of-expectation identity from \cref{eq:gradient-expec
 Substituting these back into the main expression and grouping terms yields:
 %
 \begin{align}
-  \partial_{\gamma} \mathrm{Cov}(g, h) & = \left( \mathbb{E}[(\partial_{\gamma} g) h] - \mathbb{E}[\partial_{\gamma} g] \mathbb{E}[h] \right) + \left( \mathbb{E}[g (\partial_{\gamma} h)] - \mathbb{E}[g] \mathbb{E}[\partial_{\gamma} h] \right) \\
-                                       & - \mathrm{Cov}(g h, \partial_{\gamma} \tilde{r}) + \mathrm{Cov}(g, \partial_{\gamma} \tilde{r}) \mathbb{E}[h] + \mathbb{E}[g] \mathrm{Cov}(h, \partial_{\gamma} \tilde{r}).
+  \partial_{\gamma} \mathrm{Cov}(g, h) & = \mathbb{E}[(\partial_{\gamma} g) h] - \mathbb{E}[\partial_{\gamma} g] \mathbb{E}[h] + \mathbb{E}[g (\partial_{\gamma} h)] - \mathbb{E}[g] \mathbb{E}[\partial_{\gamma} h]           \\
+                                       & - \mathrm{Cov}(g h, \partial_{\gamma} \tilde{r}) + \mathrm{Cov}(g, \partial_{\gamma} \tilde{r}) \mathbb{E}[h] + \mathbb{E}[g] \mathrm{Cov}(h, \partial_{\gamma} \tilde{r}). \nonumber
 \end{align}
 %
-The term in the parenthesis is the third joint central moment, or third-order covariance, of $(g, h, \partial_{\gamma} \tilde{r})$. Expanding the definition of the third central moment confirms its equivalence to this term:
+The term in the parenthesis is the third joint central moment, or third-order covariance, of $(g, h, \partial_{\gamma} \tilde{r})$.
+Expanding the definition of the third central moment confirms its equivalence to this term:
 %
 \begin{align}
   \mathrm{Cov3}(g, h, \partial_{\gamma} \tilde{r}) & = \mathbb{E}[(g-\mathbb{E}[g])(h-\mathbb{E}[h])(\partial_{\gamma} \tilde{r}-\mathbb{E}[\partial_{\gamma} \tilde{r}])]                                                                                                                                                                           \\
@@ -962,12 +964,12 @@ The term in the parenthesis is the third joint central moment, or third-order co
 %
 Substituting this back gives the final expression for the derivative of the covariance.
 
-\subsection{Residual gradient}
+\subsection{Residual gradient}\label{sec:qrician-residual-gradient}
 
-We compute the gradient of $\Omega(\theta) = -\log Z(\theta) - \log\delta$ in terms of the gradient of $\log Z$:
+We compute the gradient of $\Omega = -\log Z - \log\delta$ in terms of the gradient of $-\log Z$:
 %
 \begin{align}
-  \nabla_{\theta} \log Z(\theta) = \frac{1}{Z(\theta)}\nabla_{\theta} Z(\theta) = \frac{1}{Z(\theta)}\int_0^1 -\nabla_{\theta} \tilde{f} \cdot \exp(-\tilde{f}) \, dt = -\mathbb{E}[\nabla_{\theta} \tilde{f}].
+  \nabla_{\theta} (-\log Z) = -\frac{\nabla_{\theta} Z}{Z} = -\frac{1}{Z}\int_0^1 -\nabla_{\theta} \tilde{f} \cdot \exp(-\tilde{f}) \, dt = \mathbb{E}[\nabla_{\theta} \tilde{f}].
 \end{align}
 %
 Rewriting the expectation in terms of the residual energy $\tilde{r}$, we have
@@ -980,29 +982,27 @@ since $f_G$ is constant with respect to $t$.
 Finally, the gradient $\nabla_{\theta} \Omega$ simplifies to
 %
 \begin{align}
-  \nabla_{\theta} \Omega & = - \nabla_\theta \log Z(\theta) - \nabla_\theta \log\delta = \mathbb{E}[\nabla_{\theta} \tilde{f}] - (0, 0, \delta^{-1})^T \\
+  \nabla_{\theta} \Omega & = - \nabla_\theta \log Z - \nabla_\theta \log\delta = \mathbb{E}[\nabla_{\theta} \tilde{f}] - (0, 0, \delta^{-1})^T \\
                          & = \mathbb{E}\left[ \begin{pmatrix} \tilde{r}_x \\ \tilde{r}_\nu \\ t \tilde{f}_x \end{pmatrix} \right]
   + \begin{pmatrix} x - \nu \\ \nu - x \\ -\delta^{-1} \end{pmatrix}
 \end{align}
 %
 where $\frac{\partial}{\partial x} f_G = x - \nu$, $\frac{\partial}{\partial \nu} f_G = \nu - x$, and $\tilde{r}_x$, $\tilde{r}_\nu$, and $f_x$ are evaluated at $y=x+\delta t$ as in \cref{sec:first-derivatives-residual}.
 
-\subsection{Residual Hessian}
+\subsection{Residual Hessian}\label{sec:qrician-residual-hessian}
 
-We can compute the Hessian of $\Omega$ by differentiating $\nabla_{\theta} \Omega$ using the gradient of the expectation identity \cref{eq:gradient-expectation-covariance}:
+We can compute the Hessian of $\Omega = -\log Z - \log\delta$ by differentiating $\nabla_{\theta} (-\log Z)$ from \cref{sec:qrician-residual-gradient} using the gradient of the expectation identity \cref{eq:gradient-expectation-covariance}:
 %
 \begin{align}
-  \nabla_{\theta}^2 \Omega & = \nabla_\theta \left( \mathbb{E}[\nabla_{\theta} \tilde{f}] - (0, 0, \delta^{-1})^T \right)                                                       \\
-                           & = \mathbb{E}[\nabla_{\theta}^2 \tilde{f}] - \mathrm{Cov}(\nabla_{\theta} \tilde{f}, \nabla_{\theta} \tilde{f}) + \mathrm{diag}(0, 0, \delta^{-2}).
+  \nabla_{\theta}^2 (-\log Z) = \nabla_\theta ( \mathbb{E}[\nabla_{\theta} \tilde{f}] ) = \mathbb{E}[\nabla_{\theta}^2 \tilde{f}] - \mathrm{Cov}(\nabla_{\theta} \tilde{f}, \nabla_{\theta} \tilde{f})
 \end{align}
 %
 Substituting $\tilde{f} = \tilde{r} + f_G$ and recalling that $f_G$ is constant with respect to $t$, we have
 %
 \begin{align}
-  \nabla_{\theta}^2 \Omega
-   & = \mathbb{E}[\nabla_{\theta}^2 \tilde{r} + \nabla_{\theta}^2 f_G] - \mathrm{Cov}(\nabla_{\theta} \tilde{r} + \nabla_{\theta} f_G, \nabla_{\theta} \tilde{r} + \nabla_{\theta} f_G) + \mathrm{diag}(0, 0, \delta^{-2}) \\
-   & = \mathbb{E}[\nabla_{\theta}^2 \tilde{r}] + \nabla_{\theta}^2 f_G - \mathrm{Cov}(\nabla_{\theta} \tilde{r}, \nabla_{\theta} \tilde{r}) + \mathrm{diag}(0, 0, \delta^{-2}) \label{eq:residual-hessian-full}            \\
-   & = \mathbb{E}[\nabla_{\theta}^2 \tilde{r}] - \mathrm{Cov}(\nabla_{\theta} \tilde{r}, \nabla_{\theta} \tilde{r}) + \begin{pmatrix} 1 & -1 & 0 \\ -1 & 1 & 0 \\ 0 & 0 & \delta^{-2} \end{pmatrix} \label{eq:residual-hessian-full-simplified}
+  \nabla_{\theta}^2 (-\log Z)                                                     & = \mathbb{E}[\nabla_{\theta}^2 \tilde{r} + \nabla_{\theta}^2 f_G] - \mathrm{Cov}(\nabla_{\theta} \tilde{r} + \nabla_{\theta} f_G, \nabla_{\theta} \tilde{r} + \nabla_{\theta} f_G)  \\
+                                                                                  & = \mathbb{E}[\nabla_{\theta}^2 \tilde{r}] + \nabla_{\theta}^2 f_G - \mathrm{Cov}(\nabla_{\theta} \tilde{r}, \nabla_{\theta} \tilde{r}) \label{eq:residual-hessian-neglogz}          \\
+  \Rightarrow \nabla_{\theta}^2 \Omega = \nabla_{\theta}^2 (-\log Z - \log\delta) & = \mathbb{E}[\nabla_{\theta}^2 \tilde{r}] - \mathrm{Cov}(\nabla_{\theta} \tilde{r}, \nabla_{\theta} \tilde{r}) + \begin{pmatrix} 1 & -1 & 0 \\ -1 & 1 & 0 \\ 0 & 0 & \delta^{-2} \end{pmatrix} \label{eq:residual-hessian-qrician}
 \end{align}
 %
 where $\frac{\partial^2}{\partial x^2} f_G = \frac{\partial^2}{\partial \nu^2} f_G = 1$, $\frac{\partial^2}{\partial x \partial \nu} f_G = -1$.
@@ -1020,7 +1020,7 @@ For applications requiring differentiation through statistical inference procedu
 We define a single vector containing these quantities:
 %
 \begin{align}
-  \Phi(\theta) = \left( \nabla_\theta \Omega(\theta), \ \mathrm{vech}(\nabla_\theta^2 \Omega(\theta)) \right)^T \in \mathbb{R}^9,
+  \Phi(\theta) = \left( \nabla_\theta \Omega(\theta), \mathrm{vech}(\nabla_\theta^2 \Omega(\theta)) \right)^T \in \mathbb{R}^9,
 \end{align}
 %
 where $\theta = (x, \nu, \delta)$ and $\mathrm{vech}$ stacks the lower–triangular elements of the symmetric Hessian.
@@ -1028,22 +1028,54 @@ This section details the computation of the Jacobian of $\Phi$ and the correspon
 
 \subsection{Third derivatives of $\Omega$}
 
-The Jacobian of $\Phi$ contains the Hessian of $\Omega$ in its first three rows and the third-order partial derivatives of $\Omega$ in its last six rows. We derive the third derivatives by differentiating the Hessian of $\Omega$ from \cref{eq:residual-hessian-full} with respect to a parameter $\gamma \in \{x, \nu, \delta\}$:
+The Jacobian of $\Phi$ contains the Hessian of $\Omega = -\log Z - \log\delta$ in its first three rows and the third-order partial derivatives of $\Omega$ in its last six rows.
+We derive the third derivatives by differentiating the Hessian $\nabla_{\theta}^2 (-\log Z)$ from \cref{eq:residual-hessian-neglogz} with respect to a parameter $\gamma \in \{x, \nu, \delta\}$:
 %
 \begin{align}
-  \partial_{\gamma}(\nabla_\theta^2 \Omega) = \partial_{\gamma} \mathbb{E}[\nabla_\theta^2 \tilde{r}] - \partial_{\gamma}\mathrm{Cov}(\nabla_\theta \tilde{r}, \nabla_\theta \tilde{r}) + \mathrm{diag}(0,0,-2\delta^{-3}).
+  \partial_{\gamma}(\nabla_{\theta}^2 (-\log Z)) = \partial_{\gamma} \mathbb{E}[\nabla_\theta^2 \tilde{r}] - \partial_{\gamma}\mathrm{Cov}(\nabla_\theta \tilde{r}, \nabla_\theta \tilde{r}).
 \end{align}
 %
 The components of the third-derivative tensor follow by applying \cref{eq:gradient-expectation-covariance-residual,eq:derivative-covariance-identity} to differentiate the expectation and covariance terms:
 %
 \begin{align}
-  \partial_{\gamma} \mathbb{E}[\partial_{\alpha\beta} \tilde{r}]                         & = \mathbb{E}[\partial_{\alpha\beta\gamma} \tilde{r}] - \mathrm{Cov}(\partial_{\alpha\beta} \tilde{r}, \partial_{\gamma} \tilde{r})                                                                                                                                                             \\
-  \partial_{\gamma}\mathrm{Cov}(\partial_{\alpha} \tilde{r}, \partial_{\beta} \tilde{r}) & = \mathrm{Cov}(\partial_{\alpha\gamma} \tilde{r}, \partial_{\beta} \tilde{r}) + \mathrm{Cov}(\partial_{\alpha} \tilde{r}, \partial_{\beta\gamma} \tilde{r}) - \mathrm{Cov3}(\partial_{\alpha} \tilde{r}, \partial_{\beta} \tilde{r}, \partial_{\gamma} \tilde{r})                              \\
-  \Rightarrow \partial_{\alpha\beta\gamma} \Omega                                        & = \mathbb{E}[\partial_{\alpha\beta\gamma} \tilde{r}] - \mathrm{Cov}(\partial_{\alpha\beta} \tilde{r}, \partial_{\gamma} \tilde{r}) - \mathrm{Cov}(\partial_{\alpha\gamma} \tilde{r}, \partial_{\beta} \tilde{r}) - \mathrm{Cov}(\partial_{\beta\gamma} \tilde{r}, \partial_{\alpha} \tilde{r}) \\
-                                                                                         & + \mathrm{Cov3}(\partial_{\alpha} \tilde{r}, \partial_{\beta} \tilde{r}, \partial_{\gamma} \tilde{r}) - 2\delta^{-3} \mathbf{1}_{\{\alpha=\beta=\gamma=\delta\}}.
+  \partial_{\gamma} \mathbb{E}[\partial_{\alpha\beta} \tilde{r}]                         & = \mathbb{E}[\partial_{\alpha\beta\gamma} \tilde{r}] - \mathrm{Cov}(\partial_{\alpha\beta} \tilde{r}, \partial_{\gamma} \tilde{r})                                                                                                                                                                                                                                                                                                       \\
+  \partial_{\gamma}\mathrm{Cov}(\partial_{\alpha} \tilde{r}, \partial_{\beta} \tilde{r}) & = \mathrm{Cov}(\partial_{\alpha\gamma} \tilde{r}, \partial_{\beta} \tilde{r}) + \mathrm{Cov}(\partial_{\alpha} \tilde{r}, \partial_{\beta\gamma} \tilde{r}) - \mathrm{Cov3}(\partial_{\alpha} \tilde{r}, \partial_{\beta} \tilde{r}, \partial_{\gamma} \tilde{r})                                                                                                                                                                        \\
+  \Rightarrow \partial_{\alpha\beta\gamma} (-\log Z)                                     & = \mathbb{E}[\partial_{\alpha\beta\gamma} \tilde{r}] - \mathrm{Cov}(\partial_{\alpha\beta} \tilde{r}, \partial_{\gamma} \tilde{r}) - \mathrm{Cov}(\partial_{\alpha\gamma} \tilde{r}, \partial_{\beta} \tilde{r}) - \mathrm{Cov}(\partial_{\beta\gamma} \tilde{r}, \partial_{\alpha} \tilde{r}) + \mathrm{Cov3}(\partial_{\alpha} \tilde{r}, \partial_{\beta} \tilde{r}, \partial_{\gamma} \tilde{r}) \label{eq:neglogz-third-derivative} \\
+  \Rightarrow \partial_{\alpha\beta\gamma} \Omega                                        & = \partial_{\alpha\beta\gamma} (-\log Z) - 2\delta^{-3} \mathbf{1}_{\{\alpha=\beta=\gamma=\delta\}}. \label{eq:omega-third-derivative-qrician}
 \end{align}
 %
-This final form, while complex, is composed entirely of expectations and covariances of quantities for which we have already derived stable numerical expressions. It can therefore be robustly evaluated using quadrature.
+We now discuss two strategies for the efficient evaluation of $\partial_{\alpha\beta\gamma}(-\log Z)$.
+
+\paragraph{Raw-Moment Formulation}
+
+We rewrite the covariances and third central moments in terms of raw moments.
+Let $\mu_{\alpha} = \mathbb{E}[\partial_{\alpha} \tilde{r}]$, $\mu_{\alpha\beta} = \mathbb{E}[\partial_{\alpha} \tilde{r} \, \partial_{\beta} \tilde{r}]$, and $\mu_{\alpha\beta\gamma} = \mathbb{E}[\partial_{\alpha} \tilde{r} \, \partial_{\beta} \tilde{r} \, \partial_{\gamma} \tilde{r}]$.
+Then,
+%
+\begin{align}
+  \mathrm{Cov}(\partial_{\alpha\beta} \tilde{r}, \partial_{\gamma} \tilde{r})                         & = \mathbb{E}[\partial_{\alpha\beta} \tilde{r} \, \partial_{\gamma} \tilde{r}] - \mathbb{E}[\partial_{\alpha\beta} \tilde{r}] \, \mu_{\gamma}                                                                                                                                        \\
+  \mathrm{Cov3}(\partial_{\alpha} \tilde{r}, \partial_{\beta} \tilde{r}, \partial_{\gamma} \tilde{r}) & = \mu_{\alpha\beta\gamma} - \mu_{\alpha} \, \mu_{\beta\gamma} - \mu_{\beta} \, \mu_{\alpha\gamma} - \mu_{\gamma} \, \mu_{\alpha\beta} + 2 \mu_{\alpha} \mu_{\beta} \mu_{\gamma}                                                                                                     \\
+  \Rightarrow \partial_{\alpha\beta\gamma} (-\log Z)                                                  & = \mathbb{E}[\partial_{\alpha\beta\gamma} \tilde{r}] + \mu_{\alpha\beta\gamma} - \mu_{\alpha} \, \mu_{\beta\gamma} - \mu_{\beta} \, \mu_{\alpha\gamma} - \mu_{\gamma} \, \mu_{\alpha\beta} + 2 \mu_{\alpha} \mu_{\beta} \mu_{\gamma} \label{eq:neglogz-third-derivative-raw-moment} \\
+                                                                                                      & - \mathbb{E}[\partial_{\alpha\beta} \tilde{r} \, \partial_{\gamma} \tilde{r}] - \mathbb{E}[\partial_{\alpha\gamma} \tilde{r} \, \partial_{\beta} \tilde{r}] - \mathbb{E}[\partial_{\beta\gamma} \tilde{r} \, \partial_{\alpha} \tilde{r}] \nonumber                                 \\
+                                                                                                      & + \mathbb{E}[\partial_{\alpha\beta} \tilde{r}] \, \mu_{\gamma} + \mathbb{E}[\partial_{\alpha\gamma} \tilde{r}] \, \mu_{\beta} + \mathbb{E}[\partial_{\beta\gamma} \tilde{r}] \, \mu_{\alpha}. \nonumber
+\end{align}
+%
+For a three-parameter system, a minimal basis of raw moments requires integrating 25 unique quantities.
+The derivatives $\partial_{\alpha\beta\gamma} (-\log Z)$ are then assembled from sums and products of these raw moments.
+
+\paragraph{Centred-Moment Formulation}
+
+Let the centred first derivatives be given by $c_{\alpha} = \partial_{\alpha} \tilde{r} - \mu_{\alpha}$ where $\mu_{\alpha} = \mathbb{E}[\partial_{\alpha} \tilde{r}]$.
+Then, $\partial_{\alpha\beta\gamma}(-\log Z)$ can be rewritten as an expectation:
+%
+\begin{align}
+  \mathrm{Cov3}(\partial_{\alpha} \tilde{r}, \partial_{\beta} \tilde{r}, \partial_{\gamma} \tilde{r}) & = \mathbb{E}[c_{\alpha} c_{\beta} c_{\gamma}]                                                                                                                                                                                                                                            \\
+  \mathrm{Cov}(\partial_{\alpha\beta} \tilde{r}, \partial_{\gamma} \tilde{r})                         & = \mathbb{E}[\partial_{\alpha\beta} \tilde{r} \, (\partial_{\gamma} \tilde{r} - \mathbb{E}[\partial_{\gamma} \tilde{r}])] = \mathbb{E}[\partial_{\alpha\beta} \tilde{r} \, c_{\gamma}]                                                                                                   \\
+  \Rightarrow \partial_{\alpha\beta\gamma} (-\log Z)                                                  & = \mathbb{E} [ \partial_{\alpha\beta\gamma} \tilde{r} - \partial_{\alpha\beta} \tilde{r} \, c_{\gamma} - \partial_{\alpha\gamma} \tilde{r} \, c_{\beta} - \partial_{\beta\gamma} \tilde{r} \, c_{\alpha} + c_{\alpha} c_{\beta} c_{\gamma} ]. \label{eq:neglogz-two-pass-centred-moment}
+\end{align}
+%
+After computing the 3 means, this requires integrating 6 unique second-order and 10 unique third-order derivatives.
+While this method requires evaluating first-derivatives twice, the linearity of the expectation in \cref{eq:neglogz-two-pass-centred-moment} can make for more efficient vector-Jacobian products than \cref{eq:neglogz-third-derivative-raw-moment} because contraction with a vector $v$ can be moved inside the expectation (i.e. $v^T \mathbb{E}[X] = \mathbb{E}[v^T X]$), resulting in fewer scalar integrands.
 
 \subsection{Vector-Jacobian product of $\Phi$}
 
@@ -1054,77 +1086,279 @@ Given an incoming sensitivity vector $\Delta_\Phi \in \mathbb{R}^9$, the VJP is
   (\nabla_\theta \Phi)^T \Delta_\Phi \in \mathbb{R}^3.
 \end{align}
 %
-Let $\Delta_g = (\Delta_{\Phi,1}, \Delta_{\Phi,2}, \Delta_{\Phi,3})^T$ be the sensitivity for the gradient components of $\Phi$, and let $\Delta_H$ be the $3 \times 3$ symmetric matrix formed by un-vectorizing the remaining six elements of $\Delta_\Phi$.
+Let $\Delta_g = (\Delta_{\Phi,1}, \Delta_{\Phi,2}, \Delta_{\Phi,3})^T$ be the sensitivity for the gradient components of $\Phi$, and let $\Delta^H$ be the $3 \times 3$ symmetric matrix formed by un-vectorizing the remaining six elements of $\Delta_\Phi$.
 The VJP can be split into two parts corresponding to the gradient and Hessian components of $\Phi$:
 %
 \begin{align}
-  (\nabla_\theta \Phi)^T \Delta_\Phi = (\nabla_\theta^2 \Omega)^T \Delta_g + (\nabla_\theta (\mathrm{vech}(\nabla_\theta^2 \Omega)))^T \mathrm{vech}(\Delta_H).
+  (\nabla_\theta \Phi)^T \Delta_\Phi = (\nabla_\theta^2 \Omega)^T \Delta_g + (\nabla_\theta (\mathrm{vech}(\nabla_\theta^2 \Omega)))^T \mathrm{vech}(\Delta^H).
 \end{align}
 %
 The first term is simply $(\nabla_\theta^2 \Omega)^T \Delta_g = H \Delta_g$, since the Hessian $H$ is symmetric.
-The second term is a contraction of the third-derivative tensor with the sensitivity matrix $\Delta_H$. Its $k$-th component is given by the sum over the unique elements of the Hessian:
+The second term is a contraction of the third-derivative tensor with the sensitivity matrix $\Delta^H$.
+Its $k$-th component is given by the sum over the unique elements of the Hessian:
 %
 \begin{align}
-  \left[ (\nabla_\theta (\mathrm{vech}(H)))^T \mathrm{vech}(\Delta_H) \right]_k
-  = \sum_{1 \le i \le j \le 3} (\partial_k H_{ij}) (\Delta_H)_{ij}
-  = \sum_{1 \le i \le j \le 3} \partial_{ijk}\Omega \cdot (\Delta_H)_{ij}.
+  \left[ (\nabla_\theta (\mathrm{vech}(H)))^T \mathrm{vech}(\Delta^H) \right]_k
+  = \sum_{1 \le i \le j \le 3} (\partial_k H_{ij}) (\Delta^H)_{ij}
+  = \sum_{1 \le i \le j \le 3} \partial_{ijk}\Omega \cdot (\Delta^H)_{ij}.
 \end{align}
 %
 Thus, the full VJP is given by
 %
 \begin{align}\label{eq:vjp-full}
-  \left( (\nabla_\theta \Phi)^T \Delta_\Phi \right)_k = (H \Delta_g)_k + \sum_{1 \le i \le j \le 3} \partial_{ijk}\Omega \cdot (\Delta_H)_{ij},
+  \left( (\nabla_\theta \Phi)^T \Delta_\Phi \right)_k = (H \Delta_g)_k + \sum_{1 \le i \le j \le 3} \partial_{ijk}\Omega \cdot (\Delta^H)_{ij},
 \end{align}
 %
 which can be computed by first forming the Hessian and third-derivative tensor of $\Omega$ using quadrature and then performing the matrix-vector products and summations.
 
-\subsection{Application: Differentiating Through a Laplace Approximation}
+\section{Application: Differentiating Through Laplace's Approximation}
 
-The need for third derivatives arises when differentiating through complex inference procedures. Consider a model where data $\{x_i\}_{i=1}^N$ are drawn from Quantized Rician distributions with parameters $\{\nu_i\}_{i=1}^N$ and a single shared noise parameter $\sigma$, with a known quantization width $\delta$. The total negative log-likelihood is
-%
-\begin{align}
-  L(\nu, \sigma) = \sum_{i=1}^N -\log p(x_i \mid \nu_i, \sigma, \delta) = \sum_{i=1}^N \Omega(x_i/\sigma, \nu_i/\sigma, \delta/\sigma),
-\end{align}
-%
-where $\nu = (\nu_1, \dots, \nu_N)^T$.
+In Type-II maximum likelihood frameworks, hyperparameters are tuned by optimizing the model evidence \citep{mackay_bayesian_1992}.
+Using the Laplace approximation (LA) of the evidence, this optimization requires backpropagating through the posterior's maximum a posteriori (MAP) estimate and its curvature; while this naively introduces third-order derivative tensors, the process can be made practical via efficient adjoint methods \citep{margossian_hamiltonian_2020}.
+LA applications include Bayesian inference in latent Gaussian models, Variational Laplace Autoencoders, and end-to-end learning of data-augmentation invariances in deep networks \citep{margossian_hamiltonian_2020, park_variational_2019, immer_invariance_2022}.
+For large-scale deep learning, tractability requires either replacing the full Hessian with approximations like Kronecker-factored structures or the generalized Gauss-Newton matrix \citep{ritter_scalable_2018, immer_improving_2021}, or applying the LA only to a subset of parameters.
+A special case of this latter approach, \textit{last-layer} LA, applies the LA to a network's final linear layer \citep{kristiadi_being_2020, daxberger_laplace_2021}.
+This motivates our setting: a small, two-dimensional LA over nuisance parameters is embedded within a larger variational posterior approximation.
 
-Suppose we construct a factorized approximate posterior $q(\nu, \sigma) = q(\nu) q(\sigma \mid \nu)$, where the conditional for $\sigma$ is a Laplace approximation of $p(\sigma \mid x, \nu, \delta)$. For a fixed $\nu$, this approximation is a Gaussian centered at the conditional posterior mode:
-%
-\begin{align}
-  \hat{\sigma}(\nu) = \arg\min_\sigma L(\nu, \sigma).
-\end{align}
-%
-The approximation is $q(\sigma \mid \nu) = \mathcal{N}(\sigma \mid \mu=\hat{\sigma}(\nu), \Sigma=H_\sigma^{-1})$, where the precision is the Hessian at the mode:
-%
-\begin{align}
-  H_\sigma(\nu) = \nabla_\sigma^2 L(\nu, \sigma) \big|_{\sigma=\hat{\sigma}(\nu)}.
-\end{align}
-%
-If the parameters $\nu$ are themselves outputs of another model (e.g., a neural network with variational parameters $\psi$), such that $\nu = \nu(\psi)$, then the parameters of our Laplace approximation, $\hat{\sigma}(\psi)$ and $H_\sigma(\psi)$, depend on $\psi$.
-To optimize an objective function like the evidence lower bound (ELBO) in variational inference, we must differentiate a loss $J(\hat{\sigma}, H_\sigma)$ with respect to $\psi$ using reverse-mode automatic differentiation (AD).
-This requires implementing pullback functions for the maps $\psi \mapsto \hat{\sigma}$ and $\psi \mapsto H_\sigma$, which compute the corresponding VJPs.
+\subsection{MRI Problem Formulation}
 
-The pullback for $\hat{\sigma}$ is derived using the implicit function theorem. The mode $\hat{\sigma}$ satisfies the first-order optimality condition $\nabla_\sigma L(\nu(\psi), \hat{\sigma}(\psi)) = 0$. Differentiating this identity with respect to $\psi$ and rearranging gives the Jacobian of the map $\psi \mapsto \hat{\sigma}$:
+In a common MRI setting, magnitude data $x = (x_1, \dots, x_N)^T$ arise by taking the magnitude of complex measurements corrupted by Gaussian noise with variance $\sigma^2$, yielding Rician-distributed signals.
+These signals are then quantized;
+for example, stored as 16-bit integers with a scale factor $\delta$ to convert the compressed format back to physical units.
+Suppose the measured signal $x_i$ is modeled as $s \cdot \mu_i(\lambda)$ where $\mu(\lambda)$ is a normalized signal model, $\lambda$ are the physical parameters of interest, and $s$ is a scaling factor.
+The simplest such model is mono-exponential $T_2$ relaxation wherein $\lambda$ is the transverse relaxation time $T_2$, $\mu_i(\lambda) = \exp(-t_i/T_2)$ is the attenuation at echo time $t_i$, and $s$ is the initial signal amplitude.
+Assuming the measurements are independent, this family of models results in the factorized likelihood:
 %
-\begin{align}
-  \nabla_\psi \hat{\sigma} = - (H_\sigma)^{-1} (\nabla_\nu \nabla_\sigma L) (\nabla_\psi \nu).
-\end{align}
-%
-Given an incoming sensitivity $\Delta_{\hat{\sigma}} = \partial J / \partial \hat{\sigma}$, the pullback computes the sensitivity with respect to $\nu$ by applying the transpose of the Jacobian:
-%
-\begin{align}
-  \Delta_\nu \mathrel{+}= (\nabla_\psi \nu)^T \left[ -(\nabla_\nu \nabla_\sigma L)^T (H_\sigma)^{-1} \Delta_{\hat{\sigma}} \right].
+\begin{align}\label{eq:likelihood}
+  p(x \mid \lambda, \eta, \delta) = \prod_{i=1}^N p_{\mathrm{QRice}}(x_i \mid \nu = s \mu_i(\lambda), \sigma, \delta).
 \end{align}
 
-The pullback for $H_\sigma$ involves third derivatives. The map is $H_\sigma(\nu(\psi), \hat{\sigma}(\psi))$. In reverse-mode AD, we are given a sensitivity $\Delta_{H_\sigma} = \partial J / \partial H_\sigma$ and compute the sensitivities for the inputs $\nu$ and $\hat{\sigma}$, which are then propagated further back. The pullback for $H_\sigma$ is a sequence of VJPs dictated by the chain rule:
+We consider a Bayesian setting where the goal is to infer the physical parameters $\lambda$ while marginalizing out the nuisance parameters $\eta = (\log s, \log \sigma)^T$.
+Following \cref{eq:likelihood}, we write the negative log-likelihood as
 %
-\begin{align}
-  \Delta_{\hat{\sigma}} & \mathrel{+}= (\nabla_{\hat{\sigma}} H_\sigma)^T \Delta_{H_\sigma} \\
-  \Delta_\nu            & \mathrel{+}= (\nabla_\nu H_\sigma)^T \Delta_{H_\sigma}.
+\begin{align}\label{eq:negative-log-likelihood}
+  L(\lambda, \eta; x, \delta)              & \coloneqq -\log p(x \mid \lambda, \eta, \delta) = \sum_{i=1}^N \ell(\xi^{(i)}(\lambda), \eta)                                                                      \\
+  \text{where} \quad \ell(\xi^{(i)}, \eta) & \coloneqq -\log p_{\mathrm{QRice}}(x_i \mid \nu = s \mu_i, \sigma, \delta) = \Omega\left(\frac{x_i}{\sigma}, \frac{s \mu_i}{\sigma}, \frac{\delta}{\sigma}\right), \\
+  \xi^{(i)}(\lambda)                       & \coloneqq (x_i, \mu_i(\lambda), \delta),
 \end{align}
 %
-The term $\nabla_\nu H_\sigma = \nabla_\nu (\nabla_\sigma^2 L)$ is a third-order partial derivative tensor of $L$.
-Since $L$ is a sum over $\Omega$, calculating this VJP requires computing terms involving the third derivatives of $\Omega$, such as $\frac{\partial^3 \Omega}{\partial \nu_i \partial \sigma^2}$.
-This provides a concrete motivation for the VJP formalism developed in this section.
+and $\Omega$ is the negative log-likelihood function for the quantized Rician distribution.
+The joint density is then
+%
+\begin{align}
+  p(x, \lambda, \eta \mid \delta) & = p(\lambda, \eta) p(x \mid \lambda, \eta, \delta) = e^{-U(\lambda, \eta; x, \delta)} \\
+  \quad \text{where} \quad
+  U(\lambda, \eta; x, \delta)     & \coloneqq L(\lambda, \eta; x, \delta) - \log p(\lambda, \eta)
+\end{align}
+%
+where we assume a factorized prior $p(\lambda, \eta) = p(\lambda) p(\eta)$.
+
+\subsection{Hybrid Variational Inference with Laplace's Approximation}
+
+Suppose a hybrid variational inference scheme is employed wherein the posterior $p(\lambda, \eta \mid x, \delta)$ is modeled by a factorized distribution $q(\lambda, \eta) = q(\lambda) q(\eta \mid \lambda)$.
+Let $q(\lambda)$ be a parametric approximation to the marginal posterior $p(\lambda \mid x, \delta)$ from a chosen variational family, and $q(\eta \mid \lambda)$ be a Gaussian surrogate for the conditional posterior $p(\eta \mid \lambda, x, \delta)$ computed using Laplace's method:
+%
+\begin{align}
+  p(\eta \mid \lambda, x, \delta) \approx q(\eta \mid \lambda) & = \mathcal{N}(\eta \mid \hat{\eta}(\xi(\lambda)), \hat{H}(\xi(\lambda))^{-1}) \\
+  \text{with} \quad
+  \hat{\eta}(\xi)                                              & = \arg\min_{\eta} U(\xi, \eta) \label{eq:laplace-mode}                        \\
+  \hat{H}(\xi)                                                 & = H(\xi, \hat{\eta}(\xi)) \label{eq:laplace-hessian}
+\end{align}
+%
+where $\xi(\lambda) = (\mu(\lambda), x, \delta)$ groups all variables that the conditional posterior $p(\eta \mid \cdot)$ depends on, $\hat{\eta}(\xi)$ is the mode of $U(\xi, \cdot)$, and $H(\xi, \eta) \coloneqq \frac{\partial^2 U}{\partial \eta^2}$ is the Hessian of $U(\xi, \cdot)$.
+
+The parameters $\psi$ of the variational family for $q(\lambda)$ are tuned via gradient-based optimization of an objective $J$.
+This will require differentiating through the Laplace approximation since $J$ will be a function of $\hat{\eta}(\xi(\lambda))$ and $\hat{H}(\xi(\lambda))$.
+For instance, if $J = \mathbb{E}_{q(\lambda, \eta)} \left[\log \frac{p(x, \lambda, \eta \mid \delta)}{q(\lambda, \eta)}\right]$ is the evidence lower bound, the gradient $\nabla_\psi$ flows through $\hat{\eta}$ and $\hat{H}$ via two mechanisms:
+1) the entropy term $-\log q(\lambda, \eta)$ has a direct contribution from $-\log q(\eta \mid \lambda) = \tfrac{1}{2}\log\det(2\pi\hat{H}^{-1}) + \tfrac{1}{2} \lVert \hat{H}^{1/2} (\eta - \hat{\eta}) \rVert^2$;
+and 2) if $q(\lambda)$ is reparameterizable (i.e. $\lambda \sim q(\lambda) \Leftrightarrow \lambda = g(\psi, \epsilon)$ where $\epsilon \sim p(\epsilon)$ with $p(\epsilon)$ fixed), then unbiased gradients of expectations of the form $\mathbb{E}_{q(\lambda, \eta)}[f(\lambda, \eta)]$ can be computed using the reparameterization trick: $\nabla_\psi \mathbb{E}_{q(\lambda, \eta)}[f(\lambda, \eta)] = \mathbb{E}_{\epsilon \sim p(\epsilon), z \sim \mathcal{N}(0, I)}[\nabla_\psi f(g(\psi, \epsilon), \hat{\eta} + \hat{H}^{-1/2} z)]$.
+Therefore, to compute $\nabla_\psi J$ using reverse-mode automatic differentiation (AD) we must provide \textit{pullback} functions to pass gradients through \cref{eq:laplace-mode,eq:laplace-hessian}.
+
+\subsection{Pullbacks for the Laplace Approximation}
+
+Since $\hat{H}(\xi) = H(\xi, \hat{\eta}(\xi))$, we need only provide pullbacks for the implicit map $\xi \mapsto \hat{\eta}$ and the explicit map $(\xi, \eta) \mapsto H$; the pullback for $\hat{H}$ is constructed by the AD engine by composing the pullbacks for these two maps.
+The pullback for $\xi \mapsto \hat{\eta}$ is derived from the optimality condition $\nabla_\eta U(\xi, \hat{\eta}(\xi)) = 0$.
+Applying the implicit function theorem at $\eta = \hat{\eta}(\xi)$ yields:
+%
+\begin{align}
+  \frac{\partial^2 U}{\partial \eta \partial \xi} + \left(\frac{\partial^2 U}{\partial \eta^2}\right) \left(\frac{\partial \hat{\eta}}{\partial \xi}\right) = 0
+  \quad \Rightarrow \quad
+  \frac{\partial \hat{\eta}}{\partial \xi} = -\left(\frac{\partial^2 U}{\partial \eta^2}\right)^{-1} \frac{\partial^2 U}{\partial \eta \partial \xi}.
+\end{align}
+%
+Since $\hat{H}(\xi) = \left. \frac{\partial^2 U}{\partial \eta^2} \right|_{\eta=\hat{\eta}(\xi)}$, the pullback $\mathcal{B}_{\hat{\eta}}$ maps an upstream gradient $\Delta^{\hat{\eta}}$ to a gradient with respect to $\xi$:
+%
+\begin{align}\label{eq:pullback-eta-hat}
+  \mathcal{B}_{\hat{\eta}} : \Delta^{\hat{\eta}} \to \left(\frac{\partial \hat{\eta}}{\partial \xi}\right)^{T} \Delta^{\hat{\eta}}
+  = -\left(\frac{\partial^2 U}{\partial \eta \partial \xi}\right)^{T} \hat{H}(\xi)^{-1} \Delta^{\hat{\eta}}.
+\end{align}
+%
+The map for the Hessian is explicit, $H(\xi, \eta) = \frac{\partial^2 U}{\partial \eta^2}$.
+Its pullback $\mathcal{B}_H$ propagates an upstream sensitivity matrix $\Delta^H$ to its inputs $\xi$ and $\eta$, which requires third-order derivative tensors of $U$:
+%
+\begin{align}\label{eq:pullback-H}
+  \mathcal{B}_H : \Delta^H \to \left( \left(\frac{\partial^3 U}{\partial \eta^2 \partial \xi}\right) \bullet \Delta^H, \left(\frac{\partial^3 U}{\partial \eta^3}\right) \bullet \Delta^H \right),
+\end{align}
+%
+where the tensor contraction is defined as $[A \bullet B]_k = \sum_{i,j} A_{ij k} B_{ij}$.
+
+Since $U = L - \log p(\lambda, \eta)$ and $L = \sum_i \ell(\xi^{(i)}, \eta)$, mixed partial derivatives of $U$ and $L$ are equal, $\frac{\partial^{k+1}}{\partial \eta^k \partial \xi} U = \frac{\partial^{k+1}}{\partial \eta^k \partial \xi} L$, and $\frac{\partial^k}{\partial \eta^k} U = \frac{\partial^k}{\partial \eta^k} L - \frac{\partial^k}{\partial \eta^k} \log p(\lambda, \eta)$.
+The derivatives of $L$ can themselves be written in terms of the derivatives of $\ell_i = \ell(\xi^{(i)}, \eta) = \Omega(\frac{x_i}{\sigma}, \frac{s \mu_i}{\sigma}, \frac{\delta}{\sigma})$:
+%
+\begin{align}
+  \frac{\partial^{k+1} L}{\partial \eta^k \partial x_i} = \frac{\partial^{k+1} \ell_i}{\partial \eta^k \partial x_i},
+  \quad
+  \frac{\partial^{k+1} L}{\partial \eta^k \partial \mu_i} = \frac{\partial^{k+1} \ell_i}{\partial \eta^k \partial \mu_i},
+  \quad
+  \frac{\partial^{k+1} L}{\partial \eta^k \partial \delta} = \sum_{i=1}^N \frac{\partial^{k+1} \ell_i}{\partial \eta^k \partial \delta},
+  \quad
+  \frac{\partial^{k} L}{\partial \eta^{k}} = \sum_{i=1}^N \frac{\partial^{k} \ell_i}{\partial \eta^{k}},
+\end{align}
+%
+and so the VJPs in \cref{eq:pullback-eta-hat,eq:pullback-H} simplify to
+%
+\begin{align}
+  \left(\frac{\partial^2 U}{\partial \eta \partial \xi}\right)^{T} \Delta^{\hat{H}} & = \left(
+  \left(\frac{\partial^2 \ell_1}{\partial \eta \partial x_1}\right)^{T} \Delta^{\hat{H}}, \ldots,
+  \left(\frac{\partial^2 \ell_1}{\partial \eta \partial \mu_1}\right)^{T} \Delta^{\hat{H}}, \ldots,
+  \sum_{i=1}^N \left(\frac{\partial^2 \ell_i}{\partial \eta \partial \delta}\right)^{T} \Delta^{\hat{H}}
+  \right), \label{eq:pullback-eta-hat-simplified}                                                                                                                                                                                                                                   \\
+  \left(\frac{\partial^3 U}{\partial \eta^2 \partial \xi}\right) \bullet \Delta^H   & = \left(
+  \left(\frac{\partial^3 \ell_1}{\partial \eta^2 \partial x_1}\right) \Delta^H, \ldots,
+  \left(\frac{\partial^3 \ell_1}{\partial \eta^2 \partial \mu_1}\right) \Delta^H, \ldots,
+  \sum_{i=1}^N \left(\frac{\partial^3 \ell_i}{\partial \eta^2 \partial \delta}\right) \Delta^H
+  \right), \label{eq:pullback-H-Phi-eta-squared-simplified}                                                                                                                                                                                                                         \\
+  \left(\frac{\partial^3 U}{\partial \eta^3}\right) \bullet \Delta^H                & = -\frac{\partial^3 \log p(\lambda, \eta)}{\partial \eta^3} + \sum_{i=1}^N \left(\frac{\partial^3 \ell_i}{\partial \eta^3}\right) \bullet \Delta^H \label{eq:pullback-H-eta-cubed-simplified}
+\end{align}
+%
+where $\Delta^{\hat{H}} = \hat{H}(\xi)^{-1} \Delta^{\hat{\eta}}$.
+Note that for a factorized prior $p(\lambda, \eta) = p(\lambda) p(\eta)$ with $p(\eta)$ Gaussian, $\frac{\partial^3}{\partial \eta^3} \log p(\lambda, \eta) = 0$.
+Finally, differentiating through $\hat{\eta}$ and $\hat{H}$ reduces to computing the following derivative tensors:
+%
+\begin{align}\label{eq:ell-derivative-tensors}
+  \ell_{\eta \xi^{(i)}} \coloneqq \frac{\partial^2 \ell_i}{\partial \eta \partial \xi^{(i)}},
+  \quad
+  \ell_{\eta \eta \xi^{(i)}} \coloneqq \frac{\partial^3 \ell_i}{\partial \eta^2 \partial \xi^{(i)}},
+  \quad
+  \ell_{\eta \eta \eta} \coloneqq \frac{\partial^3 \ell_i}{\partial \eta^3}.
+\end{align}
+
+\subsection{Derivatives of the Per-Observation Log-Likelihood}
+
+The derivatives of $\ell_i$ required for the pullbacks in \cref{eq:ell-derivative-tensors} are found by applying the multivariate chain rule to the composition $\ell_i = \ell(\xi^{(i)}, \eta) = \Omega(\theta(\xi^{(i)}, \eta))$:
+%
+\begin{align}
+  \theta(\xi^{(i)}, \eta) = (x', \nu', \delta')^T = \left(\frac{x_i}{\sigma}, \frac{s \mu_i}{\sigma}, \frac{\delta}{\sigma}\right)^T,
+  \quad
+  \xi^{(i)} = (x_i, \mu_i, \delta)^T,
+  \quad
+  \eta = (\log s, \log \sigma)^T. \label{eq:theta-transform}
+\end{align}
+%
+In previous sections, we derived expressions for the numerically stable evaluation of the derivative tensors $\nabla_\theta \Omega$, $\nabla_\theta ^2\Omega$, and $\nabla_\theta ^3\Omega$.
+We can express derivatives of $\ell_i$ in \cref{eq:ell-derivative-tensors} in terms of these derivatives of $\Omega$ via the multivariate chain rule;
+dropping the index $i$ for brevity, let
+%
+\begin{align}
+  \Theta_{\xi} \coloneqq \frac{\partial \theta}{\partial \xi} =
+  \begin{bmatrix}
+    \frac{1}{\sigma} & 0                & 0                \\
+    0                & \frac{s}{\sigma} & 0                \\
+    0                & 0                & \frac{1}{\sigma}
+  \end{bmatrix}
+  \qquad
+  \Theta_{\eta} \coloneqq \frac{\partial \theta}{\partial \eta} =
+  \begin{bmatrix}
+    0    & -x'      \\
+    \nu' & -\nu'    \\
+    0    & -\delta'
+  \end{bmatrix}
+\end{align}
+%
+be the Jacobians of $\theta$ with respect to $\xi$ and $\eta$.
+Similarly, let
+$\Theta_{\eta\xi} \coloneqq \frac{\partial^2 \theta}{\partial \eta \partial \xi}$ and
+$\Theta_{\eta\eta} \coloneqq \frac{\partial^2 \theta}{\partial \eta^2}$
+be the second-derivative 3-tensors with components
+%
+\begin{align}
+  \Theta_{\eta\xi}^{(x')}                                                                                                  & \coloneqq \frac{\partial^2 x'}{\partial \eta \partial \xi} = \begin{bsmallmatrix} 0 & 0 & 0 \\ -\frac{1}{\sigma} & 0 & 0 \end{bsmallmatrix} &   &
+  \Theta_{\eta\xi}^{(\nu')} \coloneqq \frac{\partial^2 \nu'}{\partial \eta \partial \xi} = \begin{bsmallmatrix} 0 & \frac{s}{\sigma} & 0 \\ 0 & -\frac{s}{\sigma} & 0 \end{bsmallmatrix} &                                                                                              &
+  \Theta_{\eta\xi}^{(\delta')} \coloneqq \frac{\partial^2 \delta'}{\partial \eta \partial \xi} = \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & -\frac{1}{\sigma} \end{bsmallmatrix}                                                                                                \\
+  \Theta_{\eta\eta}^{(x')}                                                                                                 & \coloneqq \frac{\partial^2 x'}{\partial \eta^2} = \begin{bsmallmatrix} 0 & 0 \\ 0 & x' \end{bsmallmatrix}            &   &
+  \Theta_{\eta\eta}^{(\nu')} \coloneqq \frac{\partial^2 \nu'}{\partial \eta^2} = \begin{bsmallmatrix} \nu' & -\nu' \\ -\nu' & \nu' \end{bsmallmatrix}           &                                                                                              &
+  \Theta_{\eta\eta}^{(\delta')} \coloneqq \frac{\partial^2 \delta'}{\partial \eta^2} = \begin{bsmallmatrix} 0 & 0 \\ 0 & \delta' \end{bsmallmatrix}
+\end{align}
+%
+and let $\Theta_{\eta\eta\xi}$ and $\Theta_{\eta\eta\eta}$ be the third-derivative 4-tensors with components
+%
+\begin{align}
+  \Theta_{(\log s)\eta\xi}^{(x')}       & \coloneqq \tfrac{\partial \Theta_{\eta\xi}^{(x')}}{\partial (\log s)} = \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & 0 \end{bsmallmatrix}       &  & \Theta_{(\log s)\eta\xi}^{(\nu')} \coloneqq \tfrac{\partial \Theta_{\eta\xi}^{(\nu')}}{\partial (\log s)} = \begin{bsmallmatrix} 0 & \frac{s}{\sigma} & 0 \\ 0 & -\frac{s}{\sigma} & 0 \end{bsmallmatrix}             &  & \Theta_{(\log s)\eta\xi}^{(\delta')} \coloneqq \tfrac{\partial \Theta_{\eta\xi}^{(\delta')}}{\partial (\log s)} = \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & 0 \end{bsmallmatrix}              \\
+  \Theta_{(\log \sigma)\eta\xi}^{(x')}  & \coloneqq \tfrac{\partial \Theta_{\eta\xi}^{(x')}}{\partial (\log \sigma)} = \begin{bsmallmatrix} 0 & 0 & 0 \\ \frac{1}{\sigma} & 0 & 0 \end{bsmallmatrix}  &  & \Theta_{(\log \sigma)\eta\xi}^{(\nu')} \coloneqq \tfrac{\partial \Theta_{\eta\xi}^{(\nu')}}{\partial (\log \sigma)} = \begin{bsmallmatrix} 0 & -\frac{s}{\sigma} & 0 \\ 0 & \frac{s}{\sigma} & 0 \end{bsmallmatrix}   &  & \Theta_{(\log \sigma)\eta\xi}^{(\delta')} \coloneqq \tfrac{\partial \Theta_{\eta\xi}^{(\delta')}}{\partial (\log \sigma)} = \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & \frac{1}{\sigma} \end{bsmallmatrix}    \\
+  \Theta_{(\log s)\eta\eta}^{(x')}      & \coloneqq \tfrac{\partial \Theta_{\eta\eta}^{(x')}}{\partial (\log s)} = \begin{bsmallmatrix} 0 & 0 \\ 0 & 0 \end{bsmallmatrix}      &  & \Theta_{(\log s)\eta\eta}^{(\nu')} \coloneqq \tfrac{\partial \Theta_{\eta\eta}^{(\nu')}}{\partial (\log s)} = \begin{bsmallmatrix} \nu' & -\nu' \\ -\nu' & \nu' \end{bsmallmatrix}           &  & \Theta_{(\log s)\eta\eta}^{(\delta')} \coloneqq \tfrac{\partial \Theta_{\eta\eta}^{(\delta')}}{\partial (\log s)} = \begin{bsmallmatrix} 0 & 0 \\ 0 & 0 \end{bsmallmatrix}            \\
+  \Theta_{(\log \sigma)\eta\eta}^{(x')} & \coloneqq \tfrac{\partial \Theta_{\eta\eta}^{(x')}}{\partial (\log \sigma)} = \begin{bsmallmatrix} 0 & 0 \\ 0 & -x' \end{bsmallmatrix} &  & \Theta_{(\log \sigma)\eta\eta}^{(\nu')} \coloneqq \tfrac{\partial \Theta_{\eta\eta}^{(\nu')}}{\partial (\log \sigma)} = \begin{bsmallmatrix} -\nu' & \nu' \\ \nu' & -\nu' \end{bsmallmatrix} &  & \Theta_{(\log \sigma)\eta\eta}^{(\delta')} \coloneqq \tfrac{\partial \Theta_{\eta\eta}^{(\delta')}}{\partial (\log \sigma)} = \begin{bsmallmatrix} 0 & 0 \\ 0 & -\delta' \end{bsmallmatrix}.
+\end{align}
+%
+Applying the chain rule, the first derivatives of $\ell$ are
+%
+\begin{align}
+  \ell_{\xi} = \Theta_{\xi}^{T} \nabla_\theta \Omega,
+  \qquad
+  \ell_{\eta}   = \Theta_{\eta}^{T} \nabla_\theta \Omega.
+\end{align}
+%
+The second derivatives are
+%
+\begin{align}
+  \ell_{\eta \xi}  & = \Theta_{\eta}^{T} (\nabla_\theta^2 \Omega) \Theta_\xi + \sum_{k} (\nabla_\theta \Omega)_{k} \, \Theta_{\eta\xi}^{(\theta_k)},   \\
+  \ell_{\eta \eta} & = \Theta_{\eta}^{T} (\nabla_\theta^2 \Omega) \Theta_\eta + \sum_{k} (\nabla_\theta \Omega)_{k} \, \Theta_{\eta\eta}^{(\theta_k)}.
+\end{align}
+%
+The third-derivative tensors needed for \cref{eq:pullback-eta-hat-simplified,eq:pullback-H-Phi-eta-squared-simplified,eq:pullback-H-eta-cubed-simplified}
+follow by differentiating the Hessian $\ell_{\eta\eta}$
+%
+\begin{align}
+  (\ell_{\eta\eta})_{rs}
+  = \frac{\partial^2 \ell}{\partial \eta_r \partial \eta_s}
+  = \frac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b} \frac{\partial \theta_a}{\partial \eta_r} \frac{\partial \theta_b}{\partial \eta_s}
+  + \frac{\partial \Omega}{\partial \theta_c} \frac{\partial^2 \theta_c}{\partial \eta_r \partial \eta_s}
+\end{align}
+%
+where we use the Einstein summation convention.
+Differentiating $(\ell_{\eta\eta})_{rs}$ and simplifying gives
+%
+\begin{align}
+  \tfrac{\partial (\ell_{\eta\eta})_{rs}}{\partial \xi_p}
+  = & \tfrac{\partial^3 \Omega}{\partial \theta_a \partial \theta_b \partial \theta_c}
+  \tfrac{\partial \theta_a}{\partial \eta_r} \tfrac{\partial \theta_b}{\partial \eta_s} \tfrac{\partial \theta_c}{\partial \xi_p}
+  + \tfrac{\partial \Omega}{\partial \theta_a}
+  \tfrac{\partial^3 \theta_a}{\partial \eta_r \partial \eta_s \partial \xi_p} + \tfrac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b}
+  \left(
+  \tfrac{\partial^2 \theta_a}{\partial \eta_r \partial \xi_p} \tfrac{\partial \theta_b}{\partial \eta_s}
+  + \tfrac{\partial^2 \theta_b}{\partial \eta_s \partial \xi_p} \tfrac{\partial \theta_a}{\partial \eta_r}
+  + \tfrac{\partial^2 \theta_a}{\partial \eta_r \partial \eta_s} \tfrac{\partial \theta_b}{\partial \xi_p}
+  \right),                                                                             \\
+  \tfrac{\partial (\ell_{\eta\eta})_{rs}}{\partial \eta_t}
+  = & \tfrac{\partial^3 \Omega}{\partial \theta_a \partial \theta_b \partial \theta_c}
+  \tfrac{\partial \theta_a}{\partial \eta_r} \tfrac{\partial \theta_b}{\partial \eta_s} \tfrac{\partial \theta_c}{\partial \eta_t}
+  + \tfrac{\partial \Omega}{\partial \theta_c}
+  \tfrac{\partial^3 \theta_c}{\partial \eta_r \partial \eta_s \partial \eta_t} + \tfrac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b}
+  \left(
+  \tfrac{\partial^2 \theta_a}{\partial \eta_r \partial \eta_t} \tfrac{\partial \theta_b}{\partial \eta_s}
+  + \tfrac{\partial^2 \theta_a}{\partial \eta_s \partial \eta_t} \tfrac{\partial \theta_b}{\partial \eta_r}
+  + \tfrac{\partial^2 \theta_a}{\partial \eta_r \partial \eta_s} \tfrac{\partial \theta_b}{\partial \eta_t}
+  \right).
+\end{align}
+%
+The VJPs are then obtained by contracting with $\Delta^H_{rs}$ and simplifying using $\Delta^H_{rs} = \Delta^H_{sr}$:
+%
+\begin{align}
+  \tfrac{\partial (\ell_{\eta\eta} \cdot \Delta^H)}{\partial \xi_p}  & = \left( \tfrac{\partial^3 \theta_a}{\partial \eta_r \partial \eta_s \partial \xi_p} \Delta^H_{rs} \right) \tfrac{\partial \Omega}{\partial \theta_a} + \left( 2 \tfrac{\partial^2 \theta_a}{\partial \eta_r \partial \xi_p} \tfrac{\partial \theta_b}{\partial \eta_s} \Delta^H_{rs} + \tfrac{\partial \theta_b}{\partial \xi_p} \tfrac{\partial^2 \theta_a}{\partial \eta_r \partial \eta_s} \Delta^H_{rs} \right) \tfrac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b} + \left( \tfrac{\partial \theta_a}{\partial \eta_r} \tfrac{\partial \theta_b}{\partial \eta_s} \Delta^H_{rs} \right) \tfrac{\partial \theta_c}{\partial \xi_p} \tfrac{\partial^3 \Omega}{\partial \theta_a \partial \theta_b \partial \theta_c},     \\
+  \tfrac{\partial (\ell_{\eta\eta} \cdot \Delta^H)}{\partial \eta_t} & = \left( \tfrac{\partial^3 \theta_a}{\partial \eta_r \partial \eta_s \partial \eta_t} \Delta^H_{rs} \right) \tfrac{\partial \Omega}{\partial \theta_a} + \left( 2 \tfrac{\partial^2 \theta_a}{\partial \eta_r \partial \eta_t} \tfrac{\partial \theta_b}{\partial \eta_s} \Delta^H_{rs} + \tfrac{\partial \theta_b}{\partial \eta_t} \tfrac{\partial^2 \theta_a}{\partial \eta_r \partial \eta_s} \Delta^H_{rs} \right) \tfrac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b} + \left( \tfrac{\partial \theta_a}{\partial \eta_r} \tfrac{\partial \theta_b}{\partial \eta_s} \Delta^H_{rs} \right) \tfrac{\partial \theta_c}{\partial \eta_t} \tfrac{\partial^3 \Omega}{\partial \theta_a \partial \theta_b \partial \theta_c}.
+\end{align}
+
+% Bibliography
+\bibliographystyle{plainnat}
+\bibliography{bibliography}
 
 \end{document}
