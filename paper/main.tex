@@ -1146,7 +1146,7 @@ and $\Omega$ is the negative log-likelihood function for the quantized Rician di
 The joint density is then
 %
 \begin{align}
-  p(x, \lambda, \eta \mid \delta) & = p(\lambda, \eta) p(x \mid \lambda, \eta, \delta) = e^{-U(\lambda, \eta; x, \delta)} \\
+  p(x, \lambda, \eta \mid \delta) & = p(x \mid \lambda, \eta, \delta) p(\lambda, \eta) = e^{-U(\lambda, \eta; x, \delta)} \\
   \quad \text{where} \quad
   U(\lambda, \eta; x, \delta)     & \coloneqq L(\lambda, \eta; x, \delta) - \log p(\lambda, \eta)
 \end{align}
@@ -1167,16 +1167,15 @@ Let $q(\lambda)$ be a parametric approximation to the marginal posterior $p(\lam
 %
 where $\xi(\lambda) = (\mu(\lambda), x, \delta)$ groups all variables that the conditional posterior $p(\eta \mid \cdot)$ depends on, $\hat{\eta}(\xi)$ is the mode of $U(\xi, \cdot)$, and $H(\xi, \eta) \coloneqq \frac{\partial^2 U}{\partial \eta^2}$ is the Hessian of $U(\xi, \cdot)$.
 
-The parameters $\psi$ of the variational family for $q(\lambda)$ are tuned via gradient-based optimization of an objective $J$.
-This will require differentiating through the Laplace approximation since $J$ will be a function of $\hat{\eta}(\xi(\lambda))$ and $\hat{H}(\xi(\lambda))$.
+The parameters $\psi$ of the variational family for $q(\lambda)$ are tuned by optimizing an objective $J$ which depends on the Laplace approximation's mode $\hat{\eta}(\xi(\lambda))$ and Hessian $\hat{H}(\xi(\lambda))$.
 For instance, if $J = \mathbb{E}_{q(\lambda, \eta)} \left[\log \frac{p(x, \lambda, \eta \mid \delta)}{q(\lambda, \eta)}\right]$ is the evidence lower bound, the gradient $\nabla_\psi$ flows through $\hat{\eta}$ and $\hat{H}$ via two mechanisms:
 1) the entropy term $-\log q(\lambda, \eta)$ has a direct contribution from $-\log q(\eta \mid \lambda) = \tfrac{1}{2}\log\det(2\pi\hat{H}^{-1}) + \tfrac{1}{2} \lVert \hat{H}^{1/2} (\eta - \hat{\eta}) \rVert^2$;
-and 2) if $q(\lambda)$ is reparameterizable (i.e. $\lambda \sim q(\lambda) \Leftrightarrow \lambda = g(\psi, \epsilon)$ where $\epsilon \sim p(\epsilon)$ with $p(\epsilon)$ fixed), then unbiased gradients of expectations of the form $\mathbb{E}_{q(\lambda, \eta)}[f(\lambda, \eta)]$ can be computed using the reparameterization trick: $\nabla_\psi \mathbb{E}_{q(\lambda, \eta)}[f(\lambda, \eta)] = \mathbb{E}_{\epsilon \sim p(\epsilon), z \sim \mathcal{N}(0, I)}[\nabla_\psi f(g(\psi, \epsilon), \hat{\eta} + \hat{H}^{-1/2} z)]$.
-Therefore, to compute $\nabla_\psi J$ using reverse-mode automatic differentiation (AD) we must provide \textit{pullback} functions to pass gradients through \cref{eq:laplace-mode,eq:laplace-hessian}.
+and 2) if $q(\lambda)$ is reparameterizable (i.e. $\lambda \sim q(\lambda) \Leftrightarrow \lambda = g(\psi, \epsilon)$ where $\epsilon \sim p(\epsilon)$ with $p(\epsilon)$ fixed), then unbiased gradients of expectations $\mathbb{E}_{q(\lambda, \eta)}[f(\lambda, \eta)]$ follow from the reparameterization trick: $\nabla_\psi \mathbb{E}_{q(\lambda, \eta)}[f(\lambda, \eta)] = \mathbb{E}_{\epsilon \sim p(\epsilon), z \sim \mathcal{N}(0, I)}[\nabla_\psi f(g(\psi, \epsilon), \hat{\eta} + \hat{H}^{-1/2} z)]$.
+Therefore, backpropagating through $J$ requires the implementation of \textit{pullback} functions to pass gradients through \cref{eq:laplace-mode,eq:laplace-hessian}.
 
 \subsection{Pullbacks for the Laplace Approximation}
 
-Since $\hat{H}(\xi) = H(\xi, \hat{\eta}(\xi))$, we need only provide pullbacks for the implicit map $\xi \mapsto \hat{\eta}$ and the explicit map $(\xi, \eta) \mapsto H$; the pullback for $\hat{H}$ is constructed by the AD engine by composing the pullbacks for these two maps.
+Since $\hat{H}(\xi) = H(\xi, \hat{\eta}(\xi))$, we need only provide pullbacks for the implicit map $\xi \mapsto \hat{\eta}$ and the explicit map $(\xi, \eta) \mapsto H$; the pullback for $\hat{H}$ is constructed by the automatic differentiation engine by composing the pullbacks for these two maps.
 The pullback for $\xi \mapsto \hat{\eta}$ is derived from the optimality condition $\nabla_\eta U(\xi, \hat{\eta}(\xi)) = 0$.
 Applying the implicit function theorem at $\eta = \hat{\eta}(\xi)$ yields:
 %
