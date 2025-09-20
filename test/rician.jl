@@ -12,13 +12,16 @@ using QuadGK: quadgk
 
 function xν_iterator(z::T) where {T <: Union{Float32, Float64}}
     rmax = T == Float32 ? 6 : 12
-    Iterators.map(Iterators.product(-rmax:rmax, (false, true))) do (r, flip)
-        δ = exp10(T(r))
-        s = flip ? inv(1 + δ) : 1 + δ
-        x = √z * s
-        ν = z / x
-        return (x, ν)
-    end
+    return Iterators.flatten((
+        [(√z, √z)],
+        Iterators.map(Iterators.product(-rmax:rmax, (false, true))) do (r, flip)
+            δ = exp10(T(r))
+            s = flip ? inv(1 + δ) : 1 + δ
+            x = √z * s
+            ν = z / x
+            return (x, ν)
+        end,
+    ))
 end
 
 @testset "neglogpdf_rician properties" begin
@@ -261,7 +264,8 @@ end
                 for ν in νs, δ in δs, x in δ .* (0, 1, round(Int, ν), round(Int, ν / δ))
                     y1 = f1(x, ν, δ)
                     y2 = f2(Float64.((x, ν, δ))..., Val(1))
-                    atol = rtol = T == Float32 ? 5.0f-5 : 5e-11
+                    rtol = T == Float32 ? 5.0f-5 : 5e-11
+                    atol = T == Float32 ? 5.0f-5 : 5e-11
                     @test all(map((out1, out2) -> all(isapprox.(out1, out2; atol, rtol)), y1, y2))
                 end
             end
@@ -383,57 +387,85 @@ end
     end
 end
 
-@testset "∇²neglogpdf_qrician jacobian and jvp" begin
-    @testset "inner jacobian and jvp ($T)" for T in (Float32, Float64)
+@testset "∇²neglogpdf_qrician jacobian and vjp" begin
+    @testset "full jacobian and vjp vs. AD ($T)" for T in (Float32, Float64)
+        for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4))
+            Tad = Float64
+            rtol = T === Float32 ? 25 * eps(T) : eps(T)^(2 // 3)
+            atol = T === Float32 ? 25 * eps(T) : eps(T)^(2 // 3)
+
+            # Jacobian of flattened Hessian of `neglogpdf_qrician`
+            H1, J1 = FastRicianLikelihoods._∇²neglogpdf_qrician_with_jacobian_ad(Tad.((T(x), T(ν), T(δ)))..., order)
+            g2, H2, J2 = FastRicianLikelihoods._∇²neglogpdf_qrician_with_jacobian_one_pass(T(x), T(ν), T(δ), order)
+            g3, H3, J3 = FastRicianLikelihoods._∇²neglogpdf_qrician_with_jacobian_two_pass(T(x), T(ν), T(δ), order)
+
+            @test all(isapprox.(g2, g2; rtol, atol))
+            @test all(isapprox.(H1, H2; rtol, atol))
+            @test all(isapprox.(H1, H3; rtol, atol))
+            @test all(isapprox.(J1, J2; rtol, atol))
+            @test all(isapprox.(J1, J3; rtol, atol))
+
+            # Jacobian vector product of flattened Hessian of `neglogpdf_qrician`
+            Δ = @SVector randn(T, 6)
+            g4, H4, vjp4 = FastRicianLikelihoods._∇²negloglogpdf_qrician_with_vjp_two_pass(Δ, T(x), T(ν), T(δ), order)
+
+            @test all(isapprox.(H1, H4; rtol, atol))
+            @test all(isapprox.(J1' * Δ, vjp4; rtol, atol))
+        end
+    end
+end
+
+@testset "∇²neglogpdf_qrician jacobian and vjp (jet)" begin
+    @testset "inner jacobian and vjp vs. AD (jet) ($T)" for T in (Float32, Float64)
         for (x, ν, δ) in xνδ_iterator()
-            rtol = sqrt(eps(T))
-            atol = sqrt(eps(T))
+            Tad = Float64
+            rtol = T === Float32 ? sqrt(eps(T)) : eps(T)^(2 // 3)
+            atol = T === Float32 ? sqrt(eps(T)) : eps(T)^(2 // 3)
 
             # Jacobian of `∇²neglogpdf_qrician` integrand
             t = rand(T)
-            ϕ1, Jϕ1 = FastRicianLikelihoods._∇²neglogpdf_qrician_inner_jac_ad(T.((x, ν, δ, t))...)
-            ϕ2, Jϕ2 = FastRicianLikelihoods._∇²neglogpdf_qrician_inner_jac(T(x), T(ν), T(δ), T(t))
+            ϕ1, Jϕ1 = FastRicianLikelihoods._∇²neglogpdf_qrician_inner_jac_ad_jet(Tad.((T(x), T(ν), T(δ), T(t)))...)
+            ϕ2, Jϕ2 = FastRicianLikelihoods._∇²neglogpdf_qrician_inner_jac_jet(T(x), T(ν), T(δ), T(t))
 
             @test isapprox(ϕ1, ϕ2; rtol, atol)
             @test isapprox(Jϕ1, Jϕ2; rtol, atol)
 
             # Jacobian vector product of `∇²neglogpdf_qrician` integrand
             Δϕ = @SVector randn(T, 9)
-            ϕ3, jvpϕ3 = FastRicianLikelihoods._∇²neglogpdf_qrician_inner_jvp(Δϕ, T(x), T(ν), T(δ), T(t))
+            ϕ3, vjpϕ3 = FastRicianLikelihoods._∇²neglogpdf_qrician_inner_vjp_jet(Δϕ, T(x), T(ν), T(δ), T(t))
 
             @test isapprox(ϕ3, ϕ1; rtol, atol)
-            @test isapprox(jvpϕ3, Jϕ1' * Δϕ; rtol, atol)
+            @test isapprox(vjpϕ3, Jϕ1' * Δϕ; rtol, atol)
         end
     end
 
-    @testset "full jacobian and jvp ($T)" for T in (Float32, Float64)
+    @testset "full jacobian and vjp vs. AD (jet) ($T)" for T in (Float32, Float64)
         for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4))
-            rtol = sqrt(eps(T))
-            atol = sqrt(eps(T))
+            Tad = Float64
+            rtol = T === Float32 ? sqrt(eps(T)) : eps(T)^(2 // 3)
+            atol = T === Float32 ? sqrt(eps(T)) : eps(T)^(2 // 3)
 
             # Jacobian of flattened Hessian of `neglogpdf_qrician`
-            Φ1, J1 = FastRicianLikelihoods._∇²neglogpdf_qrician_with_jacobian_ad(T(x), T(ν), T(δ), order)
-            Φ2, J2 = FastRicianLikelihoods._∇²neglogpdf_qrician_with_jacobian(T(x), T(ν), T(δ), order)
+            Φ1, JΦ1 = FastRicianLikelihoods._∇²neglogpdf_qrician_with_jacobian_ad_jet(Tad.((T(x), T(ν), T(δ)))..., order)
+            Φ2, JΦ2 = FastRicianLikelihoods._∇²neglogpdf_qrician_with_jacobian_jet(T(x), T(ν), T(δ), order)
 
             @test isapprox(Φ1, Φ2; rtol, atol)
-            @test isapprox(J1, J2; rtol, atol)
+            @test isapprox(JΦ1, JΦ2; rtol, atol)
 
             # Jacobian vector product of flattened Hessian of `neglogpdf_qrician`
             Δ = @SVector randn(T, 9)
-            Φ3, jvpΦ3 = FastRicianLikelihoods._∇²neglogpdf_qrician_jvp_ad(Δ, T(x), T(ν), T(δ), order)
-            Φ4, jvpΦ4 = FastRicianLikelihoods._∇²neglogpdf_qrician_jvp_via_jac_parts(Δ, T(x), T(ν), T(δ), order)
-            Φ5, jvpΦ5 = FastRicianLikelihoods._∇²neglogpdf_qrician_jvp_via_two_pass(Δ, T(x), T(ν), T(δ), order)
-            Φ6, jvpΦ6 = FastRicianLikelihoods._∇²neglogpdf_qrician_jvp_via_one_pass(Δ, T(x), T(ν), T(δ), order)
+            Φ4, vjpΦ4 = FastRicianLikelihoods._∇²neglogpdf_qrician_vjp_jac_parts_jet(Δ, T(x), T(ν), T(δ), order)
+            Φ5, vjpΦ5 = FastRicianLikelihoods._∇²neglogpdf_qrician_vjp_two_pass_jet(Δ, T(x), T(ν), T(δ), order)
+            Φ6, vjpΦ6 = FastRicianLikelihoods._∇²neglogpdf_qrician_vjp_one_pass_jet(Δ, T(x), T(ν), T(δ), order)
 
-            @test isapprox(Φ1, Φ3; rtol, atol)
             @test isapprox(Φ1, Φ4; rtol, atol)
             @test isapprox(Φ1, Φ5; rtol, atol)
             @test isapprox(Φ1, Φ6; rtol, atol)
-            @test isapprox(jvpΦ3, jvpΦ4; rtol, atol)
-            @test isapprox(jvpΦ3, jvpΦ5; rtol, atol)
-            @test isapprox(jvpΦ3, jvpΦ6; rtol, atol)
-            @test isapprox(J1' * Δ, jvpΦ3; rtol, atol)
-            @test isapprox(J2' * Δ, jvpΦ3; rtol, atol)
+            @test isapprox(vjpΦ4, vjpΦ5; rtol, atol)
+            @test isapprox(vjpΦ4, vjpΦ6; rtol, atol)
+            @test isapprox(JΦ1' * Δ, vjpΦ4; rtol, atol)
+            @test isapprox(JΦ2' * Δ, vjpΦ5; rtol, atol)
+            @test isapprox(JΦ2' * Δ, vjpΦ6; rtol, atol)
         end
     end
 end

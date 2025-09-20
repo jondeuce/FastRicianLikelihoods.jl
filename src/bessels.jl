@@ -218,62 +218,76 @@ end
 @inline besseli1i0_mid4_den_coefs(::Type{Float64}) = (1.0, 0.10403308063121751, 0.0014947027941623618, 5.324010820694674e-6, 4.567138270589379e-9)
 @inline besseli1i0c_tail_coefs(::Type{Float64}) = (0.125, 0.12500000000000067, 0.19531249999896427, 0.40625000063246103, 1.047851363431197, 3.218786836985941, 11.46216325763734, 46.805884323072455, 194.8624724456196, 1595.7616954693328, -4511.937268947673, 139379.87983903964)
 
-@inline function _neglogpdf_rician_parts(z::Real, ::Val{degree}) where {degree}
+@inline function _neglogpdf_rician_parts(z::Real, degree::Val)
+    T = checkedfloattype(z)
+    if z < neglogpdf_rician_parts_taylor_branch(T)
+        return _neglogpdf_rician_parts_taylor(z, degree)
+    else
+        return _neglogpdf_rician_parts_asymptotic(z, degree)
+    end
+end
+
+@inline function _neglogpdf_rician_parts_taylor(z::Real, ::Val{degree}) where {degree}
+    T = checkedfloattype(z)
+    r_tail = r′ = r′′ = one_minus_r_minus_z_r′ = two_r′_plus_z_r′′ = T(NaN)
+    z² = z^2
+    a1 = evalpoly(z², a1_taylor_coefs(T))
+    a0 = T(0.5) + z² * a1
+    a0² = a0 * a0
+    r = z * a0
+    if degree >= 1
+        r′ = one(T) - z² * a0² - a0
+        one_minus_r_minus_z_r′ = one(T) - (r + z * r′)
+    end
+    if degree >= 2
+        r′′ = z * ((T(2) * a1 + a0 * (T(3) * a0 - T(2))) + T(2) * z² * a0 * a0²)
+        two_r′_plus_z_r′′ = 2 * r′ + z * r′′
+    end
+    r_tail = T(NaN)
+    return r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′
+end
+
+@inline function _neglogpdf_rician_parts_asymptotic(z::Real, ::Val{degree}) where {degree}
     T = checkedfloattype(z)
     low, mid1, mid2, mid3, mid4, high, tail = neglogpdf_rician_parts_branches(T)
     r_tail = r′ = r′′ = one_minus_r_minus_z_r′ = two_r′_plus_z_r′′ = T(NaN)
-    if z < low
-        z² = z^2
-        a1 = evalpoly(z², a1_taylor_coefs(T))
-        a0 = T(0.5) + z² * a1
-        a0² = a0 * a0
-        r = z * a0
-        if degree >= 1
-            r′ = one(T) - z² * a0² - a0
-            one_minus_r_minus_z_r′ = one(T) - (r + z * r′)
-        end
-        if degree >= 2
-            r′′ = z * ((T(2) * a1 + a0 * (T(3) * a0 - T(2))) + T(2) * z² * a0 * a0²)
-            two_r′_plus_z_r′′ = 2 * r′ + z * r′′
-        end
-    else
-        u = inv(z)
-        if z < mid1
-            b3 = evalpoly(muladd(u, b3_mid1_transplant(T)...), b3_mid1_coefs(T))
-        elseif z < mid2
-            b3 = evalpoly(muladd(u, b3_mid2_transplant(T)...), b3_mid2_coefs(T))
-        elseif z < mid3
-            b3 = evalpoly(muladd(u, b3_mid3_transplant(T)...), b3_mid3_coefs(T))
-        elseif z < mid4
-            b3 = evalpoly(muladd(u, b3_mid4_transplant(T)...), b3_mid4_coefs(T))
-        elseif z < high
-            b3 = evalpoly(muladd(u, b3_mid5_transplant(T)...), b3_mid5_coefs(T))
-        elseif z < tail
-            b3 = evalpoly(u, b3_high_coefs(T))
-        else # z >= tail
-            b3 = evalpoly(u, b3_tail_coefs(T))
-        end
-        b2 = one(T) + u * b3
-        b1 = T(0.25) * (one(T) + u * b2)
-        b0 = T(0.5) * (one(T) + u * b1)
-        b0², b1² = b0 * b0, b1 * b1
-        u² = u^2
-        halfu² = T(0.5) * u²
-        halfu³ = halfu² * u
-        r = one(T) - u * b0
-        r_tail = b0
-        if degree >= 1
-            r′ = u² * (b1 + b0 * (one(T) - b0))
-            one_minus_r_minus_z_r′ = halfu² * (b1 + T(-0.5) * (b2 - u * b1²))
-        end
-        if degree >= 2
-            r′′ = halfu³ * (b0² * (T(-2) + T(-4) * b0) - b2 + u * b1 * (T(3) * b1 + T(4) * b0))
-            two_r′_plus_z_r′′ = halfu³ * (b1² - b3 + (b2 - u * b1²) * (T(0.5) + b0))
-        end
+    u = inv(z)
+    if z < mid1
+        b3 = evalpoly(muladd(u, b3_mid1_transplant(T)...), b3_mid1_coefs(T))
+    elseif z < mid2
+        b3 = evalpoly(muladd(u, b3_mid2_transplant(T)...), b3_mid2_coefs(T))
+    elseif z < mid3
+        b3 = evalpoly(muladd(u, b3_mid3_transplant(T)...), b3_mid3_coefs(T))
+    elseif z < mid4
+        b3 = evalpoly(muladd(u, b3_mid4_transplant(T)...), b3_mid4_coefs(T))
+    elseif z < high
+        b3 = evalpoly(muladd(u, b3_mid5_transplant(T)...), b3_mid5_coefs(T))
+    elseif z < tail
+        b3 = evalpoly(u, b3_high_coefs(T))
+    else # z >= tail
+        b3 = evalpoly(u, b3_tail_coefs(T))
+    end
+    b2 = one(T) + u * b3
+    b1 = T(0.25) * (one(T) + u * b2)
+    b0 = T(0.5) * (one(T) + u * b1)
+    b0², b1² = b0 * b0, b1 * b1
+    u² = u^2
+    halfu² = T(0.5) * u²
+    halfu³ = halfu² * u
+    r = one(T) - u * b0
+    r_tail = b0
+    if degree >= 1
+        r′ = u² * (b1 + b0 * (one(T) - b0))
+        one_minus_r_minus_z_r′ = halfu² * (b1 + T(-0.5) * (b2 - u * b1²))
+    end
+    if degree >= 2
+        r′′ = halfu³ * (b0² * (T(-2) + T(-4) * b0) - b2 + u * b1 * (T(3) * b1 + T(4) * b0))
+        two_r′_plus_z_r′′ = halfu³ * (b1² - b3 + (b2 - u * b1²) * (T(0.5) + b0))
     end
     return r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′
 end
 
+@inline neglogpdf_rician_parts_taylor_branch(::Type{Float32}) = 2.0f0
 @inline neglogpdf_rician_parts_branches(::Type{Float32}) = (2.0f0, 2.6060996f0, 3.5124323f0, 4.822016f0, 6.7038217f0, 11.265795f0, 30.0f0)
 @inline a1_taylor_coefs(::Type{Float32}) = (-0.062499993f0, 0.010416392f0, -0.001788809f0, 0.00030583347f0, -4.968289f-5, 6.8428612f-6, -6.5504764f-7, 3.043636f-8)
 @inline b3_mid1_transplant(::Type{Float32}) = (17.19915f0, -7.599575f0)
@@ -289,6 +303,7 @@ end
 @inline b3_high_coefs(::Type{Float32}) = (1.5627546f0, 3.2188735f0, 9.927305f0, -13.473833f0, 605.299f0, -2241.9482f0, -7155.295f0, 125444.33f0)
 @inline b3_tail_coefs(::Type{Float32}) = (1.5625f0, 3.249928f0, 8.399429f0, 24.425596f0, 133.03055f0)
 
+@inline neglogpdf_rician_parts_taylor_branch(::Type{Float64}) = 2.0
 @inline neglogpdf_rician_parts_branches(::Type{Float64}) = (2.0, 2.897974423546584, 4.234741944354931, 6.327475220473357, 9.919317887108292, 18.211327630457376, 100.0)
 @inline a1_taylor_coefs(::Type{Float64}) = (-0.062499999999999986, 0.010416666666664732, -0.0017903645832794987, 0.00030924479107213686, -5.3462272282636315e-5, 9.244068846364443e-6, -1.5984001634629747e-6, 2.763434489361867e-7, -4.773315324974686e-8, 8.210027641665284e-9, -1.3912968740700294e-9, 2.2667154318714788e-10, -3.4025047639873384e-11, 4.437131733996034e-12, -4.678903548144084e-13, 3.647065518389165e-14, -1.834972296113143e-15, 4.41929493021651e-17)
 @inline b3_mid1_transplant(::Type{Float64}) = (12.908939709444839, -5.4544698547224195)
