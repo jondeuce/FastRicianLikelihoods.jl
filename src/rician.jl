@@ -469,7 +469,7 @@ end
 
 #### Quantized Rician third-order derivatives
 
-@inline function _∇²neglogpdf_qrician_with_jacobian_ad(x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇³neglogpdf_qrician_jacobian_with_hessian_ad(x::D, ν::D, δ::D, order::Val) where {D}
     H, J = withjacobian(SVector(x, ν, δ)) do p
         local x, ν, δ = p
         _, ∇² = _∇²neglogpdf_qrician_with_gradient(x, ν, δ, order)
@@ -478,12 +478,12 @@ end
     return Tuple(H), J
 end
 
-@inline function _∇²neglogpdf_qrician_vjp_ad(Δ::SVector{6, D}, x::D, ν::D, δ::D, order::Val) where {D}
-    H, J = _∇²neglogpdf_qrician_with_jacobian_ad(x, ν, δ, order)
+@inline function _∇³neglogpdf_qrician_vjp_with_hessian_ad(Δ::SVector{6, D}, x::D, ν::D, δ::D, order::Val) where {D}
+    H, J = _∇³neglogpdf_qrician_jacobian_with_hessian_ad(x, ν, δ, order)
     return H, J' * Δ
 end
 
-@inline function _∇²negloglogpdf_qrician_with_vjp_two_pass(Δ::SVector{6, D}, x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇³neglogpdf_qrician_vjp_with_gradient_and_hessian_two_pass(Δ::SVector{6, D}, x::D, ν::D, δ::D, order::Val) where {D}
     # Compute ∇Ω(θ) ∈ ℝ³, vech(∇²Ω(θ)) ∈ ℝ⁶, and J'Δ where J(θ) = ∂/∂θ vech(∇²Ω(θ)) and θ = (x, ν, δ).
     Δxν = x - ν
     δ⁻¹ = inv(δ)
@@ -556,7 +556,7 @@ end
     return g, H, JᵀΔ
 end
 
-@inline function _∇²neglogpdf_qrician_with_jacobian_two_pass(x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇³neglogpdf_qrician_jacobian_with_gradient_and_hessian_two_pass(x::D, ν::D, δ::D, order::Val) where {D}
     # Compute ∇Ω(θ) ∈ ℝ³, vech(∇²Ω(θ)) ∈ ℝ⁶, and J(θ) ∈ ℝ⁶ˣ³ where J(θ) = ∂/∂θ vech(∇²Ω(θ)) and θ = (x, ν, δ).
     # Notation per paper:
     #   r̃(t, θ) = f(x + δ t, ν) - f_G(x, ν),  Z(θ) = ∫ exp(-r̃) dt,  Ω(θ) = -log Z(θ) - log δ.
@@ -640,7 +640,7 @@ end
     return g, H, J
 end
 
-@inline function _∇²neglogpdf_qrician_with_jacobian_one_pass(x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇³neglogpdf_qrician_jacobian_with_gradient_and_hessian_one_pass(x::D, ν::D, δ::D, order::Val) where {D}
     # Compute ∇Ω(θ) ∈ ℝ³, vech(∇²Ω(θ)) ∈ ℝ⁶, and J(θ) ∈ ℝ⁶ˣ³ where J(θ) = ∂/∂θ vech(∇²Ω(θ)) and θ = (x, ν, δ).
     # Notation per paper (one-pass, raw-moment formulation):
     #   r̃(t, θ) = f(x + δ t, ν) - f_G(x, ν),  P(t|θ) ∝ exp(-r̃).
@@ -658,7 +658,7 @@ end
     δ⁻³ = δ⁻² * δ⁻¹
 
     # Single pass computes expectations of the minimal basis (∂, vech(∂∂ᵀ), vech(∂²), vech(J))
-    Ω₀, (E_∂, E_∂∂ᵀ, E_∂², E_J) = f_quadrature_weighted_unit_interval(D, order) do t
+    Ω₀, (E_∂, E_∂∂ᵀ, E_∂², E_∂³) = f_quadrature_weighted_unit_interval(D, order) do t
         Δx = δ * t
         (rx, rν), (rxx, rxν, rνν), (rxxx, rxxν, rxνν, rννν) = _∇³neglogpdf_rician_residual_with_gradient_and_hessian(x, ν, Δx)
 
@@ -684,16 +684,16 @@ end
         Jxδδ = rxδδ - (rδδ * rx + rδ * (2 * rxδ - rxrδ))
         Jνδδ = rνδδ - (rδδ * rν + rδ * (2 * rνδ - rνrδ))
         Jδδδ = rδδδ - rδ * (3 * rδδ - rδrδ)
-        J = SVector(Jxxx, Jxxν, Jxνν, Jννν, Jxxδ, Jxνδ, Jννδ, Jxδδ, Jνδδ, Jδδδ) # vech(J)
+        ∂³ = SVector(Jxxx, Jxxν, Jxνν, Jννν, Jxxδ, Jxνδ, Jννδ, Jxδδ, Jνδδ, Jδδδ) # vech(∂³)
 
-        return _neglogpdf_rician_residual(x, ν, Δx), (∂, ∂∂ᵀ, ∂², J)
+        return _neglogpdf_rician_residual(x, ν, Δx), (∂, ∂∂ᵀ, ∂², ∂³)
     end
 
     # Unpack expectations and compute central moments
     μ_rx, μ_rν, μ_rδ = E_∂
     E_rxx, E_rxν, E_rxδ, E_rνν, E_rνδ, E_rδδ = E_∂²
     E_rxrx, E_rxrν, E_rxrδ, E_rνrν, E_rνrδ, E_rδrδ = E_∂∂ᵀ
-    E_Jxxx, E_Jxxν, E_Jxνν, E_Jννν, E_Jxxδ, E_Jxνδ, E_Jννδ, E_Jxδδ, E_Jνδδ, E_Jδδδ = E_J
+    E_Jxxx, E_Jxxν, E_Jxνν, E_Jννν, E_Jxxδ, E_Jxνδ, E_Jννδ, E_Jxδδ, E_Jνδδ, E_Jδδδ = E_∂³
 
     Cov_rx_rx = E_rxrx - μ_rx * μ_rx
     Cov_rx_rν = E_rxrν - μ_rx * μ_rν
@@ -714,23 +714,23 @@ end
     # Assemble Jacobian J from third derivatives T_αβγ = ∂_αβγ Ω
     μ_rx², μ_rν², μ_rδ² = μ_rx^2, μ_rν^2, μ_rδ^2
     μ_rx³, μ_rν³, μ_rδ³ = μ_rx² * μ_rx, μ_rν² * μ_rν, μ_rδ² * μ_rδ
-    T_xxx = E_Jxxx + 3 * μ_rx * (E_rxx - E_rxrx) + 2 * μ_rx³
-    T_xxν = E_Jxxν + μ_rν * (E_rxx - E_rxrx) + 2 * (μ_rx * (E_rxν - E_rxrν) + μ_rx² * μ_rν)
-    T_xνν = E_Jxνν + μ_rx * (E_rνν - E_rνrν) + 2 * (μ_rν * (E_rxν - E_rxrν) + μ_rx * μ_rν²)
-    T_ννν = E_Jννν + 3 * μ_rν * (E_rνν - E_rνrν) + 2 * μ_rν³
-    T_xxδ = E_Jxxδ + μ_rδ * (E_rxx - E_rxrx) + 2 * (μ_rx * (E_rxδ - E_rxrδ) + μ_rx² * μ_rδ)
-    T_xνδ = E_Jxνδ + μ_rδ * (E_rxν - E_rxrν) + μ_rν * (E_rxδ - E_rxrδ) + μ_rx * (E_rνδ - E_rνrδ) + 2 * μ_rx * μ_rν * μ_rδ
-    T_ννδ = E_Jννδ + μ_rδ * (E_rνν - E_rνrν) + 2 * (μ_rν * (E_rνδ - E_rνrδ) + μ_rν² * μ_rδ)
-    T_xδδ = E_Jxδδ + μ_rx * (E_rδδ - E_rδrδ) + 2 * (μ_rδ * (E_rxδ - E_rxrδ) + μ_rx * μ_rδ²)
-    T_νδδ = E_Jνδδ + μ_rν * (E_rδδ - E_rδrδ) + 2 * (μ_rδ * (E_rνδ - E_rνrδ) + μ_rν * μ_rδ²)
-    T_δδδ = E_Jδδδ + 3 * μ_rδ * (E_rδδ - E_rδrδ) + 2 * μ_rδ³ - 2 * δ⁻³
+    Txxx = E_Jxxx + 3 * μ_rx * (E_rxx - E_rxrx) + 2 * μ_rx³
+    Txxν = E_Jxxν + μ_rν * (E_rxx - E_rxrx) + 2 * (μ_rx * (E_rxν - E_rxrν) + μ_rx² * μ_rν)
+    Txνν = E_Jxνν + μ_rx * (E_rνν - E_rνrν) + 2 * (μ_rν * (E_rxν - E_rxrν) + μ_rx * μ_rν²)
+    Tννν = E_Jννν + 3 * μ_rν * (E_rνν - E_rνrν) + 2 * μ_rν³
+    Txxδ = E_Jxxδ + μ_rδ * (E_rxx - E_rxrx) + 2 * (μ_rx * (E_rxδ - E_rxrδ) + μ_rx² * μ_rδ)
+    Txνδ = E_Jxνδ + μ_rδ * (E_rxν - E_rxrν) + μ_rν * (E_rxδ - E_rxrδ) + μ_rx * (E_rνδ - E_rνrδ) + 2 * μ_rx * μ_rν * μ_rδ
+    Tννδ = E_Jννδ + μ_rδ * (E_rνν - E_rνrν) + 2 * (μ_rν * (E_rνδ - E_rνrδ) + μ_rν² * μ_rδ)
+    Txδδ = E_Jxδδ + μ_rx * (E_rδδ - E_rδrδ) + 2 * (μ_rδ * (E_rxδ - E_rxrδ) + μ_rx * μ_rδ²)
+    Tνδδ = E_Jνδδ + μ_rν * (E_rδδ - E_rδrδ) + 2 * (μ_rδ * (E_rνδ - E_rνrδ) + μ_rν * μ_rδ²)
+    Tδδδ = E_Jδδδ + 3 * μ_rδ * (E_rδδ - E_rδrδ) + 2 * μ_rδ³ - 2 * δ⁻³
 
     g = (∇x, ∇ν, ∇δ)
     H = (Hxx, Hxν, Hxδ, Hνν, Hνδ, Hδδ)
     J = SMatrix{6, 3, D, 18}(
-        T_xxx, T_xxν, T_xxδ, T_xνν, T_xνδ, T_xδδ, # ∂H/∂x
-        T_xxν, T_xνν, T_xνδ, T_ννν, T_ννδ, T_νδδ, # ∂H/∂ν
-        T_xxδ, T_xνδ, T_xδδ, T_ννδ, T_νδδ, T_δδδ, # ∂H/∂δ
+        Txxx, Txxν, Txxδ, Txνν, Txνδ, Txδδ, # ∂H/∂x
+        Txxν, Txνν, Txνδ, Tννν, Tννδ, Tνδδ, # ∂H/∂ν
+        Txxδ, Txνδ, Txδδ, Tννδ, Tνδδ, Tδδδ, # ∂H/∂δ
     )
 
     return g, H, J
@@ -738,7 +738,7 @@ end
 
 #### Quantized Rician third-order derivatives using the "Jet" formulation where we differentiate the vector Φ = (∇Ω, vech(∇²Ω))
 
-@inline function _∇²neglogpdf_qrician_with_jacobian_ad_jet(x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇³neglogpdf_qrician_jacobian_with_jet_ad(x::D, ν::D, δ::D, order::Val) where {D}
     Φ, JΦ = withjacobian(SVector(x, ν, δ)) do p
         local x, ν, δ = p
         ∇, ∇² = _∇²neglogpdf_qrician_with_gradient(x, ν, δ, order)
@@ -747,14 +747,14 @@ end
     return Φ, JΦ
 end
 
-@inline function _∇²neglogpdf_qrician_vjp_ad_jet(Δ::SVector{9, D}, x::D, ν::D, δ::D, order::Val) where {D}
-    Φ, JΦ = _∇²neglogpdf_qrician_with_jacobian_ad_jet(x, ν, δ, order)
+@inline function _∇³neglogpdf_qrician_vjp_with_jet_ad(Δ::SVector{9, D}, x::D, ν::D, δ::D, order::Val) where {D}
+    Φ, JΦ = _∇³neglogpdf_qrician_jacobian_with_jet_ad(x, ν, δ, order)
     return Φ, JΦ' * Δ
 end
 
-@inline function _∇²neglogpdf_qrician_with_jacobian_jet(x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇³neglogpdf_qrician_jacobian_with_jet(x::D, ν::D, δ::D, order::Val) where {D}
     # Compute primal, expectation parts, and d(E_ϕ)/dp via quadrature
-    Φ, (E_∇ω, E_∇²ω, E_Jϕ_minus_E_ϕ∇ωᵀ) = _∇²neglogpdf_qrician_jac_parts_jet(x, ν, δ, order)
+    Φ, (E_∇ω, E_∇²ω, E_Jϕ_minus_E_ϕ∇ωᵀ) = _∇³neglogpdf_qrician_jacobian_parts_with_jet(x, ν, δ, order)
     E_ϕ = SVector{9, D}(E_∇ω..., E_∇²ω...)
     J_Eϕ = E_Jϕ_minus_E_ϕ∇ωᵀ + E_ϕ * E_∇ω'
 
@@ -770,9 +770,9 @@ end
     return Φ, JΦ
 end
 
-@inline function _∇²neglogpdf_qrician_vjp_jac_parts_jet(Δ::SVector{9, D}, x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇³neglogpdf_qrician_vjp_with_jet_from_parts(Δ::SVector{9, D}, x::D, ν::D, δ::D, order::Val) where {D}
     # Compute JVP from the Jacobian parts
-    Φ, (E_∇ω, E_∇²ω, E_Jϕ_minus_E_ϕ∇ωᵀ) = _∇²neglogpdf_qrician_jac_parts_jet(x, ν, δ, order)
+    Φ, (E_∇ω, E_∇²ω, E_Jϕ_minus_E_ϕ∇ωᵀ) = _∇³neglogpdf_qrician_jacobian_parts_with_jet(x, ν, δ, order)
     E_ϕ = SVector{9, D}(E_∇ω..., E_∇²ω...)
 
     Δgx, Δgν, Δgδ, ΔHxx, ΔHxν, ΔHxδ, ΔHνν, ΔHνδ, ΔHδδ = Δ
@@ -786,10 +786,10 @@ end
     return Φ, gΦ
 end
 
-@inline function _∇²neglogpdf_qrician_jac_parts_jet(x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇³neglogpdf_qrician_jacobian_parts_with_jet(x::D, ν::D, δ::D, order::Val) where {D}
     # Define a single integrand that computes all necessary terms for the primal and JVP calculations
     _, (E_∇ω, E_∇²ω, E_Jϕ_minus_E_ϕ∇ωᵀ) = f_quadrature_weighted_unit_interval(D, order) do t
-        local ϕ, Jϕ = _∇²neglogpdf_qrician_inner_jac_jet(x, ν, δ, t)
+        local ϕ, Jϕ = _∇³neglogpdf_qrician_inner_jacobian_with_jet(x, ν, δ, t)
         local x′ = x + δ * t
         local ∇x, ∇ν, ∇δ, ∂²xx, ∂²xν, ∂²xδ, ∂²νν, ∂²νδ, ∂²δδ = ϕ
         local ∇ω = SVector(∇x, ∇ν, ∇δ)
@@ -808,14 +808,14 @@ end
     return Φ, (E_∇ω, E_∇²ω, E_Jϕ_minus_E_ϕ∇ωᵀ)
 end
 
-@inline function _∇²neglogpdf_qrician_vjp_one_pass_jet(Δ::SVector{9, D}, x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇³neglogpdf_qrician_vjp_with_jet_one_pass(Δ::SVector{9, D}, x::D, ν::D, δ::D, order::Val) where {D}
     Δgx, Δgν, Δgδ, ΔHxx, ΔHxν, ΔHxδ, ΔHνν, ΔHνδ, ΔHδδ = Δ
     Δg = SVector{3, D}(Δgx, Δgν, Δgδ)
     ΔH = SVector{6, D}(ΔHxx, ΔHxν, ΔHxδ, ΔHνν, ΔHνδ, ΔHδδ)
 
     # Define a single integrand that computes all necessary terms for the primal and JVP calculations
     _, (E_∇ω, E_∇²ω, E_JϕᵀΔ_minus_∇ωϕᵀΔ, E_J∇ω_minus_E_∇ω∇ωᵀ) = f_quadrature_weighted_unit_interval(D, order) do t
-        local ϕ, Jϕ = _∇²neglogpdf_qrician_inner_jac_jet(x, ν, δ, t)
+        local ϕ, Jϕ = _∇³neglogpdf_qrician_inner_jacobian_with_jet(x, ν, δ, t)
         local x′ = x + δ * t
         local ∇x, ∇ν, ∇δ, ∂²xx, ∂²xν, ∂²xδ, ∂²νν, ∂²νδ, ∂²δδ = ϕ
         local ∇ω = SVector(∇x, ∇ν, ∇δ)
@@ -840,7 +840,7 @@ end
     return Φ, gΦ
 end
 
-@inline function _∇²neglogpdf_qrician_vjp_two_pass_jet(Δ::SVector{9, D}, x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇³neglogpdf_qrician_vjp_with_jet_two_pass(Δ::SVector{9, D}, x::D, ν::D, δ::D, order::Val) where {D}
     # First pass to compute E[∇ω] needed for Δϕ and covariance term in second integrand
     δ⁻¹ = inv(δ)
     _, E_∇ω, t_nodes, w_nodes = f_quadrature_weighted_unit_interval(D, order) do t
@@ -858,7 +858,7 @@ end
 
     # Second pass to compute JVP-related terms
     integrands = map(t_nodes) do t
-        local ϕ, JϕᵀΔϕ = _∇²neglogpdf_qrician_inner_vjp_jet(Δϕ, x, ν, δ, t)
+        local ϕ, JϕᵀΔϕ = _∇³neglogpdf_qrician_inner_vjp_with_jet(Δϕ, x, ν, δ, t)
         local ∇x, ∇ν, ∇δ, dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ = ϕ
         local ∇ω = SVector(∇x, ∇ν, ∇δ)
         local ∇²ω = SVector(dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ)
@@ -879,7 +879,7 @@ end
     return Φ, E_gΦ
 end
 
-@inline function _∇²neglogpdf_qrician_inner_jac_ad_jet(x::D, ν::D, δ::D, t::D) where {D}
+@inline function _∇³neglogpdf_qrician_inner_jacobian_with_jet_ad(x::D, ν::D, δ::D, t::D) where {D}
     ϕ, Jϕ = withjacobian(SVector(x, ν, δ)) do p
         local x, ν, δ = p
         x′ = x + δ * t
@@ -890,9 +890,10 @@ end
         dxdδ, dνdδ, dδdδ = t * dxdx + ∇x * δ⁻¹, t * dxdν + ∇ν * δ⁻¹, t * (t * dxdx + 2 * ∇x * δ⁻¹)
         return SVector(∇x, ∇ν, ∇δ, dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ)
     end
+    return ϕ, Jϕ
 end
 
-@inline function _∇²neglogpdf_qrician_inner_jac_jet(x::D, ν::D, δ::D, t::D) where {D}
+@inline function _∇³neglogpdf_qrician_inner_jacobian_with_jet(x::D, ν::D, δ::D, t::D) where {D}
     # Compute the core derivatives
     x′ = x + δ * t
     (∇x, ∇ν), (∇xx, ∇xν, ∇νν), (∇xxx, ∇xxν, ∇xνν, ∇ννν) = _∇³neglogpdf_rician_with_gradient_and_hessian(x′, ν)
@@ -917,7 +918,7 @@ end
     return ϕ, Jϕ
 end
 
-@inline function _∇²neglogpdf_qrician_inner_vjp_jet(Δϕ::SVector{9, D}, x::D, ν::D, δ::D, t::D) where {D}
+@inline function _∇³neglogpdf_qrician_inner_vjp_with_jet(Δϕ::SVector{9, D}, x::D, ν::D, δ::D, t::D) where {D}
     # Compute the core derivatives
     x′ = x + δ * t
     (∇x, ∇ν), (∇xx, ∇xν, ∇νν), (∇xxx, ∇xxν, ∇xνν, ∇ννν) = _∇³neglogpdf_rician_with_gradient_and_hessian(x′, ν)
