@@ -9,6 +9,8 @@
 /test/matlab/Manifest.toml
 /test/matlab/jlcall.m
 /test/matlab/.jlcall
+/paper/*.bak*
+/paper/figures/output*/
 
 # LaTeX
 *.acn
