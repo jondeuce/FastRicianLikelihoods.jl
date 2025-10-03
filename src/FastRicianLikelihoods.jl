@@ -1,6 +1,6 @@
 module FastRicianLikelihoods
 
-using Base: BroadcastFunction
+using Base: BroadcastFunction, Fix1, Fix2
 using Bessels: Bessels
 using ChainRulesCore: ChainRulesCore, @scalar_rule, NoTangent
 using Distributions: Distributions, normlogccdf, normlogcdf

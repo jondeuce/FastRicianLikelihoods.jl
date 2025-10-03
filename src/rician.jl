@@ -55,7 +55,7 @@ end
 
     r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(0))
     if z < neglogpdf_rician_parts_taylor_branch(T)
-        ∂x = x - r * ν - inv(x)
+        ∂x = (x - inv(x)) - r * ν
         ∂ν = ν - r * x
     else
         ∂x = (x - ν) - inv(x) * (one(T) - r_tail)
@@ -93,7 +93,7 @@ end
     r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(1))
     if z < neglogpdf_rician_parts_taylor_branch(T)
         x⁻¹ = inv(x)
-        ∂x = x - r * ν - x⁻¹
+        ∂x = (x - x⁻¹) - r * ν
         ∂ν = ν - r * x
         ∂xx = x⁻¹ * x⁻¹ + (one(T) - ν^2 * r′)
         ∂xν = -(r + z * r′)
@@ -118,7 +118,7 @@ end
     x⁻¹ = inv(x)
     if z < neglogpdf_rician_parts_taylor_branch(T)
         x⁻² = x⁻¹ * x⁻¹
-        ∂x = x - r * ν - x⁻¹
+        ∂x = (x - x⁻¹) - r * ν
         ∂ν = ν - r * x
         ∂xx = x⁻² + (one(T) - ν^2 * r′)
         ∂xν = -(r + z * r′)
@@ -150,18 +150,20 @@ end
     return (∂x, ∂ν), (∂xx, ∂xν, ∂νν), (∂xxx, ∂xxν, ∂xνν, ∂ννν)
 end
 
+# Residual derivative methods
+
 @inline function _neglogpdf_rician_residual(x::D, ν::D, Δx::D) where {D}
     # Negative Rician log-likelihood residual `-logp(x + Δx | ν, σ = 1) - (x - ν)^2 / 2 - log(√2π)`
-    Δ = x - ν
+    Δxν = x - ν
     y = x + Δx
     z = y * ν
     T = checkedfloattype(z)
     if z < first(logbesseli0x_branches(T))
-        return Δx * (Δ + Δx / 2) + z - logbesseli0_taylor(z) - log(y) - T(log2π) / 2
+        return Δx * (Δxν + Δx / 2) + z - logbesseli0_taylor(z) - log(y) - T(log2π) / 2
     elseif z < last(logbesseli0x_branches(T))
-        return Δx * (Δ + Δx / 2) - logbesseli0x_middle(z) - log(y) - T(log2π) / 2
+        return Δx * (Δxν + Δx / 2) - logbesseli0x_middle(z) - log(y) - T(log2π) / 2
     else
-        return Δx * (Δ + Δx / 2) - logratio(y, ν) / 2 - logbesseli0x_scaled_tail(z)
+        return Δx * (Δxν + Δx / 2) - logratio(y, ν) / 2 - logbesseli0x_scaled_tail(z)
     end
 end
 
@@ -213,6 +215,7 @@ end
     T = checkedfloattype(z)
 
     r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(2))
+    y² = y * y
     y⁻¹ = inv(y)
     y⁻² = y⁻¹ * y⁻¹
     if z < neglogpdf_rician_parts_taylor_branch(T)
@@ -220,19 +223,77 @@ end
         ∂ν = (one(T) - r) * x - r * Δx
         ∂xx = y⁻² - ν^2 * r′
         ∂xν = one(T) - (r + z * r′)
-        ∂νν = -y^2 * r′
+        ∂νν = -y² * r′
     else
         ν⁻¹ = inv(ν)
         ∂x = Δx - y⁻¹ * (one(T) - r_tail)
         ∂ν = -(Δx - ν⁻¹ * r_tail)
         ∂xx = y⁻² * (one(T) - z^2 * r′)
         ∂xν = one_minus_r_minus_z_r′
-        ∂νν = -y^2 * r′
+        ∂νν = -y² * r′
     end
     ∂xxx = T(-2) * y⁻¹ * y⁻² - ν^3 * r′′
     ∂xxν = -ν * two_r′_plus_z_r′′
     ∂xνν = -y * two_r′_plus_z_r′′
-    ∂ννν = -y^3 * r′′
+    ∂ννν = -y * y² * r′′
+
+    return (∂x, ∂ν), (∂xx, ∂xν, ∂νν), (∂xxx, ∂xxν, ∂xνν, ∂ννν)
+end
+
+# Methods for the "regular part" of the residual's derivatives, where singular terms 1/x, 1/x², 1/x³ in ∂x, ∂xx, ∂xxx have been analytically removed
+
+@inline function _∇²neglogpdf_rician_residual_with_gradient_regular(x::D, ν::D, Δx::D) where {D}
+    y = x + Δx
+    z = y * ν
+    T = checkedfloattype(z)
+
+    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(1))
+    if z < neglogpdf_rician_parts_taylor_branch(T)
+        y⁻¹ = inv(y)
+        ∂x = (one(T) - r) * ν + Δx
+        ∂ν = (one(T) - r) * x - r * Δx
+        ∂xx = -ν^2 * r′
+        ∂xν = one(T) - (r + z * r′)
+        ∂νν = -y^2 * r′
+    else
+        y⁻¹, ν⁻¹ = inv(y), inv(ν)
+        ∂x = y⁻¹ * r_tail + Δx
+        ∂ν = ν⁻¹ * r_tail - Δx
+        ∂xx = -y⁻¹ * y⁻¹ * z^2 * r′
+        ∂xν = one_minus_r_minus_z_r′
+        ∂νν = -y^2 * r′
+    end
+
+    return (∂x, ∂ν), (∂xx, ∂xν, ∂νν)
+end
+
+@inline function _∇³neglogpdf_rician_residual_with_gradient_and_hessian_regular(x::D, ν::D, Δx::D) where {D}
+    y = x + Δx
+    z = y * ν
+    T = checkedfloattype(z)
+
+    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(2))
+    y² = y * y
+    y⁻¹ = inv(y)
+    y⁻² = y⁻¹ * y⁻¹
+    if z < neglogpdf_rician_parts_taylor_branch(T)
+        ∂x = (one(T) - r) * ν + Δx
+        ∂ν = (one(T) - r) * x - r * Δx
+        ∂xx = -ν^2 * r′
+        ∂xν = one(T) - (r + z * r′)
+        ∂νν = -y² * r′
+    else
+        ν⁻¹ = inv(ν)
+        ∂x = y⁻¹ * r_tail + Δx
+        ∂ν = ν⁻¹ * r_tail - Δx
+        ∂xx = -y⁻² * z^2 * r′
+        ∂xν = one_minus_r_minus_z_r′
+        ∂νν = -y² * r′
+    end
+    ∂xxx = -ν^3 * r′′
+    ∂xxν = -ν * two_r′_plus_z_r′′
+    ∂xνν = -y * two_r′_plus_z_r′′
+    ∂ννν = -y * y² * r′′
 
     return (∂x, ∂ν), (∂xx, ∂xν, ∂νν), (∂xxx, ∂xxν, ∂xνν, ∂ννν)
 end
@@ -253,15 +314,23 @@ end
 # Wrapper functions that dispatch to fast path for single point quadrature
 @inline neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _neglogpdf_qrician_midpoint(promote(x, ν, δ)...) : _neglogpdf_qrician(promote(x, ν, δ)..., order)
 @inline ∇neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇neglogpdf_qrician_midpoint(promote(x, ν, δ)...) : _∇neglogpdf_qrician(promote(x, ν, δ)..., order)
+@inline ∇neglogpdf_qrician_with_primal(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇neglogpdf_qrician_midpoint_with_primal(promote(x, ν, δ)...) : _∇neglogpdf_qrician_with_primal(promote(x, ν, δ)..., order)
 @inline ∇²neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇²neglogpdf_qrician_midpoint(promote(x, ν, δ)...) : _∇²neglogpdf_qrician(promote(x, ν, δ)..., order)
 @inline ∇²neglogpdf_qrician_with_gradient(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇²neglogpdf_qrician_midpoint_with_gradient(promote(x, ν, δ)...) : _∇²neglogpdf_qrician_with_gradient(promote(x, ν, δ)..., order)
 @inline ∇²neglogpdf_qrician_with_primal_and_gradient(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _∇²neglogpdf_qrician_midpoint_with_primal_and_gradient(promote(x, ν, δ)...) : _∇²neglogpdf_qrician_with_primal_and_gradient(promote(x, ν, δ)..., order)
+@inline ∇³neglogpdf_qrician_vjp_with_primal_gradient_and_hessian(Δ::SVector{6, <:Real}, x::Real, ν::Real, δ::Real, order::Val) = _∇³neglogpdf_qrician_vjp_with_primal_gradient_and_hessian(promote_eltypes(Δ, x, ν, δ)..., order) #TODO: midpoint optimization
+@inline ∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian(x::Real, ν::Real, δ::Real, order::Val) = _∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian(promote(x, ν, δ)..., order) #TODO: midpoint optimization
 
 # Fast-path for single point quadrature which avoids computing the primal; equivalent to using the midpoint rule approximations for the integrals
 @inline _neglogpdf_qrician_midpoint(x::D, ν::D, δ::D) where {D} = _neglogpdf_rician(x + δ / 2, ν) - log(δ)
 @inline function _∇neglogpdf_qrician_midpoint(x::D, ν::D, δ::D) where {D}
     ∂x, ∂ν = _∇neglogpdf_rician(x + δ / 2, ν)
     return ∂x, ∂ν, ∂x / 2 - inv(δ)
+end
+@inline function _∇neglogpdf_qrician_midpoint_with_primal(x::D, ν::D, δ::D) where {D}
+    Ω = _neglogpdf_qrician_midpoint(x, ν, δ)
+    ∇ = _∇neglogpdf_qrician_midpoint(x, ν, δ)
+    return Ω, ∇
 end
 @inline function _∇²neglogpdf_qrician_midpoint_with_gradient(x::D, ν::D, δ::D) where {D}
     δ⁻¹ = inv(δ)
@@ -287,17 +356,17 @@ end
 end
 
 @inline function _∇neglogpdf_qrician_with_primal(x::D, ν::D, δ::D, order::Val) where {D}
-    Δ = x - ν
+    Δxν = x - ν
     logδ, δ⁻¹ = log(δ), inv(δ)
     Ω₀, (E_rx, E_rν, E_rδ) = f_quadrature_weighted_unit_interval(D, order) do t
         δt = δ * t
         rx, rν = _∇neglogpdf_rician_residual(x, ν, δt)
-        rδ = t * (rx + Δ)
+        rδ = t * (rx + Δxν)
         return _neglogpdf_rician_residual(x, ν, δt), SVector{3, D}(rx, rν, rδ)
     end
-    Ω = Ω₀ + (Δ^2 + log2π) / 2 - logδ
-    ∂x = E_rx + Δ
-    ∂ν = E_rν - Δ
+    Ω = Ω₀ + (Δxν^2 + log2π) / 2 - logδ
+    ∂x = E_rx + Δxν
+    ∂ν = E_rν - Δxν
     ∂δ = E_rδ - δ⁻¹
 
     #=
@@ -358,25 +427,29 @@ end
 @scalar_rule _neglogpdf_qrician(x, ν, δ, order::Val) (_∇neglogpdf_qrician_with_primal(x, ν, δ, order)[2]..., NoTangent())
 @dual_rule_from_frule _neglogpdf_qrician(x, ν, δ, !(order::Val))
 
-@inline function _∇²neglogpdf_qrician_with_primal_and_gradient(x::D, ν::D, δ::D, order::Val) where {D}
-    Δ = x - ν
+@inline _∇²neglogpdf_qrician_with_primal_and_gradient(x::D, ν::D, δ::D, order::Val) where {D} = _∇²neglogpdf_qrician_with_primal_and_gradient_one_pass_regular(x, ν, δ, order)
+@inline _∇²neglogpdf_qrician_with_gradient(x::D, ν::D, δ::D, order::Val) where {D} = Base.tail(_∇²neglogpdf_qrician_with_primal_and_gradient(x, ν, δ, order))
+@inline _∇²neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = last(_∇²neglogpdf_qrician_with_primal_and_gradient(x, ν, δ, order))
+
+@inline function _∇²neglogpdf_qrician_with_primal_and_gradient_one_pass(x::D, ν::D, δ::D, order::Val) where {D}
+    Δxν = x - ν
     logδ, δ⁻¹ = log(δ), inv(δ)
     Ω₀, (E_rx, E_rν, E_rδ, E_hxx, E_hxν, E_hxδ, E_hνν, E_hνδ, E_hδδ) = f_quadrature_weighted_unit_interval(D, order) do t
         δt = δ * t
         (rx, rν), (rxx, rxν, rνν) = _∇²neglogpdf_rician_residual_with_gradient(x, ν, δt)
-        rδ = t * (rx + Δ)
+        rδ = t * (rx + Δxν)
         hxx = rxx - rx * rx
         hxν = rxν - rx * rν
         hνν = rνν - rν * rν
-        hxδ = t * ((hxx - Δ * rx) + 1)
-        hνδ = t * ((hxν - Δ * rν) - 1)
-        hδδ = t^2 * ((hxx - Δ * (2 * rx + Δ)) + 1)
+        hxδ = t * ((hxx - Δxν * rx) + 1)
+        hνδ = t * ((hxν - Δxν * rν) - 1)
+        hδδ = t^2 * ((hxx - Δxν * (2 * rx + Δxν)) + 1)
         return _neglogpdf_rician_residual(x, ν, δt), SVector{9, D}(rx, rν, rδ, hxx, hxν, hxδ, hνν, hνδ, hδδ)
     end
-    Ω = Ω₀ + (Δ^2 + log2π) / 2 - logδ
+    Ω = Ω₀ + (Δxν^2 + log2π) / 2 - logδ
 
-    ∇x = E_rx + Δ
-    ∇ν = E_rν - Δ
+    ∇x = E_rx + Δxν
+    ∇ν = E_rν - Δxν
     ∇δ = E_rδ - δ⁻¹
 
     ∇xx = (E_hxx + E_rx * E_rx) + 1
@@ -387,87 +460,57 @@ end
     ∇δδ = (E_hδδ + E_rδ * E_rδ) + δ⁻¹ * δ⁻¹
 
     return Ω, (∇x, ∇ν, ∇δ), (∇xx, ∇xν, ∇xδ, ∇νν, ∇νδ, ∇δδ)
-
-    #=
-    # Differentiate the approximation, i.e. differentiate through the quadrature:
-    #  ω(t) = neglogpdf_rician(t, ν)
-    #     I = ∫_{x}^{x+δ} exp(-ω(x′)) dx′ = ∫_{0}^{1} exp(-ω(x + δ * t)) * δ dt
-    #     Ω = -logI
-    #    ∂Ω = -∂(logI) = -∂I / I
-    #       = -exp(Ω) * ∫_{0}^{1} ∂(exp(-ω(x + δ * t)) * δ) dt
-    # ∂₁∂₂Ω = -∂₁∂₂(logI) = -∂₁(∂₂I / I) = (∂₁I)(∂₂I) / I² - ∂₁∂₂I / I
-    #       = (∂₁Ω)(∂₂Ω) - exp(Ω) * ∫_{0}^{1} ∂₁∂₂(exp(-ω(x + δ * t)) * δ) dt
-    # where Ω = -logI is constant w.r.t. ∂₁ and ∂₂.
-    logδ, δ⁻¹ = log(δ), inv(δ)
-    Ω₀, (∂x, ∂ν, ∂δ, ∂x∂x, ∂x∂ν, ∂x∂δ, ∂ν∂ν, ∂ν∂δ, ∂δ∂δ) = f_quadrature_weighted_unit_interval(D, order) do t
-        x′ = x + δ * t
-        (∇x, ∇ν), (∇xx, ∇xν, ∇νν) = _∇²neglogpdf_rician_with_gradient(x′, ν)
-        ∇δ = t * ∇x - δ⁻¹
-        dxdx, dxdν, dνdν = ∇xx - ∇x * ∇x, ∇xν - ∇x * ∇ν, ∇νν - ∇ν * ∇ν
-        dxdδ, dνdδ, dδdδ = t * dxdx + ∇x * δ⁻¹, t * dxdν + ∇ν * δ⁻¹, t * (t * dxdx + 2 * ∇x * δ⁻¹)
-        return _neglogpdf_rician(x′, ν), SVector{9, D}(∇x, ∇ν, ∇δ, dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ)
-    end
-    Ω = Ω₀ - logδ
-
-    return Ω, (∂x, ∂ν, ∂δ), (∂x * ∂x + ∂x∂x, ∂x * ∂ν + ∂x∂ν, ∂x * ∂δ + ∂x∂δ, ∂ν * ∂ν + ∂ν∂ν, ∂ν * ∂δ + ∂ν∂δ, ∂δ * ∂δ + ∂δ∂δ)
-    =#
-
-    #=
-    # Differentiate the approximation (using precomputed Ω)
-    (∂x, ∂ν, ∂δ, ∂x∂x, ∂x∂ν, ∂x∂δ, ∂ν∂ν, ∂ν∂δ, ∂δ∂δ) = f_quadrature(zero(x), one(x), order) do t
-        δt = δ * t
-        x′ = x + δt
-        (∇x, ∇ν), (∇xx, ∇xν, ∇νν) = _∇²neglogpdf_rician_with_gradient(x′, ν)
-        dx, dν, dδ = ∇x * δ, ∇ν * δ, ∇x * δt - one(x)
-        dxdx, dxdν, dνdν = (∇xx - ∇x * ∇x) * δ, (∇xν - ∇x * ∇ν) * δ, (∇νν - ∇ν * ∇ν) * δ
-        dxdδ, dνdδ, dδdδ = ∇x - δt * (∇x * ∇x - ∇xx), ∇ν - δt * (∇x * ∇ν - ∇xν), t * (2 * ∇x - δt * (∇x * ∇x - ∇xx))
-        integrands = SVector{9, D}(dx, dν, dδ, dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ)
-        return exp(Ω - _neglogpdf_rician(x′, ν)) * integrands
-    end
-
-    return Ω, (∂x, ∂ν, ∂δ), (∂x * ∂x + ∂x∂x, ∂x * ∂ν + ∂x∂ν, ∂x * ∂δ + ∂x∂δ, ∂ν * ∂ν + ∂ν∂ν, ∂ν * ∂δ + ∂ν∂δ, ∂δ * ∂δ + ∂δ∂δ)
-    =#
-
-    #=
-    # Differentiate the approximation for (∂x, ∂ν, ∂²xx, ∂²xν, ∂²νν) and use FTC for (∂δ, ∂²xδ, ∂²νδ, ∂²δδ):
-    # Derivatives of Ω w.r.t. (x, ν, δ) where Ω = -logI = -log ∫_{x}^{x+δ} F(x′,ν) dx′ = -log ∫_{0}^{δ} F(x+δt,ν) dϵ = -log ∫_{0}^{1} F(x+δt,ν) δ dt,
-    # F(x′,ν) = exp(-f(x′,ν)), f(x′,ν) = neglogpdf_rician(x′,ν), and x′ = x+ϵ = x+δt.
-    # First derivatives ∂Ω/∂x, ∂Ω/∂ν via quadrature:
-    #      ∂Ω/∂α = -∂/∂α (logI) = -∂I/∂α / I = ∫_{0}^{δ} exp(Ω - f(x+ϵ,ν)) ∂/∂α f(x+ϵ,ν) dϵ
-    # First derivative ∂Ω/∂δ via quadrature:
-    #      ∂Ω/∂δ = ∂/∂δ (-log ∫_{0}^{1} F(x+δt,ν) δ dt) = -∂/∂δ (∫_{0}^{1} F(x+δt,ν) δ dt) / I = -(∫_{0}^{1} F(x+δt,ν) + F_y(x+δt,ν) * δt dt) / I = -(∫_{0}^{δ} F(x+ϵ,ν) + F_y(x+ϵ,ν) * ϵ dϵ) / I / δ
-    #            = -(∫_{0}^{δ} exp(Ω - f(x+ϵ,ν)) * (1 - f_y(x+ϵ,ν) * ϵ) dϵ) / δ
-    # Second derivatives ∂²Ω/∂x², ∂²Ω/∂x∂ν, ∂²Ω/∂ν² via quadrature:
-    #   ∂²Ω/∂α∂β = -∂²/∂α∂β (logI) = -∂/∂α (∂I/∂β / I) = (∂I/∂α)(∂I/∂β) / I^2 - ∂²I/∂α∂β / I
-    #      ∂I/∂α = ∫_{0}^{δ} ∂/∂α exp(-f(x+ϵ,ν)) dϵ = ∫_{0}^{δ} exp(-f(x+ϵ,ν)) -∂/∂α f(x+ϵ,ν) dϵ
-    #   ∂²I/∂α∂β = ∫_{0}^{δ} ∂²/∂α∂β exp(-f(x+ϵ,ν)) dϵ = ∫_{0}^{δ} exp(-f(x+ϵ,ν)) (∂/∂α f(x+ϵ,ν))(∂/∂β f(x+ϵ,ν)) - ∂²/∂α∂β f(x+ϵ,ν) dϵ
-    # Second derivative ∂Ω/∂δ via quadrature:
-    # This allows us to integrate the gradient essentially for free, since we need it for the Hessian anyways.
-    (∂x, ∂ν, ∂²xx, ∂²xν, ∂²νν) = f_quadrature(x, δ, order) do x′
-        ∇, ∇² = _∇²neglogpdf_rician_with_gradient(x′, ν)
-        integrands = SVector{5, D}(∇[1], ∇[2], ∇[1] * ∇[1] - ∇²[1], ∇[1] * ∇[2] - ∇²[2], ∇[2] * ∇[2] - ∇²[3]) # ∇ and ∇∇ᵀ - ∇²
-        return exp(Ω - _neglogpdf_rician(x′, ν)) * integrands
-    end
-    ∂²xx = ∂x * ∂x - ∂²xx # d²Ω/dx² = (∂I/∂x)² - ∂²I/∂x²
-    ∂²xν = ∂x * ∂ν - ∂²xν # d²Ω/dxdν = (∂I/∂x)(∂I/∂ν) - ∂²I/∂x∂ν
-    ∂²νν = ∂ν * ∂ν - ∂²νν # d²Ω/dν² = (∂I/∂ν)² - ∂²I/∂ν²
-
-    # Cross-derivatives d²Ω/dxdδ, d²Ω/dν∂δ, d²Ω/dδ² via FTC:
-    #      ∂Ω/∂δ = -exp(Ω - f(x + δ, ν))
-    #   ∂²Ω/∂δ∂α = ∂Ω/∂δ * (∂Ω/∂α - ∂/∂α f(x + δ, ν)) where α = x, ν, δ
-    ∂δ = -exp(Ω - _neglogpdf_rician(x + δ, ν))
-    ∂x⁺, ∂ν⁺ = _∇neglogpdf_rician(x + δ, ν) # note: ∂δ⁺ = ∂x⁺
-    ∂²xδ = ∂δ * (∂x - ∂x⁺) # d²Ω/dxdδ = ∂Ω/∂δ * (∂Ω/∂x - ∂x⁺)
-    ∂²νδ = ∂δ * (∂ν - ∂ν⁺) # d²Ω/dν∂δ = ∂Ω/∂δ * (∂Ω/∂ν - ∂ν⁺)
-    ∂²δδ = ∂δ * (∂δ - ∂x⁺) # d²Ω/dδ² = ∂Ω/∂δ * (∂Ω/∂δ - ∂δ⁺)
-
-    return Ω, (∂x, ∂ν, ∂δ), (∂²xx, ∂²xν, ∂²xδ, ∂²νν, ∂²νδ, ∂²δδ)
-    =#
 end
-@inline _∇²neglogpdf_qrician_with_gradient(x::D, ν::D, δ::D, order::Val) where {D} = Base.tail(_∇²neglogpdf_qrician_with_primal_and_gradient(x, ν, δ, order))
-@inline _∇²neglogpdf_qrician(x::D, ν::D, δ::D, order::Val) where {D} = last(_∇²neglogpdf_qrician_with_primal_and_gradient(x, ν, δ, order))
+
+@inline function _∇²neglogpdf_qrician_with_primal_and_gradient_one_pass_regular(x::D, ν::D, δ::D, order::Val) where {D}
+    Δxν = x - ν
+    logδ, δ⁻¹ = log(δ), inv(δ)
+    Ω₀, (E_rx, E_rν, E_rδ, E_hxx, E_hxν, E_hxδ, E_hνν, E_hνδ, E_hδδ) = f_quadrature_weighted_unit_interval(D, order) do t
+        δt = δ * t
+        y = x + δt
+        y⁻¹ = inv(y)
+        t² = t * t
+
+        (rx_ns, rν), (rxx_ns, rxν, rνν) = _∇²neglogpdf_rician_residual_with_gradient_regular(x, ν, δt)
+        rx = rx_ns - y⁻¹
+        rδ = t * (rx + Δxν)
+
+        # h-integrands
+        y⁻¹_rx_ns = y⁻¹ * rx_ns
+        y⁻¹_rν = y⁻¹ * rν
+        rx_ns_rν = rx_ns * rν
+        rxx_ns_minus_rx_ns² = rxx_ns - rx_ns * rx_ns
+
+        hxx = rxx_ns_minus_rx_ns² + 2 * y⁻¹_rx_ns
+        hxν = rxν - rx_ns_rν + y⁻¹_rν
+        hνν = rνν - rν * rν
+        hxδ = t * (rxx_ns_minus_rx_ns² - Δxν * rx_ns + 1 + y⁻¹ * (2 * rx_ns + Δxν))
+        hνδ = t * (rxν - rx_ns_rν - Δxν * rν - 1 + y⁻¹_rν)
+        hδδ = t² * (rxx_ns_minus_rx_ns² - Δxν * (2 * rx_ns + Δxν) + 1 + 2 * y⁻¹ * (rx_ns + Δxν))
+
+        return _neglogpdf_rician_residual(x, ν, δt), SVector{9, D}(rx, rν, rδ, hxx, hxν, hxδ, hνν, hνδ, hδδ)
+    end
+
+    Ω = Ω₀ + (Δxν^2 + log2π) / 2 - logδ
+
+    ∇x = E_rx + Δxν
+    ∇ν = E_rν - Δxν
+    ∇δ = E_rδ - δ⁻¹
+
+    ∇xx = (E_hxx + E_rx * E_rx) + one(D)
+    ∇xν = (E_hxν + E_rx * E_rν) - one(D)
+    ∇xδ = E_hxδ + E_rx * E_rδ
+    ∇νν = (E_hνν + E_rν * E_rν) + one(D)
+    ∇νδ = E_hνδ + E_rν * E_rδ
+    ∇δδ = (E_hδδ + E_rδ * E_rδ) + δ⁻¹ * δ⁻¹
+
+    return Ω, (∇x, ∇ν, ∇δ), (∇xx, ∇xν, ∇xδ, ∇νν, ∇νδ, ∇δδ)
+end
 
 #### Quantized Rician third-order derivatives
+
+@inline _∇³neglogpdf_qrician_vjp_with_primal_gradient_and_hessian(Δ::SVector{6, D}, x::D, ν::D, δ::D, order::Val) where {D} = _∇³neglogpdf_qrician_vjp_with_primal_gradient_and_hessian_two_pass_regular(Δ, x, ν, δ, order)
+@inline _∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian(x::D, ν::D, δ::D, order::Val) where {D} = _∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian_two_pass_regular(x, ν, δ, order)
 
 @inline function _∇³neglogpdf_qrician_jacobian_with_hessian_ad(x::D, ν::D, δ::D, order::Val) where {D}
     H, J = withjacobian(SVector(x, ν, δ)) do p
@@ -483,7 +526,7 @@ end
     return H, J' * Δ
 end
 
-@inline function _∇³neglogpdf_qrician_vjp_with_gradient_and_hessian_two_pass(Δ::SVector{6, D}, x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇³neglogpdf_qrician_vjp_with_primal_gradient_and_hessian_two_pass(Δ::SVector{6, D}, x::D, ν::D, δ::D, order::Val) where {D}
     # Compute ∇Ω(θ) ∈ ℝ³, vech(∇²Ω(θ)) ∈ ℝ⁶, and J'Δ where J(θ) = ∂/∂θ vech(∇²Ω(θ)) and θ = (x, ν, δ).
     Δxν = x - ν
     δ⁻¹ = inv(δ)
@@ -492,56 +535,25 @@ end
     Δ_Hxx, Δ_Hxν, Δ_Hxδ, Δ_Hνν, Δ_Hνδ, Δ_Hδδ = Δ
 
     # First-pass computes expectations μ = E[∇_θ r̃]
-    _, (μ_rx, μ_rν, μ_rδ), t_nodes, w_nodes = f_quadrature_weighted_unit_interval(D, order) do t
+    Ω₀, (μ_rx, μ_rν, μ_rδ), t_nodes, w_nodes = f_quadrature_weighted_unit_interval(D, order) do t
         Δx = δ * t
         rx, rν = _∇neglogpdf_rician_residual(x, ν, Δx)
         fy = rx + Δxν
         rδ = t * fy
         return _neglogpdf_rician_residual(x, ν, Δx), SVector(rx, rν, rδ)
     end
+    Ω = Ω₀ + (Δxν^2 + log2π) / 2 - log(δ)
 
     # Second-pass computes E_h and E_T using centered gradients c = ∇_θ r̃ - μ
     integrands = map(t_nodes) do t
-        Δx = δ * t
-        (rx, rν), (rxx, rxν, rνν), (rxxx, rxxν, rxνν, rννν) = _∇³neglogpdf_rician_residual_with_gradient_and_hessian(x, ν, Δx)
+        h, T = _∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian_two_pass_integrand((μ_rx, μ_rν, μ_rδ), x, ν, δ, t)
 
-        # Reconstruct ∂/∂δ-derivatives of r̃ from f-derivatives at y = x + δ t
-        t² = t * t; t³ = t² * t
-        fy, fyy = rx + Δxν, rxx + 1
-        rδ = t * fy
-        rxδ, rνδ, rδδ = t * fyy, t * (rxν - 1), t² * fyy
-        rxxδ, rxνδ, rννδ = t * rxxx, t * rxxν, t * rxνν
-        rxδδ, rνδδ, rδδδ = t² * rxxx, t² * rxxν, t³ * rxxx
-
-        # Centered first derivatives c = ∇_θ r̃ - μ
-        rx_c, rν_c, rδ_c = rx - μ_rx, rν - μ_rν, rδ - μ_rδ
-
-        # h-integrands: h_αβ = E[∂_αβ r̃ - (∂_α r̃ - μ_α) (∂_β r̃ - μ_β)]
-        rxrx_c, rxrν_c, rxrδ_c = rx_c * rx_c, rx_c * rν_c, rx_c * rδ_c
-        rνrν_c, rνrδ_c, rδrδ_c = rν_c * rν_c, rν_c * rδ_c, rδ_c * rδ_c
-        h = SVector(rxx - rxrx_c, rxν - rxrν_c, rxδ - rxrδ_c, rνν - rνrν_c, rνδ - rνrδ_c, rδδ - rδrδ_c)
-
-        # T-integrands: T_αβγ = E[∂_αβγ r̃]
-        #   ∂_αβγ Ω = E[∂_αβγ r̃]
-        #           - Cov(∂_αβ r̃, ∂_γ r̃) - Cov(∂_αγ r̃, ∂_β r̃) - Cov(∂_βγ r̃, ∂_α r̃)
-        #           + Cov3(∂_α r̃, ∂_β r̃, ∂_γ r̃) - 2 δ⁻³ 1{α=β=γ=δ}.
-        Txxx = rxxx - rx_c * (3 * rxx - rxrx_c)
-        Txxν = rxxν - (rxx * rν_c + rx_c * (2 * rxν - rxrν_c))
-        Txνν = rxνν - (rνν * rx_c + rν_c * (2 * rxν - rxrν_c))
-        Tννν = rννν - rν_c * (3 * rνν - rνrν_c)
-        Txxδ = rxxδ - (rxx * rδ_c + rx_c * (2 * rxδ - rxrδ_c))
-        Txνδ = rxνδ - (rxν * rδ_c + rxδ * rν_c + rx_c * (rνδ - rν_c * rδ_c))
-        Tννδ = rννδ - (rνν * rδ_c + rν_c * (2 * rνδ - rνrδ_c))
-        Txδδ = rxδδ - (rδδ * rx_c + rδ_c * (2 * rxδ - rxrδ_c))
-        Tνδδ = rνδδ - (rδδ * rν_c + rδ_c * (2 * rνδ - rνrδ_c))
-        Tδδδ = rδδδ - rδ_c * (3 * rδδ - rδrδ_c)
-
+        (Txxx, Txxν, Txνν, Tννν, Txxδ, Txνδ, Tννδ, Txδδ, Tνδδ, Tδδδ) = T
         vjp_x = Txxx * Δ_Hxx + Txxν * Δ_Hxν + Txxδ * Δ_Hxδ + Txνν * Δ_Hνν + Txνδ * Δ_Hνδ + Txδδ * Δ_Hδδ # ∂(h ⋅ Δ)/∂x
         vjp_ν = Txxν * Δ_Hxx + Txνν * Δ_Hxν + Txνδ * Δ_Hxδ + Tννν * Δ_Hνν + Tννδ * Δ_Hνδ + Tνδδ * Δ_Hδδ # ∂(h ⋅ Δ)/∂ν
         vjp_δ = Txxδ * Δ_Hxx + Txνδ * Δ_Hxν + Txδδ * Δ_Hxδ + Tννδ * Δ_Hνν + Tνδδ * Δ_Hνδ + Tδδδ * Δ_Hδδ # ∂(h ⋅ Δ)/∂δ
-        vjp = SVector(vjp_x, vjp_ν, vjp_δ)
 
-        return (h, vjp)
+        return (SVector(h), SVector(vjp_x, vjp_ν, vjp_δ))
     end
     E_h, E_vjp = vecdot(w_nodes, integrands)
 
@@ -553,10 +565,52 @@ end
     H = (E_hxx + 1, E_hxν - 1, E_hxδ, E_hνν + 1, E_hνδ, E_hδδ + δ⁻²)
     JᵀΔ = (E_vjp_x, E_vjp_ν, E_vjp_δ - 2 * δ⁻³ * Δ_Hδδ)
 
-    return g, H, JᵀΔ
+    return Ω, g, H, JᵀΔ
 end
 
-@inline function _∇³neglogpdf_qrician_jacobian_with_gradient_and_hessian_two_pass(x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇³neglogpdf_qrician_vjp_with_primal_gradient_and_hessian_two_pass_regular(Δ::SVector{6, D}, x::D, ν::D, δ::D, order::Val) where {D}
+    # Compute ∇Ω(θ) ∈ ℝ³, vech(∇²Ω(θ)) ∈ ℝ⁶, and J'Δ where J(θ) = ∂/∂θ vech(∇²Ω(θ)) and θ = (x, ν, δ).
+    Δxν = x - ν
+    δ⁻¹ = inv(δ)
+    δ⁻² = δ⁻¹ * δ⁻¹
+    δ⁻³ = δ⁻² * δ⁻¹
+    Δ_Hxx, Δ_Hxν, Δ_Hxδ, Δ_Hνν, Δ_Hνδ, Δ_Hδδ = Δ
+
+    # First-pass computes expectations μ = E[∇_θ r̃]
+    Ω₀, (μ_rx, μ_rν, μ_rδ), t_nodes, w_nodes = f_quadrature_weighted_unit_interval(D, order) do t
+        Δx = δ * t
+        rx, rν = _∇neglogpdf_rician_residual(x, ν, Δx)
+        fy = rx + Δxν
+        rδ = t * fy
+        return _neglogpdf_rician_residual(x, ν, Δx), SVector(rx, rν, rδ)
+    end
+    Ω = Ω₀ + (Δxν^2 + log2π) / 2 - log(δ)
+
+    # Second-pass computes E_h and E_T using centered gradients c = ∇_θ r̃ - μ
+    integrands = map(t_nodes) do t
+        h, T = _∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian_two_pass_regular_integrand((μ_rx, μ_rν, μ_rδ), x, ν, δ, t)
+
+        (Txxx, Txxν, Txνν, Tννν, Txxδ, Txνδ, Tννδ, Txδδ, Tνδδ, Tδδδ) = T
+        vjp_x = Txxx * Δ_Hxx + Txxν * Δ_Hxν + Txxδ * Δ_Hxδ + Txνν * Δ_Hνν + Txνδ * Δ_Hνδ + Txδδ * Δ_Hδδ # ∂(h ⋅ Δ)/∂x
+        vjp_ν = Txxν * Δ_Hxx + Txνν * Δ_Hxν + Txνδ * Δ_Hxδ + Tννν * Δ_Hνν + Tννδ * Δ_Hνδ + Tνδδ * Δ_Hδδ # ∂(h ⋅ Δ)/∂ν
+        vjp_δ = Txxδ * Δ_Hxx + Txνδ * Δ_Hxν + Txδδ * Δ_Hxδ + Tννδ * Δ_Hνν + Tνδδ * Δ_Hνδ + Tδδδ * Δ_Hδδ # ∂(h ⋅ Δ)/∂δ
+
+        return (SVector(h), SVector(vjp_x, vjp_ν, vjp_δ))
+    end
+    E_h, E_vjp = vecdot(w_nodes, integrands)
+
+    # Assemble outputs g = ∇Ω, H = vech(∇²Ω), and vjp = J'Δ
+    E_hxx, E_hxν, E_hxδ, E_hνν, E_hνδ, E_hδδ = E_h
+    E_vjp_x, E_vjp_ν, E_vjp_δ = E_vjp
+
+    g = (μ_rx + Δxν, μ_rν - Δxν, μ_rδ - δ⁻¹)
+    H = (E_hxx + 1, E_hxν - 1, E_hxδ, E_hνν + 1, E_hνδ, E_hδδ + δ⁻²)
+    JᵀΔ = (E_vjp_x, E_vjp_ν, E_vjp_δ - 2 * δ⁻³ * Δ_Hδδ)
+
+    return Ω, g, H, JᵀΔ
+end
+
+@inline function _∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian_two_pass(x::D, ν::D, δ::D, order::Val) where {D}
     # Compute ∇Ω(θ) ∈ ℝ³, vech(∇²Ω(θ)) ∈ ℝ⁶, and J(θ) ∈ ℝ⁶ˣ³ where J(θ) = ∂/∂θ vech(∇²Ω(θ)) and θ = (x, ν, δ).
     # Notation per paper:
     #   r̃(t, θ) = f(x + δ t, ν) - f_G(x, ν),  Z(θ) = ∫ exp(-r̃) dt,  Ω(θ) = -log Z(θ) - log δ.
@@ -567,58 +621,25 @@ end
     # Implementation strategy:
     #   Pass 1: μ = E[∇_θ r̃] (to center all covariance terms);
     #   Pass 2: form integrands for E[h] and E[T] directly using centered quantities, then add constants.
-    Δ = x - ν
+    Δxν = x - ν
     δ⁻¹ = inv(δ)
     δ⁻² = δ⁻¹ * δ⁻¹
     δ⁻³ = δ⁻² * δ⁻¹
 
     # First-pass computes expectations μ = E[∇_θ r̃]
-    _, (μ_rx, μ_rν, μ_rδ), t_nodes, w_nodes = f_quadrature_weighted_unit_interval(D, order) do t
+    Ω₀, (μ_rx, μ_rν, μ_rδ), t_nodes, w_nodes = f_quadrature_weighted_unit_interval(D, order) do t
         Δx = δ * t
         rx, rν = _∇neglogpdf_rician_residual(x, ν, Δx)
-        fy = rx + Δ
+        fy = rx + Δxν
         rδ = t * fy
         return _neglogpdf_rician_residual(x, ν, Δx), SVector(rx, rν, rδ)
     end
+    Ω = Ω₀ + (Δxν^2 + log2π) / 2 - log(δ)
 
     # Second-pass computes E_h and E_T using centered gradients c = ∇_θ r̃ - μ
     integrands = map(t_nodes) do t
-        Δx = δ * t
-        (rx, rν), (rxx, rxν, rνν), (rxxx, rxxν, rxνν, rννν) = _∇³neglogpdf_rician_residual_with_gradient_and_hessian(x, ν, Δx)
-
-        # Reconstruct ∂/∂δ-derivatives of r̃ from f-derivatives at y = x + δ t
-        t² = t * t; t³ = t² * t
-        fy, fyy = rx + Δ, rxx + 1
-        rδ = t * fy
-        rxδ, rνδ, rδδ = t * fyy, t * (rxν - 1), t² * fyy
-        rxxδ, rxνδ, rννδ = t * rxxx, t * rxxν, t * rxνν
-        rxδδ, rνδδ, rδδδ = t² * rxxx, t² * rxxν, t³ * rxxx
-
-        # Centered first derivatives c = ∇_θ r̃ - μ
-        rx_c, rν_c, rδ_c = rx - μ_rx, rν - μ_rν, rδ - μ_rδ
-
-        # h-integrands: h_αβ = E[∂_αβ r̃ - (∂_α r̃ - μ_α) (∂_β r̃ - μ_β)]
-        rxrx_c, rxrν_c, rxrδ_c = rx_c * rx_c, rx_c * rν_c, rx_c * rδ_c
-        rνrν_c, rνrδ_c, rδrδ_c = rν_c * rν_c, rν_c * rδ_c, rδ_c * rδ_c
-        h = SVector(rxx - rxrx_c, rxν - rxrν_c, rxδ - rxrδ_c, rνν - rνrν_c, rνδ - rνrδ_c, rδδ - rδrδ_c)
-
-        # T-integrands: T_αβγ = E[∂_αβγ r̃]
-        #   ∂_αβγ Ω = E[∂_αβγ r̃]
-        #           - Cov(∂_αβ r̃, ∂_γ r̃) - Cov(∂_αγ r̃, ∂_β r̃) - Cov(∂_βγ r̃, ∂_α r̃)
-        #           + Cov3(∂_α r̃, ∂_β r̃, ∂_γ r̃) - 2 δ⁻³ 1{α=β=γ=δ}.
-        Txxx = rxxx - rx_c * (3 * rxx - rxrx_c)
-        Txxν = rxxν - (rxx * rν_c + rx_c * (2 * rxν - rxrν_c))
-        Txνν = rxνν - (rνν * rx_c + rν_c * (2 * rxν - rxrν_c))
-        Tννν = rννν - rν_c * (3 * rνν - rνrν_c)
-        Txxδ = rxxδ - (rxx * rδ_c + rx_c * (2 * rxδ - rxrδ_c))
-        Txνδ = rxνδ - (rxν * rδ_c + rxδ * rν_c + rx_c * (rνδ - rν_c * rδ_c))
-        Tννδ = rννδ - (rνν * rδ_c + rν_c * (2 * rνδ - rνrδ_c))
-        Txδδ = rxδδ - (rδδ * rx_c + rδ_c * (2 * rxδ - rxrδ_c))
-        Tνδδ = rνδδ - (rδδ * rν_c + rδ_c * (2 * rνδ - rνrδ_c))
-        Tδδδ = rδδδ - rδ_c * (3 * rδδ - rδrδ_c)
-        T = SVector(Txxx, Txxν, Txνν, Tννν, Txxδ, Txνδ, Tννδ, Txδδ, Tνδδ, Tδδδ)
-
-        return (h, T)
+        h, T = _∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian_two_pass_integrand((μ_rx, μ_rν, μ_rδ), x, ν, δ, t)
+        return (SVector(h), SVector(T))
     end
     E_h, E_T = vecdot(w_nodes, integrands)
 
@@ -626,7 +647,7 @@ end
     E_hxx, E_hxν, E_hxδ, E_hνν, E_hνδ, E_hδδ = E_h
     E_Txxx, E_Txxν, E_Txνν, E_Tννν, E_Txxδ, E_Txνδ, E_Tννδ, E_Txδδ, E_Tνδδ, E_Tδδδ = E_T
 
-    ∇x, ∇ν, ∇δ = μ_rx + Δ, μ_rν - Δ, μ_rδ - δ⁻¹
+    ∇x, ∇ν, ∇δ = μ_rx + Δxν, μ_rν - Δxν, μ_rδ - δ⁻¹
     Hxx, Hxν, Hxδ, Hνν, Hνδ, Hδδ = E_hxx + 1, E_hxν - 1, E_hxδ, E_hνν + 1, E_hνδ, E_hδδ + δ⁻²
 
     g = (∇x, ∇ν, ∇δ)
@@ -637,10 +658,61 @@ end
         E_Txxδ, E_Txνδ, E_Txδδ, E_Tννδ, E_Tνδδ, E_Tδδδ - 2 * δ⁻³, # ∂H/∂δ
     )
 
-    return g, H, J
+    return Ω, g, H, J
 end
 
-@inline function _∇³neglogpdf_qrician_jacobian_with_gradient_and_hessian_one_pass(x::D, ν::D, δ::D, order::Val) where {D}
+@inline function _∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian_two_pass_regular(x::D, ν::D, δ::D, order::Val) where {D}
+    # Compute ∇Ω(θ) ∈ ℝ³, vech(∇²Ω(θ)) ∈ ℝ⁶, and J(θ) ∈ ℝ⁶ˣ³ where J(θ) = ∂/∂θ vech(∇²Ω(θ)) and θ = (x, ν, δ).
+    # Notation per paper:
+    #   r̃(t, θ) = f(x + δ t, ν) - f_G(x, ν),  Z(θ) = ∫ exp(-r̃) dt,  Ω(θ) = -log Z(θ) - log δ.
+    # Working identities (all expectations wrt P(t|θ) ∝ exp(-r̃)):
+    #   ∇Ω = E[∇_θ r̃] + ∇_θ f_G - (0, 0, δ⁻¹).
+    #   ∇²Ω = E[∇²_θ r̃] - Cov(∇_θ r̃, ∇_θ r̃) + diag(1, 1, δ⁻²) + offdiag(1, -1).
+    #   ∂_αβγ Ω = E[∂_αβγ r̃] - Cov(∂_αβ r̃, ∂_γ r̃) - Cov(∂_αγ r̃, ∂_β r̃) - Cov(∂_βγ r̃, ∂_α r̃) + Cov3(∂_α r̃, ∂_β r̃, ∂_γ r̃) - 2 δ⁻³ 1{α=β=γ=δ}.
+    # Implementation strategy:
+    #   Pass 1: μ = E[∇_θ r̃] (to center all covariance terms);
+    #   Pass 2: form integrands for E[h] and E[T] directly using centered quantities, then add constants.
+    Δxν = x - ν
+    δ⁻¹ = inv(δ)
+    δ⁻² = δ⁻¹ * δ⁻¹
+    δ⁻³ = δ⁻² * δ⁻¹
+
+    # First-pass computes expectations μ = E[∇_θ r̃]
+    Ω₀, (μ_rx, μ_rν, μ_rδ), t_nodes, w_nodes = f_quadrature_weighted_unit_interval(D, order) do t
+        Δx = δ * t
+        rx, rν = _∇neglogpdf_rician_residual(x, ν, Δx)
+        fy = rx + Δxν
+        rδ = t * fy
+        return _neglogpdf_rician_residual(x, ν, Δx), SVector(rx, rν, rδ)
+    end
+    Ω = Ω₀ + (Δxν^2 + log2π) / 2 - log(δ)
+
+    # Second-pass computes E_h and E_T using centered gradients and stable reformulations
+    integrands = map(t_nodes) do t
+        h, T = _∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian_two_pass_regular_integrand((μ_rx, μ_rν, μ_rδ), x, ν, δ, t)
+        return (SVector(h), SVector(T))
+    end
+    E_h, E_T = vecdot(w_nodes, integrands)
+
+    # Assemble outputs g = ∇Ω, H = vech(∇²Ω), and J = ∂/∂θ vech(∇²Ω)
+    E_hxx, E_hxν, E_hxδ, E_hνν, E_hνδ, E_hδδ = E_h
+    E_Txxx, E_Txxν, E_Txνν, E_Tννν, E_Txxδ, E_Txνδ, E_Tννδ, E_Txδδ, E_Tνδδ, E_Tδδδ = E_T
+
+    ∇x, ∇ν, ∇δ = μ_rx + Δxν, μ_rν - Δxν, μ_rδ - δ⁻¹
+    Hxx, Hxν, Hxδ, Hνν, Hνδ, Hδδ = E_hxx + 1, E_hxν - 1, E_hxδ, E_hνν + 1, E_hνδ, E_hδδ + δ⁻²
+
+    g = (∇x, ∇ν, ∇δ)
+    H = (Hxx, Hxν, Hxδ, Hνν, Hνδ, Hδδ)
+    J = SMatrix{6, 3, D, 18}(
+        E_Txxx, E_Txxν, E_Txxδ, E_Txνν, E_Txνδ, E_Txδδ, # ∂H/∂x
+        E_Txxν, E_Txνν, E_Txνδ, E_Tννν, E_Tννδ, E_Tνδδ, # ∂H/∂ν
+        E_Txxδ, E_Txνδ, E_Txδδ, E_Tννδ, E_Tνδδ, E_Tδδδ - 2 * δ⁻³, # ∂H/∂δ
+    )
+
+    return Ω, g, H, J
+end
+
+@inline function _∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian_one_pass(x::D, ν::D, δ::D, order::Val) where {D}
     # Compute ∇Ω(θ) ∈ ℝ³, vech(∇²Ω(θ)) ∈ ℝ⁶, and J(θ) ∈ ℝ⁶ˣ³ where J(θ) = ∂/∂θ vech(∇²Ω(θ)) and θ = (x, ν, δ).
     # Notation per paper (one-pass, raw-moment formulation):
     #   r̃(t, θ) = f(x + δ t, ν) - f_G(x, ν),  P(t|θ) ∝ exp(-r̃).
@@ -652,7 +724,7 @@ end
     #   J_αβγ = ∂_αβγ r̃ - (∂_αβ r̃ ∂_γ r̃ + ∂_αγ r̃ ∂_β r̃ + ∂_βγ r̃ ∂_α r̃) + ∂_α r̃ ∂_β r̃ ∂_γ r̃, and
     #   g_αβγ = (μ_γ E[∂_αβ] + μ_β E[∂_αγ] + μ_α E[∂_βγ]) - (μ_γ E[∂_α ∂_β] + μ_β E[∂_α ∂_γ] + μ_α E[∂_β ∂_γ]) + 2 μ_α μ_β μ_γ.
     # Implementation strategy: integrate the minimal raw basis (E[∂], E[∂∂ᵀ], E[∂²], E[J]), then assemble ∇Ω, H = vech(∇²Ω), and J = ∂/∂θ vech(∇²Ω).
-    Δ = x - ν
+    Δxν = x - ν
     δ⁻¹ = inv(δ)
     δ⁻² = δ⁻¹ * δ⁻¹
     δ⁻³ = δ⁻² * δ⁻¹
@@ -662,8 +734,9 @@ end
         Δx = δ * t
         (rx, rν), (rxx, rxν, rνν), (rxxx, rxxν, rxνν, rννν) = _∇³neglogpdf_rician_residual_with_gradient_and_hessian(x, ν, Δx)
 
-        t² = t * t; t³ = t² * t
-        fy, fyy = rx + Δ, rxx + 1
+        t² = t * t
+        t³ = t² * t
+        fy, fyy = rx + Δxν, rxx + 1
         rδ = t * fy
         rxδ, rνδ, rδδ = t * fyy, t * (rxν - 1), t² * fyy
         rxxδ, rxνδ, rννδ = t * rxxx, t * rxxν, t * rxνν
@@ -688,6 +761,7 @@ end
 
         return _neglogpdf_rician_residual(x, ν, Δx), (∂, ∂∂ᵀ, ∂², ∂³)
     end
+    Ω = Ω₀ + (Δxν^2 + log2π) / 2 - log(δ)
 
     # Unpack expectations and compute central moments
     μ_rx, μ_rν, μ_rδ = E_∂
@@ -703,7 +777,7 @@ end
     Cov_rδ_rδ = E_rδrδ - μ_rδ * μ_rδ
 
     # Assemble primal outputs ∇Ω and vech(∇²Ω)
-    ∇x, ∇ν, ∇δ = μ_rx + Δ, μ_rν - Δ, μ_rδ - δ⁻¹
+    ∇x, ∇ν, ∇δ = μ_rx + Δxν, μ_rν - Δxν, μ_rδ - δ⁻¹
     Hxx = E_rxx - Cov_rx_rx + 1
     Hxν = E_rxν - Cov_rx_rν - 1
     Hxδ = E_rxδ - Cov_rx_rδ
@@ -733,7 +807,103 @@ end
         Txxδ, Txνδ, Txδδ, Tννδ, Tνδδ, Tδδδ, # ∂H/∂δ
     )
 
-    return g, H, J
+    return Ω, g, H, J
+end
+
+# Third-derivative integrand methods
+
+@inline function _∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian_two_pass_integrand((μ_rx, μ_rν, μ_rδ)::NTuple{3, D}, x::D, ν::D, δ::D, t::D) where {D}
+    Δx = δ * t
+    (rx, rν), (rxx, rxν, rνν), (rxxx, rxxν, rxνν, rννν) = _∇³neglogpdf_rician_residual_with_gradient_and_hessian(x, ν, Δx)
+
+    # Reconstruct ∂/∂δ-derivatives of r̃ from f-derivatives at y = x + δ t
+    t² = t * t
+    t³ = t² * t
+    fy, fyy = rx + (x - ν), rxx + 1
+    rδ = t * fy
+    rxδ, rνδ, rδδ = t * fyy, t * (rxν - 1), t² * fyy
+    rxxδ, rxνδ, rννδ = t * rxxx, t * rxxν, t * rxνν
+    rxδδ, rνδδ, rδδδ = t² * rxxx, t² * rxxν, t³ * rxxx
+
+    # Centered first derivatives c = ∇_θ r̃ - μ
+    rx_c, rν_c, rδ_c = rx - μ_rx, rν - μ_rν, rδ - μ_rδ
+
+    # h-integrands: h_αβ = E[∂_αβ r̃ - (∂_α r̃ - μ_α) (∂_β r̃ - μ_β)]
+    rxrx_c, rxrν_c, rxrδ_c = rx_c * rx_c, rx_c * rν_c, rx_c * rδ_c
+    rνrν_c, rνrδ_c, rδrδ_c = rν_c * rν_c, rν_c * rδ_c, rδ_c * rδ_c
+    h = (rxx - rxrx_c, rxν - rxrν_c, rxδ - rxrδ_c, rνν - rνrν_c, rνδ - rνrδ_c, rδδ - rδrδ_c)
+
+    # T-integrands: T_αβγ = E[∂_αβγ r̃]
+    #   ∂_αβγ Ω = E[∂_αβγ r̃]
+    #           - Cov(∂_αβ r̃, ∂_γ r̃) - Cov(∂_αγ r̃, ∂_β r̃) - Cov(∂_βγ r̃, ∂_α r̃)
+    #           + Cov3(∂_α r̃, ∂_β r̃, ∂_γ r̃) - 2 δ⁻³ 1{α=β=γ=δ}.
+    Txxx = rxxx - rx_c * (3 * rxx - rxrx_c)
+    Txxν = rxxν - (rxx * rν_c + rx_c * (2 * rxν - rxrν_c))
+    Txνν = rxνν - (rνν * rx_c + rν_c * (2 * rxν - rxrν_c))
+    Tννν = rννν - rν_c * (3 * rνν - rνrν_c)
+    Txxδ = rxxδ - (rxx * rδ_c + rx_c * (2 * rxδ - rxrδ_c))
+    Txνδ = rxνδ - (rxν * rδ_c + rxδ * rν_c + rx_c * (rνδ - rν_c * rδ_c))
+    Tννδ = rννδ - (rνν * rδ_c + rν_c * (2 * rνδ - rνrδ_c))
+    Txδδ = rxδδ - (rδδ * rx_c + rδ_c * (2 * rxδ - rxrδ_c))
+    Tνδδ = rνδδ - (rδδ * rν_c + rδ_c * (2 * rνδ - rνrδ_c))
+    Tδδδ = rδδδ - rδ_c * (3 * rδδ - rδrδ_c)
+    T = (Txxx, Txxν, Txνν, Tννν, Txxδ, Txνδ, Tννδ, Txδδ, Tνδδ, Tδδδ)
+
+    return (h, T)
+end
+
+@inline function _∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian_two_pass_regular_integrand((μ_rx, μ_rν, μ_rδ)::NTuple{3, D}, x::D, ν::D, δ::D, t::D) where {D}
+    Δx = δ * t
+    y = x + Δx
+    y⁻¹ = inv(y)
+    t² = t * t
+    t³ = t² * t
+    ty⁻¹ = t * y⁻¹
+
+    (rx_ns, rν), (rxx_ns, rxν, rνν), (rxxx_ns, rxxν, rxνν, rννν) = _∇³neglogpdf_rician_residual_with_gradient_and_hessian_regular(x, ν, Δx)
+
+    # Centered derivatives
+    rx_ns_c = rx_ns - μ_rx
+    rδ_ns_c = t * (rx_ns + (x - ν)) - μ_rδ
+    rν_c = rν - μ_rν
+
+    # h-integrands
+    rx_ns_c² = rx_ns_c * rx_ns_c
+    rν_c² = rν_c * rν_c
+    rδ_ns_c² = rδ_ns_c * rδ_ns_c
+    rxx_ns_p1 = rxx_ns + 1
+    rxνm1 = rxν - 1
+
+    h_xx = rxx_ns - rx_ns_c² + 2 * y⁻¹ * rx_ns_c
+    h_xν = rxν - rx_ns_c * rν_c + y⁻¹ * rν_c
+    h_νν = rνν - rν_c²
+    h_xδ = t * rxx_ns_p1 - rx_ns_c * rδ_ns_c + y⁻¹ * (rδ_ns_c + t * rx_ns_c)
+    h_νδ = t * rxνm1 - rν_c * rδ_ns_c + ty⁻¹ * rν_c
+    h_δδ = t² * rxx_ns_p1 - rδ_ns_c² + 2 * ty⁻¹ * rδ_ns_c
+    h = (h_xx, h_xν, h_xδ, h_νν, h_νδ, h_δδ)
+
+    # T-integrands
+    rνδ = t * (rxν - 1)
+    rxx_ns_minus_rx_ns_c² = rxx_ns - rx_ns_c²
+    rνν_minus_rν_c² = rνν - rν_c²
+    rxν_minus_rx_ns_c_rν_c = rxν - rx_ns_c * rν_c
+    t_rxx_ns_p1 = t * rxx_ns_p1
+    t²_rxx_ns_p1 = t * t_rxx_ns_p1
+    rν_c_rδ_ns_c = rν_c * rδ_ns_c
+
+    Txxx = rxxx_ns - rx_ns_c * (3 * rxx_ns - rx_ns_c²) + 3 * y⁻¹ * rxx_ns_minus_rx_ns_c²
+    Txxν = rxxν - rν_c * rxx_ns_minus_rx_ns_c² - 2 * rx_ns_c * rxν + 2 * y⁻¹ * rxν_minus_rx_ns_c_rν_c
+    Txνν = rxνν + rx_ns_c * (rν_c² - rνν) - 2 * rν_c * rxν + y⁻¹ * rνν_minus_rν_c²
+    Tννν = rννν - rν_c * (3 * rνν - rν_c²)
+    Txxδ = t * rxxx_ns - 2 * t * rx_ns_c * rxx_ns_p1 + rδ_ns_c * (rx_ns_c² - rxx_ns) + y⁻¹ * (t * (3 * rxx_ns + 2 - rx_ns_c²) - 2 * rx_ns_c * rδ_ns_c)
+    Txνδ = t * rxxν - rxν * rδ_ns_c - t_rxx_ns_p1 * rν_c - rx_ns_c * (rνδ - rν_c_rδ_ns_c) + y⁻¹ * (t * rxν + rνδ - rν_c * (rδ_ns_c + t * rx_ns_c))
+    Tννδ = t * rxνν - 2 * t * rν_c * rxνm1 + (rν_c² - rνν) * rδ_ns_c + ty⁻¹ * rνν_minus_rν_c²
+    Txδδ = t² * rxxx_ns - 2 * t_rxx_ns_p1 * rδ_ns_c - rx_ns_c * t²_rxx_ns_p1 + rx_ns_c * rδ_ns_c² + y⁻¹ * (3 * t²_rxx_ns_p1 - rδ_ns_c * (2 * t * rx_ns_c + rδ_ns_c))
+    Tνδδ = t² * rxxν - t²_rxx_ns_p1 * rν_c - rδ_ns_c * (2 * t * rxνm1 - rν_c_rδ_ns_c) + ty⁻¹ * (2 * t * rxνm1 - 2 * rν_c_rδ_ns_c)
+    Tδδδ = t³ * rxxx_ns - rδ_ns_c * (3 * t²_rxx_ns_p1 - rδ_ns_c²) + 3 * ty⁻¹ * (t²_rxx_ns_p1 - rδ_ns_c²)
+    T = (Txxx, Txxν, Txνν, Tννν, Txxδ, Txνδ, Tννδ, Txδδ, Tνδδ, Tδδδ)
+
+    return (h, T)
 end
 
 #### Quantized Rician third-order derivatives using the "Jet" formulation where we differentiate the vector Φ = (∇Ω, vech(∇²Ω))
@@ -788,7 +958,7 @@ end
 
 @inline function _∇³neglogpdf_qrician_jacobian_parts_with_jet(x::D, ν::D, δ::D, order::Val) where {D}
     # Define a single integrand that computes all necessary terms for the primal and JVP calculations
-    _, (E_∇ω, E_∇²ω, E_Jϕ_minus_E_ϕ∇ωᵀ) = f_quadrature_weighted_unit_interval(D, order) do t
+    Ω₀, (E_∇ω, E_∇²ω, E_Jϕ_minus_E_ϕ∇ωᵀ) = f_quadrature_weighted_unit_interval(D, order) do t
         local ϕ, Jϕ = _∇³neglogpdf_qrician_inner_jacobian_with_jet(x, ν, δ, t)
         local x′ = x + δ * t
         local ∇x, ∇ν, ∇δ, ∂²xx, ∂²xν, ∂²xδ, ∂²νν, ∂²νδ, ∂²δδ = ϕ
@@ -797,6 +967,8 @@ end
         local ϕ∇ωᵀ = ϕ * ∇ω'
         return _neglogpdf_rician(x′, ν), (∇ω, ∇²ω, Jϕ - ϕ∇ωᵀ)
     end
+    Ω = Ω₀ - log(δ)
+
     ∂x, ∂ν, ∂δ = E_∇ω
     dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ = E_∇²ω
     Φ = SVector{9, D}(
@@ -814,7 +986,7 @@ end
     ΔH = SVector{6, D}(ΔHxx, ΔHxν, ΔHxδ, ΔHνν, ΔHνδ, ΔHδδ)
 
     # Define a single integrand that computes all necessary terms for the primal and JVP calculations
-    _, (E_∇ω, E_∇²ω, E_JϕᵀΔ_minus_∇ωϕᵀΔ, E_J∇ω_minus_E_∇ω∇ωᵀ) = f_quadrature_weighted_unit_interval(D, order) do t
+    Ω₀, (E_∇ω, E_∇²ω, E_JϕᵀΔ_minus_∇ωϕᵀΔ, E_J∇ω_minus_E_∇ω∇ωᵀ) = f_quadrature_weighted_unit_interval(D, order) do t
         local ϕ, Jϕ = _∇³neglogpdf_qrician_inner_jacobian_with_jet(x, ν, δ, t)
         local x′ = x + δ * t
         local ∇x, ∇ν, ∇δ, ∂²xx, ∂²xν, ∂²xδ, ∂²νν, ∂²νδ, ∂²δδ = ϕ
@@ -825,6 +997,7 @@ end
         local ∇ω∇ωᵀ = ∇ω * ∇ω'
         return _neglogpdf_rician(x′, ν), (∇ω, ∇²ω, JϕᵀΔ_minus_∇ωϕᵀΔ, J∇ω - ∇ω∇ωᵀ)
     end
+    Ω = Ω₀ - log(δ)
 
     ∂x, ∂ν, ∂δ = E_∇ω
     dxdx, dxdν, dxdδ, dνdν, dνdδ, dδdδ = E_∇²ω
@@ -843,11 +1016,12 @@ end
 @inline function _∇³neglogpdf_qrician_vjp_with_jet_two_pass(Δ::SVector{9, D}, x::D, ν::D, δ::D, order::Val) where {D}
     # First pass to compute E[∇ω] needed for Δϕ and covariance term in second integrand
     δ⁻¹ = inv(δ)
-    _, E_∇ω, t_nodes, w_nodes = f_quadrature_weighted_unit_interval(D, order) do t
+    Ω₀, E_∇ω, t_nodes, w_nodes = f_quadrature_weighted_unit_interval(D, order) do t
         local x′ = x + δ * t
         local ∇x, ∇ν = _∇neglogpdf_rician(x′, ν)
         return _neglogpdf_rician(x′, ν), SVector(∇x, ∇ν, t * ∇x - δ⁻¹)
     end
+    Ω = Ω₀ - log(δ)
 
     # Assemble the transformed sensitivity vector Δϕ, which is now constant for the main pass
     Δgx, Δgν, Δgδ, ΔHxx, ΔHxν, ΔHxδ, ΔHνν, ΔHνδ, ΔHδδ = Δ
@@ -952,33 +1126,33 @@ end
 #### Specialized quadrature rules
 
 function neglogpdf_qrician_direct(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}}
-    Δ = x - ν
+    Δxν = x - ν
     I = neglogf_quadrature(zero(T), δ, order) do t̂
         t = t̂ + x
-        Δ_tν = t̂ + Δ # numerically stable when x ≈ ν, equivalent to: t - ν = t̂ + (x - ν)
+        Δ_tν = t̂ + Δxν # numerically stable when x ≈ ν, equivalent to: t - ν = t̂ + (x - ν)
         return Δ_tν^2 / 2 - log(t) - logbesseli0x(t * ν)
     end
     return I
 end
 
 function neglogpdf_qrician_right_laguerre_tail(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}}
-    Δ = x - ν
-    Δ′ = Δ + δ
-    λ = δ * (Δ + δ / 2)
-    I0 = Δ^2 / 2
+    Δxν = x - ν
+    Δxν′ = Δxν + δ
+    λ = δ * (Δxν + δ / 2)
+    I0 = Δxν^2 / 2
 
     if λ > -log(eps(T))
-        I1 = f_laguerre_tail_quadrature(Δ, order) do t̂
+        I1 = f_laguerre_tail_quadrature(Δxν, order) do t̂
             t = x + t̂
             return exp(-t̂^2 / 2) * t * besseli0x(t * ν)
         end
         I1 = -log(I1)
     else
-        I1⁺ = f_laguerre_tail_quadrature(Δ, order) do t̂
+        I1⁺ = f_laguerre_tail_quadrature(Δxν, order) do t̂
             t = x + t̂
             return exp(-t̂^2 / 2) * t * besseli0x(t * ν)
         end
-        I1⁻ = f_laguerre_tail_quadrature(Δ′, order) do t̂
+        I1⁻ = f_laguerre_tail_quadrature(Δxν′, order) do t̂
             t = x + δ + t̂
             return exp(-t̂^2 / 2) * t * besseli0x(t * ν)
         end
@@ -1000,25 +1174,25 @@ function neglogpdf_qrician_right_laguerre_tail(x::T, ν::T, δ::T, order::Val) w
 end
 
 function neglogpdf_qrician_right_halfhermite_tail(x::T, ν::T, δ::T, order::Val) where {T <: Union{Float32, Float64}}
-    Δ = x - ν
-    Δ′ = Δ + δ
-    λ = δ * (Δ + δ / 2)
-    I0 = Δ^2 / 2
+    Δxν = x - ν
+    Δxν′ = Δxν + δ
+    λ = δ * (Δxν + δ / 2)
+    I0 = Δxν^2 / 2
 
     if λ > -log(eps(T))
         I1 = f_halfhermite_tail_quadrature(Val(zero(T)), order) do t̂
             t = x + t̂
-            return exp(-Δ * t̂) * t * besseli0x(t * ν)
+            return exp(-Δxν * t̂) * t * besseli0x(t * ν)
         end
         I1 = -log(I1) - T(log2π) / 2
     else
         I1⁺ = f_halfhermite_tail_quadrature(Val(zero(T)), order) do t̂
             t = x + t̂
-            return exp(-Δ * t̂) * t * besseli0x(t * ν)
+            return exp(-Δxν * t̂) * t * besseli0x(t * ν)
         end
         I1⁻ = f_halfhermite_tail_quadrature(Val(zero(T)), order) do t̂
             t = x + δ + t̂
-            return exp(-Δ′ * t̂) * t * besseli0x(t * ν)
+            return exp(-Δxν′ * t̂) * t * besseli0x(t * ν)
         end
         I1 = -log(I1⁺ - exp(-λ) * I1⁻) - T(log2π) / 2
 
@@ -1132,7 +1306,7 @@ end
     w = SVector{order, Float64}(w) # exponentially decreasing weights
     return :($x, $w)
 end
-@inline gausslaguerre_positive_real_axis(::Val{order}, ::Type{T}) where {order, T} = map(Base.Fix1(convert, SVector{order, T}), gausslaguerre_positive_real_axis(Val(order), Float64))
+@inline gausslaguerre_positive_real_axis(::Val{order}, ::Type{T}) where {order, T} = map(Fix1(convert, SVector{order, T}), gausslaguerre_positive_real_axis(Val(order), Float64))
 
 @generated function gausshalfhermite_positive_real_axis(::Val{order}, ::Type{T}, ::Val{γ}) where {order, T, γ}
     @assert γ > -1 "γ must be greater than -1"

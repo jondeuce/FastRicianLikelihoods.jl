@@ -24,21 +24,24 @@
 # See: https://github.com/JuliaDiff/ForwardDiff.jl/pull/735
 const ForwardDiffStaticArraysExt = Base.get_extension(ForwardDiff, :ForwardDiffStaticArraysExt)
 
-@inline function withgradient(::Type{T}, f::F, x::StaticArray) where {T, F}
-    ydual = ForwardDiffStaticArraysExt.static_dual_eval(T, f, x)
+struct DualValue{T} end
+@inline (::DualValue{T})(y::ForwardDiff.Dual{T}) where {T} = ForwardDiff.value(T, y)
+
+@inline function withgradient(f::F, x::S) where {F, S <: StaticArray}
+    T = typeof(ForwardDiff.Tag(f, eltype(S))) # note: T === ForwardDiff.Tag{F, eltype(S)}
+    ydual = f(ForwardDiffStaticArraysExt.dualize(T, x)) # note: ForwardDiffStaticArraysExt.static_dual_eval(T, f, x) is not a generated function and can cause dynamic dispatch
     y = ForwardDiff.value(T, ydual)
     ∇y = ForwardDiffStaticArraysExt.extract_gradient(T, ydual, x)
     return y, ∇y
 end
-@inline withgradient(f::F, x::StaticArray) where {F} = withgradient(typeof(ForwardDiff.Tag(f, eltype(x))), f, x)
 
-@inline function withjacobian(::Type{T}, f::F, x::StaticArray) where {T, F}
-    ydual = ForwardDiffStaticArraysExt.static_dual_eval(T, f, x)
-    y = map(Base.Fix1(ForwardDiff.value, T), ydual)
+@inline function withjacobian(f::F, x::S) where {F, S <: StaticArray}
+    T = typeof(ForwardDiff.Tag(f, eltype(S))) # note: T === ForwardDiff.Tag{F, eltype(S)}
+    ydual = f(ForwardDiffStaticArraysExt.dualize(T, x)) # note: ForwardDiffStaticArraysExt.static_dual_eval(T, f, x) is not a generated function and can cause dynamic dispatch
+    y = map(DualValue{T}(), ydual) # note: Base.Fix1(ForwardDiff.value, T) may cause dynamic dispatch; see: https://github.com/JuliaLang/julia/pull/59623
     J = ForwardDiffStaticArraysExt.extract_jacobian(T, ydual, x)
     return y, J
 end
-@inline withjacobian(f::F, x::StaticArray) where {F} = withjacobian(typeof(ForwardDiff.Tag(f, eltype(x))), f, x)
 
 #### Pushforwards
 

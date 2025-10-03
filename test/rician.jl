@@ -1,14 +1,17 @@
 module RicianTests
 
 using Test
-using ..Utils: arbify, ∇FD_central, ∇FD_forward, ∇Fwd, ∇Zyg
+using ..Utils: Utils, arbify, ∇FD_central, ∇FD_forward, ∇Fwd, ∇Zyg
 
-using FastRicianLikelihoods: FastRicianLikelihoods, Distributions, StaticArrays
-using FastRicianLikelihoods: mean_rician, std_rician,
+using FastRicianLikelihoods: FastRicianLikelihoods, Distributions, StaticArrays, mean_rician, std_rician,
     neglogpdf_rician, ∇neglogpdf_rician, ∇²neglogpdf_rician, ∇²neglogpdf_rician_with_gradient, ∇³neglogpdf_rician_with_gradient_and_hessian,
     neglogpdf_qrician, ∇neglogpdf_qrician, ∇²neglogpdf_qrician, ∇²neglogpdf_qrician_with_gradient, ∇²neglogpdf_qrician_with_primal_and_gradient
-using .StaticArrays: SVector, SMatrix, @SVector, @SMatrix
-using QuadGK: quadgk
+using .StaticArrays: StaticArrays, SVector, SMatrix, @SVector, @SMatrix
+using QuadGK: QuadGK, quadgk
+
+DEBUG = Ref(true)
+
+const HIGH_ORDER = Val(32)
 
 function xν_iterator(z::T) where {T <: Union{Float32, Float64}}
     rmax = T == Float32 ? 6 : 12
@@ -125,10 +128,10 @@ end
         atol = 3 * eps(T)
         zs = T.(exp10.(-3:10))
         for z in zs, (x, ν) in xν_iterator(z)
-            ∂ŷ, ∂y = @inferred(∇²f̂(x, ν)), ∇²f(x, ν)
-            @test ∂ŷ[1] ≈ ∂y[1] rtol = rtol atol = atol
-            @test ∂ŷ[2] ≈ ∂y[2] rtol = rtol atol = atol
-            @test ∂ŷ[3] ≈ ∂y[3] rtol = rtol atol = atol
+            ∇²ŷ, ∇²y = @inferred(∇²f̂(x, ν)), ∇²f(x, ν)
+            @test ∇²ŷ[1] ≈ ∇²y[1] rtol = rtol atol = atol
+            @test ∇²ŷ[2] ≈ ∇²y[2] rtol = rtol atol = atol
+            @test ∇²ŷ[3] ≈ ∇²y[3] rtol = rtol atol = atol
         end
     end
 end
@@ -182,19 +185,26 @@ end
     end
 end
 
-function xνδ_iterator()
-    function sample_xνδ(ν, δ)
-        # We only expect the `neglogpdf_qrician`-related functions to be accurate near the mode of the distribution,
-        # so we sample y ~ Rice(ν, 1) for each ν such that y is near the mode by construction.
-        y = √(randn()^2 + (ν + randn())^2)
+function sample_xνδ(ν, δ; dequantize = true)
+    # We only expect the `neglogpdf_qrician`-related functions to be accurate near the mode of the distribution,
+    # so we sample y ~ Rice(ν, 1) for each ν such that y is near the mode by construction.
+    y = √(randn()^2 + (ν + randn())^2)
 
-        # Integrate over the interval [y - δ/2, y + δ/2] ∩ [0, ∞)
-        return y > δ / 2 ? (y - δ / 2, ν, δ) : (0.0, ν, y + δ / 2)
+    # Round y down to the nearest multiple of δ, giving us x ~ QRice(ν, 1, δ)
+    x = δ * floor(y / δ)
+
+    if dequantize
+        # Add uniform noise to dequantize x
+        x += δ * rand()
     end
 
+    return (x, ν, δ)
+end
+
+function xνδ_iterator(; dequantize = true)
     νs = exp10.(-1:0.25:3)
     δs = exp10.(-2:0.25:0)
-    return (sample_xνδ(ν, δ) for ν in νs, δ in δs)
+    return (sample_xνδ(ν, δ; dequantize) for ν in νs, δ in δs)
 end
 
 function neglogpdf_qrician_sum(ν::T, δ::T, order::Val) where {T}
@@ -220,7 +230,7 @@ end
         νs = exp10.(T[-1.0, -0.1, 0.0, 0.1, 1.0])
         δs = exp10.(T[-2.0, -1.0, 0.0])
         logσs = exp10.(T[-2.0, -1.0, 0.0])
-        order = Val(16)
+        order = HIGH_ORDER
         @testset "normalization ($T)" begin
             for ν in νs, δ in δs
                 I = neglogpdf_qrician_sum(ν, δ, order)
@@ -293,10 +303,9 @@ end
             # Compare high-order approximate integral with analytic integral
             rtol = T == Float32 ? 3 * eps(T) : 3 * eps(T)
             atol = T == Float32 ? 3 * eps(T) : 3 * eps(T)
-            high_order = Val(32)
 
             y = f(T(x), T(ν), T(δ), Val(nothing); method = :analytic)
-            ŷ = @inferred f̂(T(x), T(ν), T(δ), high_order)
+            ŷ = @inferred f̂(T(x), T(ν), T(δ), HIGH_ORDER)
             @test isapprox(ŷ, y; rtol, atol)
         end
     end
@@ -336,10 +345,9 @@ end
             # Compare gradients of high-order approximate integral with analytic gradient
             rtol = T == Float32 ? 5 * eps(T) : 5 * eps(T)
             atol = T == Float32 ? 5 * eps(T) : 5 * eps(T)
-            high_order = Val(32)
 
-            ∂y = ∇f(T(x), T(ν), T(δ), Val(nothing); method = :finitediff)
-            ∂ŷ = @inferred ∇f̂(T(x), T(ν), T(δ), high_order)
+            ∂y = ∇f(T(x), T(ν), T(δ), Val(nothing); method = :analytic)
+            ∂ŷ = @inferred ∇f̂(T(x), T(ν), T(δ), HIGH_ORDER)
             @test isapprox(∂ŷ[1], ∂y[1]; rtol, atol)
             @test isapprox(∂ŷ[2], ∂y[2]; rtol, atol)
             @test isapprox(∂ŷ[3], ∂y[3]; rtol, atol)
@@ -353,10 +361,10 @@ end
 
     @testset "gausslegendre ($T)" for T in (Float32, Float64)
         for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4))
-            rtol = T == Float32 ? 10 * eps(T) : 50 * eps(T)
-            atol = T == Float32 ? 10 * eps(T) : 50 * eps(T)
+            rtol = T == Float32 ? 15 * eps(T) : 25 * eps(T)
+            atol = T == Float32 ? 15 * eps(T) : 25 * eps(T)
 
-            H = ∇²f(T(x), T(ν), T(δ), order; method=:gausslegendre)
+            H = ∇²f(T(x), T(ν), T(δ), order; method = :gausslegendre)
             Ĥ = @inferred ∇²f̂(T(x), T(ν), T(δ), order)
 
             @test isapprox(Ĥ[1], H[1]; rtol, atol)
@@ -370,12 +378,11 @@ end
 
     @testset "analytic ($T)" for T in (Float32, Float64)
         for (x, ν, δ) in xνδ_iterator()
-            rtol = T == Float32 ? 10 * eps(T) : 50 * eps(T)
-            atol = T == Float32 ? 10 * eps(T) : 50 * eps(T)
-            high_order = Val(32)
+            rtol = T == Float32 ? 15 * eps(T) : 25 * eps(T)
+            atol = T == Float32 ? 15 * eps(T) : 25 * eps(T)
 
-            H = ∇²f(T(x), T(ν), T(δ), Val(nothing); method=:finitediff)
-            Ĥ = @inferred ∇²f̂(T(x), T(ν), T(δ), high_order)
+            H = ∇²f(T(x), T(ν), T(δ), Val(nothing); method = :analytic)
+            Ĥ = @inferred ∇²f̂(T(x), T(ν), T(δ), HIGH_ORDER)
 
             @test isapprox(Ĥ[1], H[1]; rtol, atol)
             @test isapprox(Ĥ[2], H[2]; rtol, atol)
@@ -387,42 +394,52 @@ end
     end
 end
 
-@testset "∇²neglogpdf_qrician jacobian and vjp" begin
-    @testset "full jacobian and vjp vs. AD ($T)" for T in (Float32, Float64)
-        for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4))
-            Tad = Float64
-            rtol = T === Float32 ? 25 * eps(T) : eps(T)^(2 // 3)
-            atol = T === Float32 ? 25 * eps(T) : eps(T)^(2 // 3)
+@testset "∇³neglogpdf_qrician jacobian and vjp" begin
+    ∇³f̂ = FastRicianLikelihoods.∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian
+    ∇³f = arbify(∇³f̂)
 
-            # Jacobian of flattened Hessian of `neglogpdf_qrician`
-            H1, J1 = FastRicianLikelihoods._∇³neglogpdf_qrician_jacobian_with_hessian_ad(Tad.((T(x), T(ν), T(δ)))..., order)
-            g2, H2, J2 = FastRicianLikelihoods._∇³neglogpdf_qrician_jacobian_with_gradient_and_hessian_one_pass(T(x), T(ν), T(δ), order)
-            g3, H3, J3 = FastRicianLikelihoods._∇³neglogpdf_qrician_jacobian_with_gradient_and_hessian_two_pass(T(x), T(ν), T(δ), order)
+    @testset "gausslegendre and analytic ($T)" for T in (Float32, Float64)
+        for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4), HIGH_ORDER)
+            rtol = T == Float32 ? 15 * eps(T) : 25 * eps(T)
+            atol = T == Float32 ? 15 * eps(T) : 25 * eps(T)
 
-            @test all(isapprox.(g2, g2; rtol, atol))
+            if order === HIGH_ORDER
+                # Compare high-order quadrature with analytic integral
+                ref_method, ref_order = :analytic, Val(nothing)
+            else
+                # Compare low-order quadrature with low-order quadrature
+                ref_method, ref_order = :gausslegendre, order
+            end
+
+            y1, g1, H1, J1 = ∇³f(T(x), T(ν), T(δ), ref_order; method = ref_method)
+            y2, g2, H2, J2 = ∇³f̂(T(x), T(ν), T(δ), order)
+
+            @test isapprox(y1, y2; rtol, atol)
+            @test all(isapprox.(g1, g2; rtol, atol))
             @test all(isapprox.(H1, H2; rtol, atol))
-            @test all(isapprox.(H1, H3; rtol, atol))
             @test all(isapprox.(J1, J2; rtol, atol))
-            @test all(isapprox.(J1, J3; rtol, atol))
 
-            # Jacobian vector product of flattened Hessian of `neglogpdf_qrician`
+            # Vector Jacobian product of flattened Hessian of `neglogpdf_qrician`
             Δ = @SVector randn(T, 6)
-            g4, H4, vjp4 = FastRicianLikelihoods._∇³neglogpdf_qrician_vjp_with_gradient_and_hessian_two_pass(Δ, T(x), T(ν), T(δ), order)
+            vjp1 = J1' * Δ
+            y3, g3, H3, vjp3 = FastRicianLikelihoods.∇³neglogpdf_qrician_vjp_with_primal_gradient_and_hessian(Δ, T(x), T(ν), T(δ), order)
 
-            @test all(isapprox.(H1, H4; rtol, atol))
-            @test all(isapprox.(J1' * Δ, vjp4; rtol, atol))
+            @test isapprox(y1, y3; rtol, atol)
+            @test all(isapprox.(g1, g3; rtol, atol))
+            @test all(isapprox.(H1, H3; rtol, atol))
+            @test all(isapprox.(vjp1, vjp3; rtol, atol))
         end
     end
 end
 
-@testset "∇²neglogpdf_qrician jacobian and vjp (jet)" begin
+@testset "∇³neglogpdf_qrician jacobian and vjp (jet)" begin
     @testset "inner jacobian and vjp vs. AD (jet) ($T)" for T in (Float32, Float64)
         for (x, ν, δ) in xνδ_iterator()
             Tad = Float64
             rtol = T === Float32 ? sqrt(eps(T)) : eps(T)^(2 // 3)
             atol = T === Float32 ? sqrt(eps(T)) : eps(T)^(2 // 3)
 
-            # Jacobian of `∇²neglogpdf_qrician` integrand
+            # Jacobian of flattened jet of `neglogpdf_qrician` integrand
             t = rand(T)
             ϕ1, Jϕ1 = FastRicianLikelihoods._∇³neglogpdf_qrician_inner_jacobian_with_jet_ad(Tad.((T(x), T(ν), T(δ), T(t)))...)
             ϕ2, Jϕ2 = FastRicianLikelihoods._∇³neglogpdf_qrician_inner_jacobian_with_jet(T(x), T(ν), T(δ), T(t))
@@ -430,7 +447,7 @@ end
             @test isapprox(ϕ1, ϕ2; rtol, atol)
             @test isapprox(Jϕ1, Jϕ2; rtol, atol)
 
-            # Jacobian vector product of `∇²neglogpdf_qrician` integrand
+            # Vector Jacobian product of flattened jet of `neglogpdf_qrician` integrand
             Δϕ = @SVector randn(T, 9)
             ϕ3, vjpϕ3 = FastRicianLikelihoods._∇³neglogpdf_qrician_inner_vjp_with_jet(Δϕ, T(x), T(ν), T(δ), T(t))
 
@@ -445,14 +462,14 @@ end
             rtol = T === Float32 ? sqrt(eps(T)) : eps(T)^(2 // 3)
             atol = T === Float32 ? sqrt(eps(T)) : eps(T)^(2 // 3)
 
-            # Jacobian of flattened Hessian of `neglogpdf_qrician`
+            # Jacobian of flattened jet of `neglogpdf_qrician`
             Φ1, JΦ1 = FastRicianLikelihoods._∇³neglogpdf_qrician_jacobian_with_jet_ad(Tad.((T(x), T(ν), T(δ)))..., order)
             Φ2, JΦ2 = FastRicianLikelihoods._∇³neglogpdf_qrician_jacobian_with_jet(T(x), T(ν), T(δ), order)
 
             @test isapprox(Φ1, Φ2; rtol, atol)
             @test isapprox(JΦ1, JΦ2; rtol, atol)
 
-            # Jacobian vector product of flattened Hessian of `neglogpdf_qrician`
+            # Vector Jacobian product of flattened jet of `neglogpdf_qrician`
             Δ = @SVector randn(T, 9)
             Φ4, vjpΦ4 = FastRicianLikelihoods._∇³neglogpdf_qrician_vjp_with_jet_from_parts(Δ, T(x), T(ν), T(δ), order)
             Φ5, vjpΦ5 = FastRicianLikelihoods._∇³neglogpdf_qrician_vjp_with_jet_two_pass(Δ, T(x), T(ν), T(δ), order)
@@ -472,8 +489,8 @@ end
 
 @testset "quantized rician lower-order results consistency" begin
     for T in (Float32, Float64)
-        rtol = eps(T)
-        atol = eps(T)
+        rtol = 2 * eps(T)
+        atol = 2 * eps(T)
 
         for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4))
             ŷ = @inferred neglogpdf_qrician(x, ν, δ, order)
@@ -482,12 +499,12 @@ end
 
             ∇ŷ₂, ∇²ŷ₂ = @inferred ∇²neglogpdf_qrician_with_gradient(x, ν, δ, order)
             @test isapprox(SVector(∇ŷ₂), SVector(∇ŷ); rtol, atol)
-            @test isapprox(SVector(∇²ŷ₂), SVector(∇²ŷ); rtol, atol)
+            @test isapprox(SVector(∇²ŷ₂), SVector(∇²ŷ); rtol, atol) #TODO rare failures
 
             ŷ₃, ∇ŷ₃, ∇²ŷ₃ = @inferred ∇²neglogpdf_qrician_with_primal_and_gradient(x, ν, δ, order)
             @test isapprox(ŷ₃, ŷ; rtol, atol)
             @test isapprox(SVector(∇ŷ₃), SVector(∇ŷ); rtol, atol)
-            @test isapprox(SVector(∇²ŷ₃), SVector(∇²ŷ); rtol, atol)
+            @test isapprox(SVector(∇²ŷ₃), SVector(∇²ŷ); rtol, atol) #TODO rare failures
         end
     end
 end

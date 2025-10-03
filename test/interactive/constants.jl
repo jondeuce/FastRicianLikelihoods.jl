@@ -15,8 +15,7 @@ const CF = CaratheodoryFejerApprox
 const F = FastRicianLikelihoods
 const U = Utils
 
-setworkingprecision(ArbFloat, 500)
-setextrabits(128)
+setworkingprecision(ArbReal; bits = 500)
 
 """
 Wrap f that is written over ArbReal to be callable with Double64 inputs and return Double64 outputs.

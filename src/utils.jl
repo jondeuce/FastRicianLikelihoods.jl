@@ -27,6 +27,13 @@ end
 @inline checkedfloattype(T1::Type, T2::Type, T3::Type, Ts::Type...) = checkedfloattype(checkedfloattype(T1, T2), T3, Ts...)
 @inline checkedfloattype(xs::Number...) = checkedfloattype(map(typeof, xs)...)
 
+@inline promote_eltypes(xs::Tuple) = convert_eltype.(promote_type(map(eltype, xs)...), xs)
+@inline promote_eltypes(xs::Union{Number, SVector, SMatrix}...) = promote_eltypes(xs)
+
+@inline convert_eltype(::Type{T}, x::Number) where {T} = convert(T, x)
+@inline convert_eltype(::Type{T}, x::SVector{N, <:Number}) where {T, N} = SVector{N, T}(x)
+@inline convert_eltype(::Type{T}, x::SMatrix{N, M, <:Number, L}) where {T, N, M, L} = SMatrix{N, M, T, L}(x)
+
 #### Tuple utilities
 
 @inline second(x::Tuple) = x[2]
