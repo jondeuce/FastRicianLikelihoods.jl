@@ -14,7 +14,11 @@
 \sisetup{round-mode = figures, round-precision = 3}
 
 \title{Stable, efficient evaluation of gradients and Hessians for the Rician log-likelihood}
-\author{Jonathan Doucette}
+\author{
+  Jonathan Doucette \and
+  Christian Kames \and
+  Alexander Rauscher
+}
 \date{\today}
 
 \begin{document}
@@ -66,7 +70,7 @@ To evaluate these expressions in a numerically stable way, we derive algebraic s
 With $\sigma=1$, the Rician negative log-likelihood is given by
 %
 \begin{align}
-  f(x, \nu) & \eqqcolon -\log p(x \mid \nu, \sigma=1)                                                                                                                        \\
+  f(x, \nu) & = -\log p(x \mid \nu, \sigma=1)                                                                                                                                \\
             & = \frac{x^2 + \nu^2}{2} - \log x - \log I_0(x \nu) \label{eq:rician-neg-log-likelihood}                                                                        \\
             & = \frac{(x-\nu)^2}{2} - \frac{1}{2}\log\left(\frac{x}{\nu}\right) - \log \hat{I}_0(x \nu) + \frac{1}{2}\log(2\pi). \label{eq:rician-neg-log-likelihood-scaled}
 \end{align}
@@ -80,7 +84,7 @@ Here, $\hat{I}_0$ is the modified Bessel function of the first kind normalized s
 where $z = x\nu \ge 0$.
 Next, we consider the numerical stability of these algebraically equivalent forms of $f$.
 
-\subsubsection{Stability of the Log-Likelihood}
+\subsubsection{Stability of the log-likelihood}
 
 \paragraph{Small $z \ll 1$.}
 
@@ -196,7 +200,7 @@ To address this, for each of $r$, $r'$, and $r''$, we split the domain $z>0$ int
 \subsubsection{Small-$z$ reparametrizations for $r$, $r'$, $r''$}\label{sec:bessel-ratio-small-z}
 
 For small $z$, $r \approx z/2$.
-We therefore define
+We define
 %
 \begin{align}\label{eq:a0-small-z}
   a_0(z) = \frac{r(z)}{z} = \frac{1}{2} - \frac{1}{16}z^2 + \mathcal{O}(z^4)
@@ -224,7 +228,7 @@ Substituting \cref{eq:r-prime-small-reparametrized} into \cref{eq:r-second-deriv
          & = \frac{2 a_0 - 1}{z} + z a_0 (3 a_0 - 2) + 2 z^3 a_0^3.
 \end{align}
 %
-The leading $\mathcal{O}(1/z)$ term has coefficient $2a_0 - 1$, but for small $z$, $a_0 \approx \frac{1}{2} - \frac{1}{16}z^2$, so computing $2a_0 - 1$ requires subtracting two $\mathcal{O}(1)$ terms to obtain a $\mathcal{O}(z^2)$ term.
+The leading $\mathcal{O}(z^{-1})$ term has coefficient $2a_0 - 1$, but for small $z$, $a_0 \approx \frac{1}{2} - \frac{1}{16}z^2$, so computing $2a_0 - 1$ requires subtracting two $\mathcal{O}(1)$ terms to obtain a $\mathcal{O}(z^2)$ term.
 We therefore reparametrize to
 %
 \begin{align}
@@ -368,7 +372,7 @@ Finally, we can stably compute all of $r$, $r'$, $r''$, $2r'+zr''$, and $1-r-zr'
 \paragraph{Small-$z$}
 
 The algebraic simplification of \cref{eq:first-derivatives-unsimplified-x,eq:first-derivatives-unsimplified-nu} leading to \cref{eq:first-derivatives-simplified-x,eq:first-derivatives-simplified-nu} is sufficient to avoid catastrophic cancellation.
-In particular, when $\nu \ll 1$, the problematic $\frac{1}{2\nu}$ and $\frac{-x}{2z} = \frac{-1}{2\nu}$ terms in \cref{eq:first-derivatives-unsimplified-nu} are cancelled analytically, avoiding subtraction of two $\mathcal{O}(1/\nu)$ terms.
+In particular, when $\nu \ll 1$, the problematic $\frac{1}{2\nu}$ and $\frac{-x}{2z} = \frac{-1}{2\nu}$ terms in \cref{eq:first-derivatives-unsimplified-nu} are cancelled analytically, avoiding subtraction of two $\mathcal{O}(\nu^{-1})$ terms.
 %
 \begin{align}\label{eq:first-derivatives-small-z}
   \boxed{
@@ -438,9 +442,9 @@ We start by rewriting the second derivatives expressions in \cref{eq:second-deri
 %
 Recall that for large-$z$, we have from \cref{eq:r-large-reparametrized,eq:r-prime-large-reparametrized-simplified} that
 \begin{align}
-  r                      & = 1 - \frac{b_0}{z} = 1 - \frac{1}{2z} - \frac{1}{8z^2} + \mathcal{O}(1/z^3)                \\
-  r'                     & = \frac{1}{z^2} (b_1 + b_0(1 - b_0)) = \frac{1}{2z^2} + \frac{1}{4z^3} + \mathcal{O}(1/z^4) \\
-  \Rightarrow z(1 - r^2) & = r + z r' = 1 + \frac{1}{z} (b_1 - b_0^2) = 1 + \frac{1}{8z^2} + \mathcal{O}(1/z^3)
+  r                      & = 1 - \frac{b_0}{z} = 1 - \frac{1}{2z} - \frac{1}{8z^2} + \mathcal{O}(z^{-3})                \\
+  r'                     & = \frac{1}{z^2} (b_1 + b_0(1 - b_0)) = \frac{1}{2z^2} + \frac{1}{4z^3} + \mathcal{O}(z^{-4}) \\
+  \Rightarrow z(1 - r^2) & = r + z r' = 1 + \frac{1}{z} (b_1 - b_0^2) = 1 + \frac{1}{8z^2} + \mathcal{O}(z^{-3})
 \end{align}
 where $b_0 = \frac{1}{2} (1 + u b_1)$.
 %
@@ -586,13 +590,13 @@ With these stable forms, the third derivatives for large $z$ are computed as:
   }
 \end{align}
 
-\subsection{The Quantized Rician distribution}
+\subsection{The quantized Rician distribution}
 
 In magnetic resonance imaging (MRI), the magnitude of the signal in the presence of noise is often modeled with a Gaussian distribution for simplicity.
 However, a more physically accurate model is the Rician distribution, which correctly accounts for the non-negativity of magnitude data.
 Furthermore, MRI data is invariably quantized during acquisition, meaning the continuous signal is stored as discrete integer values.
 A truly faithful statistical model must therefore account for this quantization step.
-This leads us to the Quantized Rician distribution, which describes the probability of observing a signal within a specific quantization bin.
+This leads us to the quantized Rician distribution, which describes the probability of observing a signal within a specific quantization bin.
 
 Given the Rician probability density function $p(y \mid \nu, \sigma)$ from \cref{eq:rician-pdf}, the probability of an observation $y$ falling into a bin $[x, x + \delta)$ is given by the integral of the Rician density over the interval:
 %
@@ -600,11 +604,11 @@ Given the Rician probability density function $p(y \mid \nu, \sigma)$ from \cref
   p(x \mid \nu, \sigma, \delta) = \int_x^{x + \delta} p(y \mid \nu, \sigma) dy.
 \end{align}
 %
-This defines the probability mass function for the Quantized Rician distribution, which we denote $\mathrm{QRice}(\nu, \sigma, \delta)$.
+This defines the probability mass function for the quantized Rician distribution, which we denote $\mathrm{QRice}(\nu, \sigma, \delta)$.
 
 \subsubsection{Numerical evaluation strategy}
 
-We are interested in performing statistical inference procedures such as maximum likelihood estimation (MLE), maximum a posteriori (MAP) estimation, and Markov-chain Monte Carlo (MCMC) sampling under a Quantized Rician likelihood model.
+We are interested in performing statistical inference procedures such as maximum likelihood estimation (MLE), maximum a posteriori (MAP) estimation, and Markov-chain Monte Carlo (MCMC) sampling under a quantized Rician likelihood model.
 These methods require many evaluations of the likelihood and its gradient, necessitating fast and accurate evaluation of the defining integral in \cref{eq:quantized-rician-pmf}.
 While adaptive quadrature routines can compute the integral to arbitrary precision, they are generally too slow for this context, especially for GPU-based implementations.
 Our goal is to use a fixed-order, non-adaptive quadrature scheme which is significantly faster.
@@ -619,7 +623,7 @@ Crucially, the inference algorithms operate in high-likelihood regions:
   \item MCMC methods spend the most time sampling from regions of high posterior density, visiting the tails only rarely.
 \end{itemize}
 %
-This behavior is made concrete by considering the high signal-to-noise ratio (SNR) regime, where the Rician distribution is well-approximated by a Gaussian.
+This is made concrete by considering the high signal-to-noise ratio (SNR) regime, where the Rician distribution is well-approximated by a Gaussian.
 For a Gaussian model, a property of the MLE is that the noise variance estimate equals the mean squared error:
 %
 \begin{align}
@@ -643,10 +647,10 @@ Thus, we have reasonable justification for the following two assumptions about t
 \end{enumerate}
 %
 Combined, these factors create a best-case scenario for numerical integration:
-we are integrating a smooth, well-behaved density over a short interval located near its mode.
+we are integrating a smooth, well-behaved density over a short interval near its mode.
 This justifies the use of a fixed-order quadrature rule.
-As a safeguard, on the rare occasions where a poor parameter choice leads to evaluating the likelihood in the tails (i.e., $|x'-\nu'| \gg 1$), one could temporarily increase the quadrature order or fall back to an adaptive routine;
-under normal inference, these cases are exceptional.
+As a safeguard, when poor parameter choices lead to evaluating the likelihood in the tails (i.e., $|x'-\nu'| \gg 1$), one could increase the quadrature order or fall back to adaptive routines;
+such cases are rare under normal inference, and so we leave adaptive quadrature as future work.
 
 \subsubsection{Gauss--Legendre quadrature}
 
@@ -680,7 +684,7 @@ In our regime, $\delta$ is small and $g$ is smooth, so moderate orders $N \appro
 
 \subsubsection{Log-likelihood formulation and simplification}
 
-Before deriving expressions for the gradient and Hessian, we first simplify the problem by exploiting the scale-invariance of the Quantized Rician distribution.
+Before deriving expressions for the gradient and Hessian, we first simplify the problem by exploiting the scale-invariance of the quantized Rician distribution.
 If we change variables in the integrand to $y' = y / a$ for some $a > 0$ and similarly rescale $x$, $\nu$, $\sigma$, and $\delta$, the Rician PDF transforms as
 %
 \begin{align}
@@ -700,7 +704,7 @@ Thus, the quantized likelihood integral is scale-invariant:
 Similar to the Rician distribution analysis, we choose $a = \sigma$ such that $\sigma'=1$;
 for the remainder of this analysis, we will work with these normalized parameters and write $p(x \mid \nu, \delta)$ as shorthand for $p(x \mid \nu, \sigma=1, \delta)$, dropping the prime annotations.
 
-In terms of $f$, the negative log-likelihood of the standard Rician distribution from \cref{eq:rician-neg-log-likelihood}, the Quantized Rician likelihood is given by
+In terms of $f$, the negative log-likelihood of the standard Rician distribution from \cref{eq:rician-neg-log-likelihood}, the quantized Rician likelihood is given by
 %
 \begin{align}
   p(x \mid \nu, \delta) = \int_x^{x + \delta} \exp(-f(y, \nu)) dy \coloneqq I(\theta)
@@ -744,7 +748,7 @@ For gradient-based MCMC, proposals use gradients while acceptance depends on lik
 Furthermore, exact endpoint formulas require differences such as $e^{-f(x+\delta,\nu)} - e^{-f(x,\nu)}$ and $f_x(x+\delta,\nu) - f_x(x,\nu)$, which catastrophically cancel when $\delta \ll 1$ and require careful handling at $x=0$ where $f$ has a logarithmic singularity; fixed-node Gauss--Legendre uses interior nodes and avoids this issue.
 Differentiating the quadrature therefore provides stable averages of well-conditioned integrand derivatives, resulting in consistent $\Omega$ values and derivatives.
 
-\subsubsection{The Residual Likelihood Method}
+\subsubsection{The residual likelihood method}
 
 Since the quadrature scheme approximates the partition function $Z(\theta)$ as a weighted sum of positive terms, $\log Z(\theta)$ can be stably computed using the log-sum-exp trick:
 %
@@ -773,7 +777,7 @@ Since both integration and Gauss--Legendre quadrature are linear functionals, we
 %
 This transformation is most beneficial at large $z$ but -- as we will see -- introduces no numerical issues at small $z$, so we apply it universally for simplicity.
 
-\subsubsection{Properties and Derivatives of the Residual Energy}\label{sec:residual-energy-properties-and-derivatives}
+\subsubsection{Properties and derivatives of the residual energy}\label{sec:residual-energy-properties-and-derivatives}
 
 \paragraph{Properties of the residual energy}
 
@@ -847,7 +851,7 @@ The second partial derivatives of $\tilde{r}$ can be simplified using \cref{eq:s
 \end{align}
 %
 Similar to the small- and large $z$ expressions in \cref{eq:second-derivatives-small-z,eq:second-derivatives-large-z}, the above expressions for $\tilde{r}_{xx}$ and $\tilde{r}_{\nu\nu}$ are numerically stable.
-However, for large $z$, the mixed-derivative $\tilde{r}_{x\nu}$ requires some care, since $f_{x\nu} = -1 + \mathcal{O}(\frac{1}{z^2})$ and so computing $\tilde{r}_{x\nu} = \mathcal{O}(\frac{1}{z^2})$ naively leads to catastrophic cancellation.
+However, for large $z$, the mixed-derivative $\tilde{r}_{x\nu}$ requires some care, since $f_{x\nu} = -1 + \mathcal{O}(z^{-2})$ and so computing $\tilde{r}_{x\nu} = \mathcal{O}(z^{-2})$ naively leads to catastrophic cancellation.
 A stable form can be derived by substituting the large-$z$ reparametrizations $1 - r = u b_0$, $2 b_0 - 1 = u b_1$, and $4 b_1 - 1 = u b_2$ where $u = \frac{1}{z}$:
 %
 \begin{align}
@@ -857,7 +861,7 @@ A stable form can be derived by substituting the large-$z$ reparametrizations $1
                & = \frac{u}{4}(-u b_2 + 2u b_1 + u^2 b_1^2) = \frac{u^2}{4}(2 b_1 - b_2 + u b_1^2). \label{eq:one-minus-r-minus-z-r-prime-large-z}
 \end{align}
 %
-This final expression is stable to compute and $\mathcal{O}(\frac{1}{z^2})$ as expected.
+This final expression is stable to compute and $\mathcal{O}(z^{-2})$ as expected.
 
 \subsubsection{Expectations and derivatives under $P(t \mid \theta)$}
 
@@ -887,8 +891,8 @@ Let $g : [0, 1] \times \mathbb{R}^3 \mapsto \mathbb{R}^m$, and denote as $\mathb
 The Jacobian $\nabla_\theta \mathbb{E}[g] \in \mathbb{R}^{m \times 3}$ is given by
 %
 \begin{align}
-  \nabla_\theta \mathbb{E}[g] & = \mathbb{E}[\nabla_\theta g] - \mathrm{Cov}(g, \nabla_\theta \tilde{f}) \label{eq:gradient-expectation-covariance}          \\
-                              & = \mathbb{E}[\nabla_\theta g] - \mathrm{Cov}(g, \nabla_\theta \tilde{r}) \label{eq:gradient-expectation-covariance-residual}
+  \nabla_\theta \mathbb{E}[g] & = \mathbb{E}[\nabla_\theta g] - \mathrm{Cov}(g, \nabla_\theta \tilde{f}) \label{eq:jacobian-expectation}          \\
+                              & = \mathbb{E}[\nabla_\theta g] - \mathrm{Cov}(g, \nabla_\theta \tilde{r}) \label{eq:jacobian-expectation-residual}
 \end{align}
 %
 where, denoting $\mu_X = \mathbb{E}[X]$ and $\mu_Y = \mathbb{E}[Y]$, the covariance is defined as usual as
@@ -897,9 +901,9 @@ where, denoting $\mu_X = \mathbb{E}[X]$ and $\mu_Y = \mathbb{E}[Y]$, the covaria
   \mathrm{Cov}(X, Y) = \mathbb{E}[(X - \mu_X)(Y - \mu_Y)^T] = \mathbb{E}[X Y^T] - \mu_X \mu_Y^T.
 \end{align}
 %
-\Cref{eq:gradient-expectation-covariance,eq:gradient-expectation-covariance-residual} follow from differentiating the definition of the expectation $\mathbb{E}[g] = \int_0^1 g(t, \theta) P(t \mid \theta) \, dt$;
-a complete proof is provided in \Cref{app:proof-gradient-expectation}.
-Crucially, \cref{eq:gradient-expectation-covariance,eq:gradient-expectation-covariance-residual} also hold exactly when the expectation is computed via a fixed-node quadrature, $\mathbb{E}[g] \approx \sum_i \frac{w_i}{2} g(t_i, \theta) P(t_i \mid \theta)$, since both integration and quadrature are linear functionals of the integrand $t \mapsto g(t,\theta) P(t \mid \theta)$ and thus commute with differentiation.
+\Cref{eq:jacobian-expectation,eq:jacobian-expectation-residual} follow from differentiating the definition of the expectation $\mathbb{E}[g] = \int_0^1 g(t, \theta) P(t \mid \theta) \, dt$;
+a complete proof is provided in \Cref{app:proof-jacobian-expectation}.
+Crucially, \cref{eq:jacobian-expectation,eq:jacobian-expectation-residual} also hold exactly when the expectation is computed via a fixed-node quadrature, $\mathbb{E}[g] \approx \sum_i \frac{w_i}{2} g(t_i, \theta) P(t_i \mid \theta)$, since both integration and quadrature are linear functionals of the integrand $t \mapsto g(t,\theta) P(t \mid \theta)$ and thus commute with differentiation.
 
 \paragraph{Differentiating covariances with respect to $P(t \mid \theta)$}\label{sec:derivative-covariance}
 
@@ -912,7 +916,7 @@ For any two scalar functions $g(t,\theta)$ and $h(t,\theta)$, the derivative of 
 where $\mathrm{Cov3}(X,Y,Z) = \mathbb{E}[(X-\mathbb{E}[X])(Y-\mathbb{E}[Y])(Z-\mathbb{E}[Z])]$ is the third joint central moment;
 a complete proof is provided in \Cref{app:proof-covariance-derivative}.
 
-\subsubsection{First Derivatives}\label{sec:qrician-first-derivatives}
+\subsubsection{First derivatives}\label{sec:qrician-first-derivatives}
 
 We compute the gradient of $\Omega = -\log Z - \log\delta$ in terms of the gradient of $-\log Z$:
 %
@@ -937,9 +941,9 @@ Finally, the gradient $\nabla_{\theta} \Omega$ simplifies to
 %
 where $\frac{\partial}{\partial x} f_G = x - \nu$, $\frac{\partial}{\partial \nu} f_G = \nu - x$, and $\tilde{r}_x$, $\tilde{r}_\nu$, and $f_x$ are evaluated at $y=x + \delta t$ as in \cref{sec:first-derivatives-residual}.
 
-\subsubsection{Second Derivatives}\label{sec:qrician-second-derivatives}
+\subsubsection{Second derivatives}\label{sec:qrician-second-derivatives}
 
-We can compute the Hessian of $\Omega = -\log Z - \log\delta$ by differentiating $\nabla_{\theta} (-\log Z)$ from \cref{sec:qrician-first-derivatives} using the gradient of the expectation identity \cref{eq:gradient-expectation-covariance}:
+We can compute the Hessian of $\Omega = -\log Z - \log\delta$ by differentiating $\nabla_{\theta} (-\log Z)$ from \cref{sec:qrician-first-derivatives} using the gradient of the expectation identity \cref{eq:jacobian-expectation}:
 %
 \begin{align}
   \nabla_{\theta}^2 (-\log Z) = \nabla_\theta ( \mathbb{E}[\nabla_{\theta} \tilde{f}] ) = \mathbb{E}[\nabla_{\theta}^2 \tilde{f}] - \mathrm{Cov}(\nabla_{\theta} \tilde{f}, \nabla_{\theta} \tilde{f})
@@ -962,7 +966,7 @@ The Hessian of the residual energy $\nabla_{\theta}^2 \tilde{r}$ is
 %
 where $\tilde{r}_{xx}$, $\tilde{r}_{x\nu}$, and $\tilde{r}_{\nu\nu}$ are evaluated at $y=x + \delta t$ as in \cref{sec:second-derivatives-residual}.
 
-\subsubsection{Third Derivatives and Vector-Jacobian Products}
+\subsubsection{Third derivatives and vector-Jacobian products}
 
 Differentiating through statistical inference procedures, such as Laplace's approximation, requires gradients of scalar functions of the log-likelihood Hessian, $\mathcal{L}(\nabla_\theta^2 \Omega(\theta))$.
 This necessitates third-order derivatives of $\Omega(\theta)$.
@@ -977,7 +981,7 @@ We use the shorthand $\partial_i \coloneqq \frac{\partial}{\partial \theta_i}$ w
   \partial_{k}(\nabla_{\theta}^2 (-\log Z)) = \partial_{k} \mathbb{E}[\nabla_\theta^2 \tilde{r}] - \partial_{k}\mathrm{Cov}(\nabla_\theta \tilde{r}, \nabla_\theta \tilde{r}).
 \end{align}
 %
-The components of the third-derivative tensor follow by applying \cref{eq:gradient-expectation-covariance-residual,eq:derivative-covariance-identity} to differentiate the expectation and covariance terms:
+The components of the third-derivative tensor follow by applying \cref{eq:jacobian-expectation-residual,eq:derivative-covariance-identity} to differentiate the expectation and covariance terms:
 %
 \begin{align}
   \partial_{k} \mathbb{E}[\partial_{ij} \tilde{r}]                         & = \mathbb{E}[\partial_{ijk} \tilde{r}] - \mathrm{Cov}(\partial_{ij} \tilde{r}, \partial_{k} \tilde{r})                                                                                                                                                                                                                                                             \\
@@ -988,7 +992,7 @@ The components of the third-derivative tensor follow by applying \cref{eq:gradie
 %
 We now discuss two strategies for the efficient evaluation of $\partial_{ijk}(-\log Z)$.
 
-\paragraph{Raw-Moment Formulation}
+\paragraph{Raw-moment formulation}
 
 We rewrite the covariances and third central moments in terms of raw moments.
 Let $\mu_{i} = \mathbb{E}[\partial_{i} \tilde{r}]$, $\mu_{ij} = \mathbb{E}[\partial_{i} \tilde{r} \partial_{j} \tilde{r}]$, and $\mu_{ijk} = \mathbb{E}[\partial_{i} \tilde{r} \partial_{j} \tilde{r} \partial_{k} \tilde{r}]$.
@@ -1005,7 +1009,7 @@ Then,
 For a three-parameter system, a minimal basis of raw moments requires integrating 25 unique quantities.
 The derivatives $\partial_{ijk} (-\log Z)$ are then assembled from sums and products of these raw moments.
 
-\paragraph{Centred-Moment Formulation}
+\paragraph{Central moment formulation}
 
 Let the centred first derivatives be given by $c_{i} = \partial_{i} \tilde{r} - \mu_{i}$ where $\mu_{i} = \mathbb{E}[\partial_{i} \tilde{r}]$.
 Then, $\partial_{ijk}(-\log Z)$ can be rewritten as an expectation:
@@ -1013,13 +1017,13 @@ Then, $\partial_{ijk}(-\log Z)$ can be rewritten as an expectation:
 \begin{align}
   \mathrm{Cov3}(\partial_{i} \tilde{r}, \partial_{j} \tilde{r}, \partial_{k} \tilde{r}) & = \mathbb{E}[c_{i} c_{j} c_{k}]                                                                                                                                                                           \\
   \mathrm{Cov}(\partial_{ij} \tilde{r}, \partial_{k} \tilde{r})                         & = \mathbb{E}[\partial_{ij} \tilde{r} (\partial_{k} \tilde{r} - \mathbb{E}[\partial_{k} \tilde{r}])] = \mathbb{E}[\partial_{ij} \tilde{r} c_{k}]                                                           \\
-  \Rightarrow \partial_{ijk} (-\log Z)                                                  & = \mathbb{E} [ \partial_{ijk} \tilde{r} - \partial_{ij} \tilde{r} c_{k} - \partial_{ik} \tilde{r} c_{j} - \partial_{jk} \tilde{r} c_{i} + c_{i} c_{j} c_{k} ]. \label{eq:neglogz-two-pass-centred-moment}
+  \Rightarrow \partial_{ijk} (-\log Z)                                                  & = \mathbb{E} [ \partial_{ijk} \tilde{r} - \partial_{ij} \tilde{r} c_{k} - \partial_{ik} \tilde{r} c_{j} - \partial_{jk} \tilde{r} c_{i} + c_{i} c_{j} c_{k} ]. \label{eq:neglogz-two-pass-central-moment}
 \end{align}
 %
 After computing the 3 means, this requires integrating 6 unique second-order and 10 unique third-order derivatives.
-While this method requires evaluating first-derivatives twice, the linearity of the expectation in \cref{eq:neglogz-two-pass-centred-moment} can make for more efficient vector-Jacobian products than \cref{eq:neglogz-third-derivative-raw-moment} since contraction with a cotangent $\Delta$ can move inside the expectation (i.e. $\Delta \bullet \mathbb{E}[X] = \mathbb{E}[\Delta \bullet X]$), resulting in fewer scalar integrands.
+While this method requires evaluating first-derivatives twice, the linearity of the expectation in \cref{eq:neglogz-two-pass-central-moment} can make for more efficient vector-Jacobian products than \cref{eq:neglogz-third-derivative-raw-moment} since contraction with a cotangent $\Delta$ can move inside the expectation (i.e. $\Delta \bullet \mathbb{E}[X] = \mathbb{E}[\Delta \bullet X]$), resulting in fewer scalar integrands.
 
-\paragraph{Vector-Jacobian product of $\Omega$}
+\paragraph{Vector-Jacobian product of $\nabla_\theta^2 \Omega$}
 
 The vector-Jacobian product (VJP) is the core operation in reverse-mode automatic differentiation.
 We define the VJP in terms of the tensor contraction
@@ -1044,7 +1048,7 @@ The pullback $\mathcal{B}$ for the map $\theta \mapsto \nabla_\theta^2 \Omega(\t
 \end{align}
 %
 % We note that, by linearity, $(\Delta \bullet \nabla_\theta^3 \Omega)_k = \partial_k (\Delta \bullet \nabla_\theta^2 \Omega)$, which may be more computationally efficient in some cases.
-Using the third-derivative results from \cref{eq:omega-third-derivative-qrician,eq:neglogz-two-pass-centred-moment}, the pullback \cref{eq:vjp-omega-hessian} evaluates to
+Using the third-derivative results from \cref{eq:omega-third-derivative-qrician,eq:neglogz-two-pass-central-moment}, the pullback \cref{eq:vjp-omega-hessian} evaluates to
 %
 \begin{align}
   \mathcal{B}(\Delta)_k = \mathbb{E} \bigg[ \sum_{i,j} \Delta_{ij} (\partial_{ijk} \tilde{r} - \partial_{ij} \tilde{r} c_k - \partial_{ik} \tilde{r} c_j - \partial_{jk} \tilde{r} c_i + c_i c_j c_k) \bigg] - 2 \delta^{-3} \Delta_{33} \mathbf{1}_{\{\theta_k=\delta\}}
@@ -1056,7 +1060,7 @@ where the sum over $i,j$ has been moved inside the expectation.
 \begin{figure}[t]
   \centering
   \includegraphics[width=\textwidth]{bessel_ratio_accuracy_figure.pdf}
-  \caption{Error envelopes (maxima over sliding windows) for naive vs.\ proposed evaluation of $r(z) = I_1(z)/I_0(z)$, its derivatives $r'(z)$ and $r''(z)$, $2 r'(z) + z r''(z)$, and $1 - r(z) - z r'(z)$ over 1001 points $z \in [10^{-6}, 10^{6}]$. Rows (top to bottom) show $e_{\mathrm{abs}} = |\hat{y} - y|$ and $e_{\mathrm{rel}} = |\hat{y} - y| / |y|$ for single precision, then for double precision. Horizontal reference lines indicate machine epsilon for single (dotted) and double precision (dashed).}
+  \caption{Error envelopes (maxima over sliding windows) for naive vs.\ proposed evaluation of $r(z) = I_1(z)/I_0(z)$, $r'(z)$, $r''(z)$, $2 r'(z) + z r''(z)$, and $1 - r(z) - z r'(z)$ over 1001 points $z \in [10^{-6}, 10^{6}]$. Rows (top to bottom) show $e_{\mathrm{abs}} = |\hat{y} - y|$ and $e_{\mathrm{rel}} = |\hat{y} - y| / |y|$ for single precision, then for double precision. Horizontal reference lines indicate machine epsilon for single (dotted) and double precision (dashed).}
   \label{fig:bessel-accuracy}
 \end{figure}
 
@@ -1139,18 +1143,18 @@ The proposed implementation is consistently faster than AD-based baselines on bo
 \Cref{tab:qrician-performance} reports runtime versus $N$ for $\Omega$, $\nabla\Omega$, $\nabla^2\Omega$, and $\nabla^3\Omega$.
 Runtime grows with $N$ and derivative order.
 
-\section{Application: Differentiating Through Laplace's Approximation}
+\section{Application: differentiating through Laplace's approximation}
 
 In Type-II maximum likelihood frameworks, hyperparameters are tuned by optimizing the model evidence \citep{mackay_bayesian_1992}.
 Using the Laplace approximation (LA) of the evidence, this optimization requires backpropagating through the posterior's maximum a posteriori (MAP) estimate and its curvature;
 while this naively introduces third-order derivative tensors, the process can be made practical via efficient adjoint methods \citep{margossian_hamiltonian_2020}.
 LA applications include Bayesian inference in latent Gaussian models, Variational Laplace Autoencoders, and end-to-end learning of data-augmentation invariances in deep networks \citep{margossian_hamiltonian_2020, park_variational_2019, immer_invariance_2022}.
-For large-scale deep learning, tractability requires either replacing the full Hessian with approximations like Kronecker-factored structures or the generalized Gauss-Newton matrix \citep{ritter_scalable_2018, immer_improving_2021}, or applying the LA only to a subset of parameters.
+For large-scale deep learning, tractability requires either replacing the full Hessian with approximations like Kronecker-factored structures or the generalized Gauss--Newton matrix \citep{ritter_scalable_2018, immer_improving_2021}, or applying the LA only to a subset of parameters.
 A special case of this latter approach, \textit{last-layer} LA, applies the LA to a network's final linear layer \citep{kristiadi_being_2020, daxberger_laplace_2021}.
 This motivates our setting:
 a small, two-dimensional LA over nuisance parameters is embedded within a larger variational posterior approximation.
 
-\subsection{MRI Problem Formulation}
+\subsection{MRI problem formulation}
 
 In a common MRI setting, magnitude data $x = (x_1, \ldots, x_N)^T$ arise by taking the magnitude of complex measurements corrupted by Gaussian noise with variance $\sigma^2$, yielding Rician-distributed signals.
 These signals are then quantized;
@@ -1183,7 +1187,7 @@ The joint density is then
 %
 where we assume a factorized prior $p(\lambda, \eta) = p(\lambda) p(\eta)$.
 
-\subsection{Hybrid Variational Inference with Laplace's Approximation}
+\subsection{Hybrid variational inference with Laplace's approximation}
 
 Suppose a hybrid variational inference scheme is employed wherein the posterior $p(\lambda, \eta \mid x, \delta)$ is modeled by a factorized distribution $q(\lambda, \eta) = q(\lambda) q(\eta \mid \lambda)$.
 Let $q(\lambda)$ be a parametric approximation to the marginal posterior $p(\lambda \mid x, \delta)$ from a chosen variational family, and $q(\eta \mid \lambda)$ be a Gaussian surrogate for the conditional posterior $p(\eta \mid \lambda, x, \delta)$ computed using Laplace's method:
@@ -1204,7 +1208,7 @@ and 2) if $q(\lambda)$ is reparameterizable (i.e. $\lambda \sim q(\lambda) \Left
 $\nabla_\psi \mathbb{E}_{q(\lambda, \eta)}[f(\lambda, \eta)] = \mathbb{E}_{\epsilon \sim p(\epsilon), z \sim \mathcal{N}(0, I)}[\nabla_\psi f(g(\psi, \epsilon), \hat{\eta} + \hat{H}^{-1/2} z)]$.
 Therefore, backpropagating through $\mathcal{L}$ requires the implementation of \textit{pullback} functions to pass gradients through \cref{eq:laplace-mode,eq:laplace-hessian}.
 
-\subsection{Pullbacks for the Laplace Approximation}
+\subsection{Pullbacks for the Laplace approximation}
 
 Since $\hat{H}(\xi) = H(\xi, \hat{\eta}(\xi))$, we need only provide pullbacks for the implicit map $\xi \mapsto \hat{\eta}$ and the explicit map $(\xi, \eta) \mapsto H$;
 the pullback for $\hat{H}$ is constructed by the automatic differentiation engine by composing the pullbacks for these two maps.
@@ -1217,7 +1221,7 @@ Applying the implicit function theorem at $\eta = \hat{\eta}(\xi)$ yields:
   \frac{\partial \hat{\eta}}{\partial \xi} = -\left(\frac{\partial^2 U}{\partial \eta^2}\right)^{-1} \frac{\partial^2 U}{\partial \eta \partial \xi}.
 \end{align}
 %
-Since $\hat{H}(\xi) \eqqcolon \left. \frac{\partial^2 U}{\partial \eta^2} \right|_{\eta=\hat{\eta}(\xi)}$, the pullback $\mathcal{B}_{\hat{\eta}}$ mapping the cotangent $\Delta^{\hat{\eta}} = \frac{\partial \mathcal{L}}{\partial \hat{\eta}}$ to $\frac{\partial \mathcal{L}}{\partial \xi}$ is given by
+Since $\hat{H}(\xi) = \left. \frac{\partial^2 U}{\partial \eta^2} \right|_{\eta=\hat{\eta}(\xi)}$, the pullback $\mathcal{B}_{\hat{\eta}}$ mapping the cotangent $\Delta^{\hat{\eta}} = \frac{\partial \mathcal{L}}{\partial \hat{\eta}}$ to $\frac{\partial \mathcal{L}}{\partial \xi}$ is given by
 %
 \begin{align}\label{eq:pullback-eta-hat}
   \mathcal{B}_{\hat{\eta}}(\Delta^{\hat{\eta}})
@@ -1265,7 +1269,7 @@ Finally, differentiating through $\hat{\eta}$ and $\hat{H}$ reduces to computing
   \ell_{\eta \eta \eta} \coloneqq \frac{\partial^3 \ell_i}{\partial \eta^3}.
 \end{align}
 
-\subsection{Derivatives of the Per-Observation Log-Likelihood}
+\subsection{Derivatives of the per-observation log-likelihood}
 
 The derivatives of $\ell_i$ required for the pullbacks in \cref{eq:ell-derivative-tensors} are found by applying the multivariate chain rule to the composition $\ell_i = \ell(\xi^{(i)}, \eta) = \Omega(\theta(\xi^{(i)}, \eta))$, where
 %
@@ -1332,62 +1336,57 @@ Explicit formulas for the tensors $\Theta_{\xi}$, $\Theta_{\eta}$, $\Theta_{\eta
 
 \section{Proofs of expectation and covariance identities}\label{app:proofs-expectation-covariance}
 
-These proofs are deferred from the main text for brevity;
-they rely only on linearity of differentiation and integration, and apply equally well if integration is replaced with fixed-node quadrature.
+We provide complete proofs of the expectation and covariance identities deferred from the main text.
+These results follow from the linearity of differentiation and integration, and apply equally to both continuous integrals and fixed-node quadrature.
 
-\subsection{Gradient-of-expectation identity (\Cref{eq:gradient-expectation-covariance})}\label{app:proof-gradient-expectation}
+\subsection{Jacobian-of-expectation identity (\Cref{eq:jacobian-expectation})}\label{app:proof-jacobian-expectation}
 
-We begin with the definition of the expectation and apply the product rule:
+Recall that $g : [0, 1] \times \mathbb{R}^3 \mapsto \mathbb{R}^m$ and $\mathbb{E}[g] \in \mathbb{R}^m$ denotes the expectation of $g(t, \theta)$ with respect to the density $P(t \mid \theta) = e^{-\tilde{r}(t, \theta)} / Z(\theta)$ where $Z(\theta) = \int_0^1 \exp(-\tilde{r}(t, \theta)) \, dt$ is the normalizing constant.
+Starting from the definition of the expectation and applying the product rule yields
 %
 \begin{align}
-  \nabla_\theta \mathbb{E}[g] & = \nabla_\theta \left( Z(\theta)^{-1} \int_0^1 g(t,\theta) \exp(-\tilde{r}(t,\theta)) \, dt \right)                                            \\
-                              & = \left(\int_0^1 g e^{-\tilde{r}} \, dt\right) (\nabla_\theta Z^{-1})^T + Z^{-1} \nabla_\theta \left( \int_0^1 g e^{-\tilde{r}} \, dt \right).
+  \nabla_\theta \mathbb{E}[g] & = \nabla_\theta \left( Z(\theta)^{-1} \int_0^1 g(t,\theta) \exp(-\tilde{r}(t,\theta)) \, dt \right)                                              \\
+                              & = \left(\int_0^1 g e^{-\tilde{r}} \, dt\right) (\nabla_\theta Z^{-1})^{T} + Z^{-1} \nabla_\theta \left( \int_0^1 g e^{-\tilde{r}} \, dt \right).
 \end{align}
 %
-The first term simplifies using the identity $\nabla_\theta Z^{-1} = -Z^{-1} \nabla_\theta \log Z$:
+Using the identity $\nabla_\theta Z^{-1} = -Z^{-1} \nabla_\theta \log Z$, the first term simplifies to
 %
 \begin{align}
-  \left(Z \mathbb{E}[g]\right) \left(-Z^{-1} \nabla_\theta \log Z\right)^T = -\mathbb{E}[g] (\nabla_\theta \log Z)^T.
+  \left(Z \mathbb{E}[g]\right) \left(-Z^{-1} \nabla_\theta \log Z\right)^{T} = - \mathbb{E}[g] \left(\nabla_\theta \log Z\right)^{T}
 \end{align}
 %
-For the second term, we move the derivative inside the integral and apply the product rule again:
-%
-\begin{align}
-  Z^{-1} \int_0^1 \nabla_\theta(g e^{-\tilde{r}}) \, dt & = Z^{-1} \int_0^1 \left( (\nabla_\theta g) e^{-\tilde{r}} - g (\nabla_\theta \tilde{r})^T e^{-\tilde{r}} \right) \, dt \\
-                                                        & = \mathbb{E}[\nabla_\theta g] - \mathbb{E}[g (\nabla_\theta \tilde{r})^T].
-\end{align}
-%
-Combining these results gives
-%
-\begin{align}
-  \nabla_\theta \mathbb{E}[g] = \mathbb{E}[\nabla_\theta g] - \mathbb{E}[g (\nabla_\theta \tilde{r})^T] - \mathbb{E}[g](\nabla_\theta \log Z)^T.
-\end{align}
-%
-To simplify the final term, we compute the gradient of the log-partition function:
+where the gradient of the log-partition function is given by
 %
 \begin{align}
   \nabla_\theta \log Z = \frac{\nabla_\theta Z}{Z} = Z^{-1} \int_0^1 \nabla_\theta e^{-\tilde{r}} \, dt = -Z^{-1} \int_0^1 \nabla_\theta \tilde{r} e^{-\tilde{r}} \, dt = -\mathbb{E}[\nabla_\theta \tilde{r}].
 \end{align}
 %
-Substituting this back yields the desired identity:
+For the second term, we move the derivative inside the integral and apply the product rule:
 %
 \begin{align}
-  \nabla_\theta \mathbb{E}[g] & = \mathbb{E}[\nabla_\theta g] - \mathbb{E}[g (\nabla_\theta \tilde{r})^T] - \mathbb{E}[g] (-\mathbb{E}[\nabla_\theta \tilde{r}])^T \\
-                              & = \mathbb{E}[\nabla_\theta g] - (\mathbb{E}[g (\nabla_\theta \tilde{r})^T] - \mathbb{E}[g] \mathbb{E}[\nabla_\theta \tilde{r}]^T)  \\
+  Z^{-1} \int_0^1 \nabla_\theta(g e^{-\tilde{r}}) \, dt & = Z^{-1} \int_0^1 \left( (\nabla_\theta g) e^{-\tilde{r}} - g (\nabla_\theta \tilde{r})^{T} e^{-\tilde{r}} \right) \, dt \\
+                                                        & = \mathbb{E}[\nabla_\theta g] - \mathbb{E}[g (\nabla_\theta \tilde{r})^{T}].
+\end{align}
+%
+Combining these results and recognizing the definition of the covariance yields
+%
+\begin{align}
+  \nabla_\theta \mathbb{E}[g] & = - \mathbb{E}[g] (\nabla_\theta \log Z)^{T} + \mathbb{E}[\nabla_\theta g] - \mathbb{E}[g (\nabla_\theta \tilde{r})^{T}]                         \\
+                              & = \mathbb{E}[\nabla_\theta g] - \left(\mathbb{E}[g (\nabla_\theta \tilde{r})^{T}] - \mathbb{E}[g] \mathbb{E}[\nabla_\theta \tilde{r}]^{T}\right) \\
                               & = \mathbb{E}[\nabla_\theta g] - \mathrm{Cov}(g, \nabla_\theta \tilde{r}).
 \end{align}
 %
-This proof relies only on the linearity of differentiation and integration (or finite summation for quadrature), so the identity holds for both the continuous integral and its discrete quadrature approximation.
+Since this derivation relies only on the linearity of the integral operator and its commutativity with differentiation, the identity holds for both the continuous integral $\int_0^1 (\cdot) \, dt$ and for fixed-node Gauss--Legendre quadrature $\sum_{i=1}^N \frac{w_i}{2} (\cdot)$, which shares these properties.
 
 \subsection{Covariance-derivative identity (\Cref{eq:derivative-covariance-identity})}\label{app:proof-covariance-derivative}
 
-We begin with the definition of covariance and apply the product rule:
+From the definition of covariance and the product rule, we have
 %
 \begin{align}
   \partial_{\gamma} \mathrm{Cov}(g, h) & = \partial_{\gamma} \left( \mathbb{E}[g h] - \mathbb{E}[g]\mathbb{E}[h] \right) = \partial_{\gamma} \mathbb{E}[g h] - (\partial_{\gamma} \mathbb{E}[g]) \mathbb{E}[h] - \mathbb{E}[g] (\partial_{\gamma} \mathbb{E}[h]).
 \end{align}
 %
-Next, we apply the gradient-of-expectation identity from \cref{eq:gradient-expectation-covariance-residual} to each of the three derivative terms:
+Applying the Jacobian-of-expectation identity from \cref{eq:jacobian-expectation-residual} to each derivative term gives
 %
 \begin{align}
   \partial_{\gamma} \mathbb{E}[g h] & = \mathbb{E}[\partial_{\gamma}(g h)] - \mathrm{Cov}(g h, \partial_{\gamma} \tilde{r}) = \mathbb{E}[(\partial_{\gamma} g) h + g (\partial_{\gamma} h)] - \mathrm{Cov}(g h, \partial_{\gamma} \tilde{r}) \\
@@ -1395,15 +1394,15 @@ Next, we apply the gradient-of-expectation identity from \cref{eq:gradient-expec
   \partial_{\gamma} \mathbb{E}[h]   & = \mathbb{E}[\partial_{\gamma} h] - \mathrm{Cov}(h, \partial_{\gamma} \tilde{r}).
 \end{align}
 %
-Substituting these back into the main expression and grouping terms yields:
+Substituting in these expressions and collecting terms yields
 %
 \begin{align}
   \partial_{\gamma} \mathrm{Cov}(g, h) & = \mathbb{E}[(\partial_{\gamma} g) h] - \mathbb{E}[\partial_{\gamma} g] \mathbb{E}[h] + \mathbb{E}[g (\partial_{\gamma} h)] - \mathbb{E}[g] \mathbb{E}[\partial_{\gamma} h]           \\
                                        & - \mathrm{Cov}(g h, \partial_{\gamma} \tilde{r}) + \mathrm{Cov}(g, \partial_{\gamma} \tilde{r}) \mathbb{E}[h] + \mathbb{E}[g] \mathrm{Cov}(h, \partial_{\gamma} \tilde{r}). \nonumber
 \end{align}
 %
-The term in the parentheses is the third joint central moment, or third-order covariance, of $(g, h, \partial_{\gamma} \tilde{r})$.
-Expanding the definition of the third central moment confirms its equivalence to this term:
+The first four terms are recognized as $\mathrm{Cov}(\partial_{\gamma} g, h) + \mathrm{Cov}(g, \partial_{\gamma} h)$.
+The remaining three terms can be shown to equal the negative third central moment:
 %
 \begin{align}
   \mathrm{Cov3}(g, h, \partial_{\gamma} \tilde{r}) & = \mathbb{E}[(g-\mathbb{E}[g])(h-\mathbb{E}[h])(\partial_{\gamma} \tilde{r}-\mathbb{E}[\partial_{\gamma} \tilde{r}])]                                                                                                                                                                           \\
@@ -1412,19 +1411,24 @@ Expanding the definition of the third central moment confirms its equivalence to
                                                    & = \mathrm{Cov}(gh, \partial_{\gamma} \tilde{r}) - \mathbb{E}[h]\mathrm{Cov}(g, \partial_{\gamma} \tilde{r}) - \mathbb{E}[g]\mathrm{Cov}(h, \partial_{\gamma} \tilde{r}).
 \end{align}
 %
-Substituting this back gives the desired expression for the derivative of the covariance.
+We then recover the desired expression in \cref{eq:derivative-covariance-identity}:
+%
+\begin{align}
+  \partial_{\gamma} \mathrm{Cov}(g, h) = \mathrm{Cov}(\partial_{\gamma} g, h) + \mathrm{Cov}(g, \partial_{\gamma} h) - \mathrm{Cov3}(g, h, \partial_{\gamma} \tilde{r}).
+\end{align}
+%
+As with the Jacobian-of-expectation identity, this derivation only uses linearity of expectation and differentiation, and thus holds when integration is replaced by fixed-node Gauss--Legendre quadrature.
 
 \section{Coordinate-transformation derivatives for $\theta(\xi,\eta)$}\label{app:theta-derivatives}
 
-This appendix derives the first-, second-, and third-order derivatives of the coordinate map $\theta(\xi,\eta)$ used in $\ell(\xi,\eta) = \Omega(\theta(\xi,\eta))$.
-These tensors are used in the main text to construct the pullbacks for Laplace's approximation; see \Cref{eq:pullback-eta-hat,eq:pullback-H}.
-We present variable definitions, then Jacobians and higher-order derivative tensors for $\theta$; a compact summary of the explicit tensors appears in \Cref{app:explicit-change-of-vars-derivatives}.
-Derivatives of $\ell$ and the associated VJPs are developed in \Cref{app:ell-derivatives}.
+We derive the first- (Jacobian matrices), second- (3-tensors), and third-order (4-tensors) derivatives of the coordinate map $\theta(\xi,\eta)$ used in $\ell(\xi,\eta) = \Omega(\theta(\xi,\eta))$.
+These tensors enter the pullback formulas for Laplace's approximation via the chain rule; see \Cref{eq:pullback-eta-hat,eq:pullback-H}.
+After establishing the variable definitions and coordinate transformation, we compute Jacobians and higher-order derivative tensors for $\theta$.
+A compact summary of the explicit tensors appears in \Cref{app:explicit-change-of-vars-derivatives}, and derivatives of $\ell$ with their associated VJPs are developed in \Cref{app:ell-derivatives}.
 
-\subsection{Variable Definitions and Coordinate Transformation}
+\subsection{Variable definitions and coordinate transformation}
 
-The per-observation log-likelihood $\ell$ is a composition of functions $\ell(\xi, \eta) = \Omega(\theta(\xi, \eta))$.
-The variables are defined as:
+The per-observation log-likelihood is a composition $\ell(\xi, \eta) = \Omega(\theta(\xi, \eta))$, where
 %
 \begin{align}
   \theta & = (\theta_1, \theta_2, \theta_3)^T = (x', \nu', \delta')^T = \left(\frac{x}{\sigma}, \frac{s \mu}{\sigma}, \frac{\delta}{\sigma}\right)^T, \\
@@ -1432,8 +1436,9 @@ The variables are defined as:
   \eta   & = (\eta_1, \eta_2)^T = (\log s, \log \sigma)^T.
 \end{align}
 %
-From the definition of $\eta$, we have the explicit relationships $s = e^{\eta_1}$ and $\sigma = e^{\eta_2}$.
-The components of $\theta$ can thus be expressed in terms of $\xi$ and $\eta$:
+Here, $\theta, \xi \in \mathbb{R}^3$ and $\eta \in \mathbb{R}^2$.
+%
+The log-transformations imply $s = e^{\eta_1}$ and $\sigma = e^{\eta_2}$, from which the components of $\theta$ are
 %
 \begin{align}
   \theta_1 = x'(\xi, \eta)      & = x e^{-\eta_2},           \\
@@ -1441,16 +1446,15 @@ The components of $\theta$ can thus be expressed in terms of $\xi$ and $\eta$:
   \theta_3 = \delta'(\xi, \eta) & = \delta e^{-\eta_2}.
 \end{align}
 %
-Our goal is to compute the first, second, and third derivatives of $\ell$ with respect to $\xi$ and $\eta$.
-By the multivariate chain rule, this requires computing the first, second, and third derivatives of the coordinate transformation $\theta(\xi, \eta)$.
+To compute derivatives of $\ell$ with respect to $\xi$ and $\eta$ via the multivariate chain rule, we require the first, second, and third derivatives of this coordinate transformation.
 
-\subsection{First derivatives of the transformation}
+\subsection{First derivatives of the transformation}\label{app:first-derivatives-of-transformation}
 
-We first compute the Jacobians of $\theta$ with respect to $\xi$ and $\eta$.
+We compute the Jacobians of $\theta$ with respect to $\xi$ and $\eta$.
 
-\paragraph{Jacobian with respect to $\xi$}
+\paragraph{Jacobian with respect to $\xi$.}
 
-The Jacobian $\Theta_\xi \coloneqq \frac{\partial \theta}{\partial \xi}$ is a $3 \times 3$ matrix whose entries are $(\Theta_\xi)_{ij} = \frac{\partial \theta_i}{\partial \xi_j}$.
+The Jacobian $\Theta_\xi \coloneqq \frac{\partial \theta}{\partial \xi}$ is a $3 \times 3$ matrix with entries $(\Theta_\xi)_{ij} = \frac{\partial \theta_i}{\partial \xi_j}$:
 %
 \begin{align}
   \frac{\partial \theta_1}{\partial \xi_1} & = \frac{\partial x'}{\partial x} = \frac{1}{\sigma}, &  & \frac{\partial \theta_1}{\partial \xi_2} = \frac{\partial x'}{\partial \mu} = 0,                  &  & \frac{\partial \theta_1}{\partial \xi_3} = \frac{\partial x'}{\partial \delta} = 0,                     \\
@@ -1458,9 +1462,9 @@ The Jacobian $\Theta_\xi \coloneqq \frac{\partial \theta}{\partial \xi}$ is a $3
   \frac{\partial \theta_3}{\partial \xi_1} & = \frac{\partial \delta'}{\partial x} = 0,           &  & \frac{\partial \theta_3}{\partial \xi_2} = \frac{\partial \delta'}{\partial \mu} = 0,             &  & \frac{\partial \theta_3}{\partial \xi_3} = \frac{\partial \delta'}{\partial \delta} = \frac{1}{\sigma}.
 \end{align}
 %
-Assembling these components yields the matrix:
+Assembling these components yields
 %
-\begin{align}
+\begin{align}\label{eq:Theta-xi}
   \Theta_{\xi} =
   \begin{bmatrix}
     \frac{1}{\sigma} & 0                & 0                \\
@@ -1469,9 +1473,9 @@ Assembling these components yields the matrix:
   \end{bmatrix}.
 \end{align}
 
-\paragraph{Jacobian with respect to $\eta$}
+\paragraph{Jacobian with respect to $\eta$.}
 
-The Jacobian $\Theta_\eta \coloneqq \frac{\partial \theta}{\partial \eta}$ is a $3 \times 2$ matrix whose entries are $(\Theta_\eta)_{ij} = \frac{\partial \theta_i}{\partial \eta_j}$.
+The Jacobian $\Theta_\eta \coloneqq \frac{\partial \theta}{\partial \eta}$ is a $3 \times 2$ matrix with entries $(\Theta_\eta)_{ij} = \frac{\partial \theta_i}{\partial \eta_j}$:
 %
 \begin{align}
   \frac{\partial \theta_1}{\partial \eta_1} & = \frac{\partial (x e^{-\eta_2})}{\partial \eta_1} = 0,                                        &  & \frac{\partial \theta_1}{\partial \eta_2} = \frac{\partial (x e^{-\eta_2})}{\partial \eta_2} = -x e^{-\eta_2} = -x',                       \\
@@ -1479,9 +1483,9 @@ The Jacobian $\Theta_\eta \coloneqq \frac{\partial \theta}{\partial \eta}$ is a 
   \frac{\partial \theta_3}{\partial \eta_1} & = \frac{\partial (\delta e^{-\eta_2})}{\partial \eta_1} = 0,                                   &  & \frac{\partial \theta_3}{\partial \eta_2} = \frac{\partial (\delta e^{-\eta_2})}{\partial \eta_2} = -\delta e^{-\eta_2} = -\delta'.
 \end{align}
 %
-Assembling these components yields the matrix:
+This gives
 %
-\begin{align}
+\begin{align}\label{eq:Theta-eta}
   \Theta_{\eta} =
   \begin{bmatrix}
     0    & -x'      \\
@@ -1492,15 +1496,13 @@ Assembling these components yields the matrix:
 
 \subsection{Second derivatives of the transformation}
 
-The second derivatives are 3-tensors.
-We compute $\Theta_{\eta\xi} \coloneqq \frac{\partial^2 \theta}{\partial \eta \partial \xi}$ and $\Theta_{\eta\eta} \coloneqq \frac{\partial^2 \theta}{\partial \eta^2}$.
-For clarity, we present these tensors as a collection of matrices, one for each component of $\theta$.
+The second derivatives form 3-tensors: $\Theta_{\eta\xi} \coloneqq \frac{\partial^2 \theta}{\partial \eta \partial \xi}$ and $\Theta_{\eta\eta} \coloneqq \frac{\partial^2 \theta}{\partial \eta^2}$.
+We present these as collections of matrices, one for each component of $\theta$.
 
-\paragraph{Mixed Second Derivative $\Theta_{\eta\xi}$}
+\paragraph{Mixed second derivative $\Theta_{\eta\xi}$.}
 
-The components of this tensor are $\frac{\partial}{\partial \eta_j} \left( \frac{\partial \theta_k}{\partial \xi_i} \right)$.
-We can find these by differentiating $\Theta_\xi$ with respect to each component of $\eta$.
-
+The components $(\Theta_{\eta\xi})_{kij} = \frac{\partial^2 \theta_k}{\partial \eta_i \partial \xi_j}$ are obtained by differentiating $\Theta_\xi$ with respect to each component of $\eta$:
+%
 \begin{align}
   \frac{\partial^2 x'}{\partial \eta_1 \partial \xi}      & = \left( \frac{\partial}{\partial \eta_1}\frac{\partial x'}{\partial x}, \frac{\partial}{\partial \eta_1}\frac{\partial x'}{\partial \mu}, \frac{\partial}{\partial \eta_1}\frac{\partial x'}{\partial \delta} \right) = \left( \frac{\partial (1/\sigma)}{\partial \eta_1}, 0, 0 \right) = (0, 0, 0),                                   \\
   \frac{\partial^2 x'}{\partial \eta_2 \partial \xi}      & = \left( \frac{\partial}{\partial \eta_2}\frac{\partial x'}{\partial x}, \frac{\partial}{\partial \eta_2}\frac{\partial x'}{\partial \mu}, \frac{\partial}{\partial \eta_2}\frac{\partial x'}{\partial \delta} \right) = \left( \frac{\partial (e^{-\eta_2})}{\partial \eta_2}, 0, 0 \right) = (-e^{-\eta_2}, 0, 0) = (-1/\sigma, 0, 0), \\
@@ -1510,7 +1512,7 @@ We can find these by differentiating $\Theta_\xi$ with respect to each component
   \frac{\partial^2 \delta'}{\partial \eta_2 \partial \xi} & = \left( 0, 0, \frac{\partial (1/\sigma)}{\partial \eta_2} \right) = \left( 0, 0, \frac{\partial (e^{-\eta_2})}{\partial \eta_2} \right) = (0, 0, -1/\sigma).
 \end{align}
 %
-For $\theta_1 = x'$, $\theta_2 = \nu'$, and $\theta_3 = \delta'$, the component matrices $\Theta_{\eta\xi}^{(x')} = \frac{\partial^2 x'}{\partial \eta \partial \xi}$, $\Theta_{\eta\xi}^{(\nu')} = \frac{\partial^2 \nu'}{\partial \eta \partial \xi}$, and $\Theta_{\eta\xi}^{(\delta')} = \frac{\partial^2 \delta'}{\partial \eta \partial \xi}$ are:
+The component matrices $\Theta_{\eta\xi}^{(x')} = \frac{\partial^2 x'}{\partial \eta \partial \xi}$, $\Theta_{\eta\xi}^{(\nu')} = \frac{\partial^2 \nu'}{\partial \eta \partial \xi}$, and $\Theta_{\eta\xi}^{(\delta')} = \frac{\partial^2 \delta'}{\partial \eta \partial \xi}$ are
 %
 \begin{align}
   \Theta_{\eta\xi}^{(x')}      & = \begin{bsmallmatrix} 0 & 0 & 0 \\ -\frac{1}{\sigma} & 0 & 0 \end{bsmallmatrix}, &
@@ -1518,10 +1520,9 @@ For $\theta_1 = x'$, $\theta_2 = \nu'$, and $\theta_3 = \delta'$, the component 
   \Theta_{\eta\xi}^{(\delta')} & = \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & -\frac{1}{\sigma} \end{bsmallmatrix}.
 \end{align}
 
-\paragraph{Second Derivative $\Theta_{\eta\eta}$}
+\paragraph{Second derivative $\Theta_{\eta\eta}$.}
 
-The components of this tensor are $\frac{\partial}{\partial \eta_j} \left( \frac{\partial \theta_k}{\partial \eta_i} \right)$.
-We can find these by differentiating $\Theta_\eta$ with respect to each component of $\eta$.
+The components $\frac{\partial}{\partial \eta_j} \left( \frac{\partial \theta_k}{\partial \eta_i} \right)$ are obtained by differentiating $\Theta_\eta$ with respect to each component of $\eta$:
 %
 \begin{align}
   \frac{\partial^2 x'}{\partial \eta_1^2}                 & = \frac{\partial}{\partial \eta_1}(0)   = 0, \qquad \frac{\partial^2 x'}{\partial \eta_2 \partial \eta_1} = \frac{\partial}{\partial \eta_2}(0) = 0,    \\
@@ -1533,7 +1534,7 @@ We can find these by differentiating $\Theta_\eta$ with respect to each componen
   \frac{\partial^2 \delta'}{\partial \eta_2^2}            & = \frac{\partial}{\partial \eta_2}(-\delta') = \frac{\partial}{\partial \eta_2}(-\delta e^{-\eta_2}) = \delta e^{-\eta_2} = \delta'.
 \end{align}
 %
-Thus, for $\theta_1 = x'$, $\theta_2 = \nu'$, and $\theta_3 = \delta'$, the component matrices are $\Theta_{\eta\eta}^{(x')} = \frac{\partial^2 x'}{\partial \eta^2}$, $\Theta_{\eta\eta}^{(\nu')} = \frac{\partial^2 \nu'}{\partial \eta^2}$, and $\Theta_{\eta\eta}^{(\delta')} = \frac{\partial^2 \delta'}{\partial \eta^2}$ are:
+The component matrices $\Theta_{\eta\eta}^{(x')} = \frac{\partial^2 x'}{\partial \eta^2}$, $\Theta_{\eta\eta}^{(\nu')} = \frac{\partial^2 \nu'}{\partial \eta^2}$, and $\Theta_{\eta\eta}^{(\delta')} = \frac{\partial^2 \delta'}{\partial \eta^2}$ are
 %
 \begin{align}
   \Theta_{\eta\eta}^{(x')}      & = \begin{bsmallmatrix} 0 & 0 \\ 0 & x' \end{bsmallmatrix}, &
@@ -1543,13 +1544,18 @@ Thus, for $\theta_1 = x'$, $\theta_2 = \nu'$, and $\theta_3 = \delta'$, the comp
 
 \subsection{Third derivatives of the transformation}
 
-The third derivatives are 4-tensors.
-We compute $\Theta_{\eta\eta\xi} \coloneqq \frac{\partial^3 \theta}{\partial \eta^2 \partial \xi}$ and $\Theta_{\eta\eta\eta} \coloneqq \frac{\partial^3 \theta}{\partial \eta^3}$.
-These are found by differentiating the second-derivative component matrices with respect to $\xi_k$ and $\eta_l$.
+The third derivatives are 4-tensors: $\Theta_{\eta\eta\xi} \coloneqq \frac{\partial^3 \theta}{\partial \eta^2 \partial \xi}$ and $\Theta_{\eta\eta\eta} \coloneqq \frac{\partial^3 \theta}{\partial \eta^3}$.
+Their components are, for $k \in \{1,2,3\}$, $i,j \in \{1,2\}$, and $\ell \in \{1,2,3\}$:
+%
+\begin{align}
+  (\Theta_{\eta\eta\xi})_{k\ell ij} = \frac{\partial^3 \theta_k}{\partial \eta_i \partial \eta_j \partial \xi_\ell}, \quad (\Theta_{\eta\eta\eta})_{kij\ell} = \frac{\partial^3 \theta_k}{\partial \eta_i \partial \eta_j \partial \eta_\ell}.
+\end{align}
+%
+These are obtained by differentiating the second-derivative component matrices.
 
-\paragraph{Mixed third derivative $\Theta_{\eta\eta\xi}$}
+\paragraph{Mixed third derivative $\Theta_{\eta\eta\xi}$.}
 
-We differentiate the matrices $\Theta_{\eta\xi}^{(x')}, \Theta_{\eta\xi}^{(\nu')}, \Theta_{\eta\xi}^{(\delta')}$ with respect to $\eta_1 = \log s$ and $\eta_2 = \log \sigma$:
+We differentiate $\Theta_{\eta\xi}^{(x')}, \Theta_{\eta\xi}^{(\nu')}, \Theta_{\eta\xi}^{(\delta')}$ with respect to $\eta_1 = \log s$ and $\eta_2 = \log \sigma$:
 %
 \begin{align}
   \frac{\partial \Theta_{\eta\xi}^{(x')}}{\partial \eta_1}      & = \frac{\partial}{\partial \eta_1} \begin{bsmallmatrix} 0 & 0 & 0 \\ -1/\sigma & 0 & 0 \end{bsmallmatrix} = \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & 0 \end{bsmallmatrix},                                   \\
@@ -1560,9 +1566,9 @@ We differentiate the matrices $\Theta_{\eta\xi}^{(x')}, \Theta_{\eta\xi}^{(\nu')
   \frac{\partial \Theta_{\eta\xi}^{(\delta')}}{\partial \eta_2} & = \frac{\partial}{\partial \eta_2} \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & -e^{-\eta_2} \end{bsmallmatrix} = \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & e^{-\eta_2} \end{bsmallmatrix} = \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & 1/\sigma \end{bsmallmatrix}.
 \end{align}
 
-\paragraph{Third Derivative $\Theta_{\eta\eta\eta}$}
+\paragraph{Third derivative $\Theta_{\eta\eta\eta}$.}
 
-We differentiate the matrices $\Theta_{\eta\eta}^{(x')}, \Theta_{\eta\eta}^{(\nu')}, \Theta_{\eta\eta}^{(\delta')}$ with respect to $\eta_1 = \log s$ and $\eta_2 = \log \sigma$:
+We differentiate $\Theta_{\eta\eta}^{(x')}, \Theta_{\eta\eta}^{(\nu')}, \Theta_{\eta\eta}^{(\delta')}$ with respect to $\eta_1 = \log s$ and $\eta_2 = \log \sigma$:
 %
 \begin{align}
   \frac{\partial \Theta_{\eta\eta}^{(x')}}{\partial \eta_1}      & = \frac{\partial}{\partial \eta_1} \begin{bsmallmatrix} 0 & 0 \\ 0 & x' \end{bsmallmatrix} = \begin{bsmallmatrix} 0 & 0 \\ 0 & 0 \end{bsmallmatrix},                                   \\
@@ -1573,7 +1579,7 @@ We differentiate the matrices $\Theta_{\eta\eta}^{(x')}, \Theta_{\eta\eta}^{(\nu
   \frac{\partial \Theta_{\eta\eta}^{(\delta')}}{\partial \eta_2} & = \frac{\partial}{\partial \eta_2} \begin{bsmallmatrix} 0 & 0 \\ 0 & \delta e^{-\eta_2} \end{bsmallmatrix} = \begin{bsmallmatrix} 0 & 0 \\ 0 & -\delta e^{-\eta_2} \end{bsmallmatrix} = \begin{bsmallmatrix} 0 & 0 \\ 0 & -\delta' \end{bsmallmatrix}.
 \end{align}
 %
-These results match the tensors presented in \cref{eq:third-derivative-theta-log-s-eta-xi,eq:third-derivative-theta-log-sigma-eta-xi,eq:third-derivative-theta-log-s-eta-eta,eq:third-derivative-theta-log-sigma-eta-eta}.
+These match the tensors given in \cref{eq:third-derivative-theta-log-s-eta-xi,eq:third-derivative-theta-log-sigma-eta-xi,eq:third-derivative-theta-log-s-eta-eta,eq:third-derivative-theta-log-sigma-eta-eta}.
 
 \subsection{Explicit change-of-variables tensors}\label{app:explicit-change-of-vars-derivatives}
 
@@ -1609,35 +1615,33 @@ are
   \Theta_{\eta\eta}^{(\delta')} = \frac{\partial^2 \delta'}{\partial \eta^2} = \begin{bsmallmatrix} 0 & 0 \\ 0 & \delta' \end{bsmallmatrix}.
 \end{align}
 %
-Lastly, the components of the third-derivative 4-tensors
+The components of the third-derivative 4-tensors
 $\Theta_{\eta\eta\xi} \coloneqq \frac{\partial^3 \theta}{\partial \eta^2 \partial \xi}$ and $\Theta_{\eta\eta\eta} \coloneqq \frac{\partial^3 \theta}{\partial \eta^3}$ are
 %
 \begin{align}
-  \Theta_{(\log s)\eta\xi}^{(x')}       & = \tfrac{\partial \Theta_{\eta\xi}^{(x')}}{\partial (\log s)} = \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & 0 \end{bsmallmatrix},       &  & \Theta_{(\log s)\eta\xi}^{(\nu')} = \tfrac{\partial \Theta_{\eta\xi}^{(\nu')}}{\partial (\log s)} = \begin{bsmallmatrix} 0 & \frac{s}{\sigma} & 0 \\ 0 & -\frac{s}{\sigma} & 0 \end{bsmallmatrix},             &  & \Theta_{(\log s)\eta\xi}^{(\delta')} = \tfrac{\partial \Theta_{\eta\xi}^{(\delta')}}{\partial (\log s)} = \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & 0 \end{bsmallmatrix}, \label{eq:third-derivative-theta-log-s-eta-xi}                  \\
-  \Theta_{(\log \sigma)\eta\xi}^{(x')}  & = \tfrac{\partial \Theta_{\eta\xi}^{(x')}}{\partial (\log \sigma)} = \begin{bsmallmatrix} 0 & 0 & 0 \\ \frac{1}{\sigma} & 0 & 0 \end{bsmallmatrix},  &  & \Theta_{(\log \sigma)\eta\xi}^{(\nu')} = \tfrac{\partial \Theta_{\eta\xi}^{(\nu')}}{\partial (\log \sigma)} = \begin{bsmallmatrix} 0 & -\frac{s}{\sigma} & 0 \\ 0 & \frac{s}{\sigma} & 0 \end{bsmallmatrix},   &  & \Theta_{(\log \sigma)\eta\xi}^{(\delta')} = \tfrac{\partial \Theta_{\eta\xi}^{(\delta')}}{\partial (\log \sigma)} = \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & \frac{1}{\sigma} \end{bsmallmatrix}, \label{eq:third-derivative-theta-log-sigma-eta-xi}    \\
-  \Theta_{(\log s)\eta\eta}^{(x')}      & = \tfrac{\partial \Theta_{\eta\eta}^{(x')}}{\partial (\log s)} = \begin{bsmallmatrix} 0 & 0 \\ 0 & 0 \end{bsmallmatrix},      &  & \Theta_{(\log s)\eta\eta}^{(\nu')} = \tfrac{\partial \Theta_{\eta\eta}^{(\nu')}}{\partial (\log s)} = \begin{bsmallmatrix} \nu' & -\nu' \\ -\nu' & \nu' \end{bsmallmatrix},           &  & \Theta_{(\log s)\eta\eta}^{(\delta')} = \tfrac{\partial \Theta_{\eta\eta}^{(\delta')}}{\partial (\log s)} = \begin{bsmallmatrix} 0 & 0 \\ 0 & 0 \end{bsmallmatrix}, \label{eq:third-derivative-theta-log-s-eta-eta}               \\
-  \Theta_{(\log \sigma)\eta\eta}^{(x')} & = \tfrac{\partial \Theta_{\eta\eta}^{(x')}}{\partial (\log \sigma)} = \begin{bsmallmatrix} 0 & 0 \\ 0 & -x' \end{bsmallmatrix}, &  & \Theta_{(\log \sigma)\eta\eta}^{(\nu')} = \tfrac{\partial \Theta_{\eta\eta}^{(\nu')}}{\partial (\log \sigma)} = \begin{bsmallmatrix} -\nu' & \nu' \\ \nu' & -\nu' \end{bsmallmatrix}, &  & \Theta_{(\log \sigma)\eta\eta}^{(\delta')} = \tfrac{\partial \Theta_{\eta\eta}^{(\delta')}}{\partial (\log \sigma)} = \begin{bsmallmatrix} 0 & 0 \\ 0 & -\delta' \end{bsmallmatrix} \label{eq:third-derivative-theta-log-sigma-eta-eta}.
+  \frac{\partial \Theta_{\eta\xi}^{(x')}}{\partial \eta_1}  & = \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & 0 \end{bsmallmatrix}, &  & \frac{\partial \Theta_{\eta\xi}^{(\nu')}}{\partial \eta_1} = \begin{bsmallmatrix} 0 & \frac{s}{\sigma} & 0 \\ 0 & -\frac{s}{\sigma} & 0 \end{bsmallmatrix},  &  & \frac{\partial \Theta_{\eta\xi}^{(\delta')}}{\partial \eta_1} = \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & 0 \end{bsmallmatrix}, \label{eq:third-derivative-theta-log-s-eta-xi}       \\
+  \frac{\partial \Theta_{\eta\xi}^{(x')}}{\partial \eta_2}  & = \begin{bsmallmatrix} 0 & 0 & 0 \\ \frac{1}{\sigma} & 0 & 0 \end{bsmallmatrix}, &  & \frac{\partial \Theta_{\eta\xi}^{(\nu')}}{\partial \eta_2} = \begin{bsmallmatrix} 0 & -\frac{s}{\sigma} & 0 \\ 0 & \frac{s}{\sigma} & 0 \end{bsmallmatrix},  &  & \frac{\partial \Theta_{\eta\xi}^{(\delta')}}{\partial \eta_2} = \begin{bsmallmatrix} 0 & 0 & 0 \\ 0 & 0 & \frac{1}{\sigma} \end{bsmallmatrix}, \label{eq:third-derivative-theta-log-sigma-eta-xi}   \\
+  \frac{\partial \Theta_{\eta\eta}^{(x')}}{\partial \eta_1} & = \begin{bsmallmatrix} 0 & 0 \\ 0 & 0 \end{bsmallmatrix}, &  & \frac{\partial \Theta_{\eta\eta}^{(\nu')}}{\partial \eta_1} = \begin{bsmallmatrix} \nu' & -\nu' \\ -\nu' & \nu' \end{bsmallmatrix}, &  & \frac{\partial \Theta_{\eta\eta}^{(\delta')}}{\partial \eta_1} = \begin{bsmallmatrix} 0 & 0 \\ 0 & 0 \end{bsmallmatrix}, \label{eq:third-derivative-theta-log-s-eta-eta}     \\
+  \frac{\partial \Theta_{\eta\eta}^{(x')}}{\partial \eta_2} & = \begin{bsmallmatrix} 0 & 0 \\ 0 & -x' \end{bsmallmatrix}, &  & \frac{\partial \Theta_{\eta\eta}^{(\nu')}}{\partial \eta_2} = \begin{bsmallmatrix} -\nu' & \nu' \\ \nu' & -\nu' \end{bsmallmatrix}, &  & \frac{\partial \Theta_{\eta\eta}^{(\delta')}}{\partial \eta_2} = \begin{bsmallmatrix} 0 & 0 \\ 0 & -\delta' \end{bsmallmatrix} \label{eq:third-derivative-theta-log-sigma-eta-eta}.
 \end{align}
 
 \section{Derivatives of the per-observation log-likelihood $\ell$ and VJPs}\label{app:ell-derivatives}
 
-Building on the derivative tensors for $\theta(\xi,\eta)$ from \Cref{app:theta-derivatives}, we apply the multivariate chain rule to derive the first-, second-, and third-order derivatives of $\ell(\xi,\eta) = \Omega(\theta(\xi,\eta))$.
-We then assemble the vector-Jacobian products (VJPs) required by the pullbacks in \Cref{eq:pullback-eta-hat,eq:pullback-H}.
-Proofs of the expectation and covariance identities used in these derivations are provided in \Cref{app:proofs-expectation-covariance}.
-For completeness, fully expanded forms are recorded in the subsection \Cref{app:explict-derivative-expressions}, followed by simplified VJP formulas.
+Using the derivative tensors for $\theta(\xi,\eta)$ from \Cref{app:theta-derivatives}, we apply the multivariate chain rule to derive the first-, second-, and third-order derivatives of $\ell(\xi,\eta) = \Omega(\theta(\xi,\eta))$.
+We then construct the vector-Jacobian products (VJPs) required by the pullbacks in \Cref{eq:pullback-eta-hat,eq:pullback-H}.
 
 \subsection{Derivatives of $\ell$}
 
 \subsubsection{First derivatives}
 
-The gradients with respect to $\xi$ and $\eta$ are:
+By the chain rule, the gradients with respect to $\xi$ and $\eta$ are
 %
 \begin{align}
   (\ell_\xi)_i = \frac{\partial \ell}{\partial \xi_i}   & = \sum_k \frac{\partial \Omega}{\partial \theta_k} \frac{\partial \theta_k}{\partial \xi_i} = \sum_k (\Theta_\xi)_{ki} (\nabla_\theta \Omega)_k,   \\
   (\ell_\eta)_j = \frac{\partial \ell}{\partial \eta_j} & = \sum_k \frac{\partial \Omega}{\partial \theta_k} \frac{\partial \theta_k}{\partial \eta_j} = \sum_k (\Theta_\eta)_{kj} (\nabla_\theta \Omega)_k.
 \end{align}
 %
-In matrix notation, these are:
+In matrix notation:
 %
 \begin{align}
   \ell_\xi = \Theta_{\xi}^{T} \nabla_\theta \Omega, \quad \ell_\eta = \Theta_{\eta}^{T} \nabla_\theta \Omega.
@@ -1645,8 +1649,8 @@ In matrix notation, these are:
 
 \subsubsection{Second derivatives}
 
-The Hessian matrices are found by differentiating the gradients.
-Let us derive $\ell_{\eta\eta} = \frac{\partial^2 \ell}{\partial \eta^2}$.
+Differentiating the gradients yields the Hessian matrices.
+For $\ell_{\eta\eta} = \frac{\partial^2 \ell}{\partial \eta^2}$, we have
 %
 \begin{align}
   (\ell_{\eta\eta})_{ij} & = \frac{\partial}{\partial \eta_i} (\ell_\eta)_j = \frac{\partial}{\partial \eta_i} \left( \sum_k \frac{\partial \Omega}{\partial \theta_k} \frac{\partial \theta_k}{\partial \eta_j} \right)                                                                                                           \\
@@ -1655,14 +1659,14 @@ Let us derive $\ell_{\eta\eta} = \frac{\partial^2 \ell}{\partial \eta^2}$.
                          & = \sum_{k,m} (\Theta_\eta)_{mi} (\nabla_\theta^2 \Omega)_{mk} (\Theta_\eta)_{kj} + \sum_k (\nabla_\theta \Omega)_k (\Theta_{\eta\eta}^{(\theta_k)})_{ij}.
 \end{align}
 %
-In matrix and Einstein summation notation (summing over repeated indices $a, b, c$ from $\{1,2,3\}$):
+In matrix and Einstein summation notation (summing over repeated indices $a, b, c \in \{1,2,3\}$):
 %
 \begin{align}
   \ell_{\eta \eta}       & = \Theta_{\eta}^{T} (\nabla_\theta^2 \Omega) \Theta_\eta + \sum_k (\nabla_\theta \Omega)_{k}   \Theta_{\eta\eta}^{(\theta_k)},                                                                                                                               \\
   (\ell_{\eta\eta})_{ij} & = \frac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b} \frac{\partial \theta_a}{\partial \eta_i} \frac{\partial \theta_b}{\partial \eta_j} + \frac{\partial \Omega}{\partial \theta_c} \frac{\partial^2 \theta_c}{\partial \eta_i \partial \eta_j}.
 \end{align}
 %
-A similar derivation yields the mixed Hessian $\ell_{\eta\xi}$:
+The mixed Hessian $\ell_{\eta\xi}$ follows similarly:
 %
 \begin{align}
   \ell_{\eta \xi} = \Theta_{\eta}^{T} (\nabla_\theta^2 \Omega) \Theta_\xi + \sum_k (\nabla_\theta \Omega)_{k}   \Theta_{\eta\xi}^{(\theta_k)}.
@@ -1670,8 +1674,8 @@ A similar derivation yields the mixed Hessian $\ell_{\eta\xi}$:
 
 \subsubsection{Third derivatives}
 
-We differentiate $(\ell_{\eta\eta})_{ij}$ to find the third-derivative tensors.
-Using the product rule and chain rule on the Einstein notation form of $(\ell_{\eta\eta})_{ij}$:
+Differentiating $(\ell_{\eta\eta})_{ij}$ with respect to $\xi_k$ and $\eta_l$ via the product and chain rules yields the third-derivative tensors.
+Using the Einstein notation form:
 %
 \begin{align}
   (\ell_{\eta\eta\xi})_{ijk} = \frac{\partial (\ell_{\eta\eta})_{ij}}{\partial \xi_k} & = \frac{\partial}{\partial \xi_k} \left( \frac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b} \frac{\partial \theta_a}{\partial \eta_i} \frac{\partial \theta_b}{\partial \eta_j} + \frac{\partial \Omega}{\partial \theta_c} \frac{\partial^2 \theta_c}{\partial \eta_i \partial \eta_j} \right)                                                                                                                                                                                                               \\
@@ -1679,21 +1683,21 @@ Using the product rule and chain rule on the Einstein notation form of $(\ell_{\
                                                                                       & \quad + \left( \frac{\partial^2 \Omega}{\partial \theta_c \partial \theta_d} \frac{\partial \theta_d}{\partial \xi_k} \right) \frac{\partial^2 \theta_c}{\partial \eta_i \partial \eta_j} + \frac{\partial \Omega}{\partial \theta_c} \frac{\partial^3 \theta_c}{\partial \eta_i \partial \eta_j \partial \xi_k}.
 \end{align}
 %
-Rearranging and relabeling dummy indices yields the expression in \cref{eq:third-derivative-ell-eta-eta-xi}.
-A similar differentiation with respect to $\eta_l$ yields corresponding expression in \cref{eq:third-derivative-ell-eta-eta-eta}.
+Rearranging and relabeling dummy indices recovers the expression in \cref{eq:third-derivative-ell-eta-eta-xi}.
+Differentiation with respect to $\eta_l$ yields the corresponding expression in \cref{eq:third-derivative-ell-eta-eta-eta}.
 
 \subsubsection{Vector-Jacobian products with $\ell_{\eta\eta}$}
 
-Computing the vector-Jacobian products (VJPs) needed for the pullbacks involves contracting the third-derivative tensors of $\ell$ with the upstream symmetric cotangent matrix $\Delta^H$.
-The VJP with respect to $\xi_k$ is $(\Delta^H \bullet \ell_{\eta\eta\xi})_k = \Delta^H_{ij} (\ell_{\eta\eta\xi})_{ijk}$.
+The VJPs needed for the pullbacks involve contracting the third-derivative tensors of $\ell$ with the symmetric cotangent matrix $\Delta^H$.
+The VJP with respect to $\xi_k$ is $(\Delta^H \bullet \ell_{\eta\eta\xi})_k = \Delta^H_{ij} (\ell_{\eta\eta\xi})_{ijk}$:
 %
 \begin{align}
   \Delta^H_{ij} (\ell_{\eta\eta\xi})_{ijk} & = \Delta^H_{ij} \left( \frac{\partial^3 \Omega}{\partial \theta_a \partial \theta_b \partial \theta_c} \frac{\partial \theta_a}{\partial \eta_i} \frac{\partial \theta_b}{\partial \eta_j} \frac{\partial \theta_c}{\partial \xi_k} \right) + \Delta^H_{ij} \left( \frac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b} \left( \frac{\partial^2 \theta_a}{\partial \eta_i \partial \xi_k} \frac{\partial \theta_b}{\partial \eta_j} + \frac{\partial \theta_a}{\partial \eta_i} \frac{\partial^2 \theta_b}{\partial \eta_j \partial \xi_k} \right) \right) \\
                                            & + \Delta^H_{ij} \left( \frac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b} \frac{\partial \theta_b}{\partial \xi_k} \frac{\partial^2 \theta_a}{\partial \eta_i \partial \eta_j} \right) + \Delta^H_{ij} \left( \frac{\partial \Omega}{\partial \theta_a} \frac{\partial^3 \theta_a}{\partial \eta_i \partial \eta_j \partial \xi_k} \right).
 \end{align}
 %
-Using the symmetry of $\Delta^H$ and $\frac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b}$, the second term becomes $2 \Delta^H_{ij} \frac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b} \frac{\partial^2 \theta_a}{\partial \eta_i \partial \xi_k} \frac{\partial \theta_b}{\partial \eta_j}$.
-Grouping terms by derivatives of $\Omega$ yields:
+Exploiting the symmetry of $\Delta^H$ and $\frac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b}$, the second term becomes $2 \Delta^H_{ij} \frac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b} \frac{\partial^2 \theta_a}{\partial \eta_i \partial \xi_k} \frac{\partial \theta_b}{\partial \eta_j}$.
+Grouping by derivatives of $\Omega$ yields
 %
 \begin{align}
   \frac{\partial (\Delta^H \bullet \ell_{\eta\eta})}{\partial \xi_k} & = \left( \Delta^H_{ij} \frac{\partial^3 \theta_a}{\partial \eta_i \partial \eta_j \partial \xi_k} \right) \frac{\partial \Omega}{\partial \theta_a}                                                                                                                                                                      \\
@@ -1701,20 +1705,19 @@ Grouping terms by derivatives of $\Omega$ yields:
                                                                      & + \left( \Delta^H_{ij} \frac{\partial \theta_a}{\partial \eta_i} \frac{\partial \theta_b}{\partial \eta_j} \right) \frac{\partial \theta_c}{\partial \xi_k} \frac{\partial^3 \Omega}{\partial \theta_a \partial \theta_b \partial \theta_c}.
 \end{align}
 %
-This confirms the expression for the VJP with respect to $\xi_k$ in \cref{eq:third-derivative-ell-eta-eta-xi-delta-h}.
-An identical procedure for the contraction $\Delta^H_{ij} (\ell_{\eta\eta\eta})_{ijl}$ confirms the VJP with respect to $\eta_l$ in \cref{eq:third-derivative-ell-eta-eta-eta-delta-h}.
+This confirms the VJP with respect to $\xi_k$ in \cref{eq:third-derivative-ell-eta-eta-xi-delta-h}.
+An identical procedure for $\Delta^H_{ij} (\ell_{\eta\eta\eta})_{ijl}$ yields the VJP with respect to $\eta_l$ in \cref{eq:third-derivative-ell-eta-eta-eta-delta-h}.
 
-\subsection{Explicit Derivative Expressions}\label{app:explict-derivative-expressions}
+\subsection{Explicit derivative expressions}\label{app:explicit-derivative-expressions}
 
-We now derive the explicit expressions for the derivatives of $\ell$ by substituting the concrete derivatives of the coordinate transformation $\theta$ into the general formulae.
-The final expressions are simplified by first defining a set of intermediate linear contractions involving the derivatives of $\Omega$.
+We now derive explicit expressions for the derivatives of $\ell$ by substituting the concrete derivatives of $\theta$ into the general chain rule formulas.
 
-\subsubsection{First derivatives (explicit)}
+\subsubsection{First derivatives}
 
-The gradients of $\ell$ with respect to $\xi$ and $\eta$ are computed using the chain rule:
+Using the chain rule, the gradients of $\ell$ with respect to $\xi$ and $\eta$ are
 %
 \begin{align}
-  \ell_\xi = \frac{\partial \theta^T}{\partial \xi} \nabla_\theta \Omega =
+  \ell_\xi = \Theta_\xi^T \nabla_\theta \Omega =
   \begin{bmatrix} \ell_x \\ \ell_\mu \\ \ell_\delta \end{bmatrix}
   =
   \begin{bmatrix}
@@ -1728,13 +1731,13 @@ The gradients of $\ell$ with respect to $\xi$ and $\eta$ are computed using the 
     \frac{1}{\sigma} \Omega_{x'}   \\
     \frac{s}{\sigma} \Omega_{\nu'} \\
     \frac{1}{\sigma} \Omega_{\delta'}
-  \end{bmatrix}.
+  \end{bmatrix},
 \end{align}
 %
 and
 %
 \begin{align}
-  \ell_\eta = \frac{\partial \theta^T}{\partial \eta} \nabla_\theta \Omega =
+  \ell_\eta = \Theta_\eta^T \nabla_\theta \Omega =
   \begin{bmatrix} \ell_{\log s} \\ \ell_{\log \sigma} \end{bmatrix}
   =
   \begin{bmatrix}
@@ -1749,41 +1752,36 @@ and
   \end{bmatrix}.
 \end{align}
 %
-Here we use the shorthand $\Omega_{x'} \coloneqq \frac{\partial \Omega}{\partial x'}$, etc.
+Here we use the shorthand $\Omega_{x'} \coloneqq \frac{\partial \Omega}{\partial x'}$, and similarly for other components.
 
-\subsubsection{Second derivatives (explicit)}
+\subsubsection{Second derivatives}
 
-The Hessian $\ell_{\eta\eta}$ is found by differentiating $\ell_\eta$:
+The Hessian $\ell_{\eta\eta}$ is obtained by differentiating $\ell_\eta$:
 %
 \begin{align}
-  \ell_{\eta\eta} = \frac{\partial}{\partial \eta} (\ell_\eta) = \frac{\partial}{\partial \eta} (\Theta_\eta^T \nabla_\theta \Omega) = (\frac{\partial}{\partial \eta} \Theta_\eta^T) \nabla_\theta \Omega + \Theta_\eta^T (\frac{\partial}{\partial \eta} \nabla_\theta \Omega).
+  \ell_{\eta\eta} = \frac{\partial}{\partial \eta} (\ell_\eta) = \frac{\partial}{\partial \eta} (\Theta_\eta^T \nabla_\theta \Omega) = \underbrace{(\frac{\partial}{\partial \eta} \Theta_\eta^T) \nabla_\theta \Omega}_{H^{\text{lin}}} + \underbrace{\Theta_\eta^T (\frac{\partial}{\partial \eta} \nabla_\theta \Omega)}_{H^{\text{quad}}}.
 \end{align}
 %
-The first term, involving the tensor $\frac{\partial}{\partial \eta} \Theta_\eta^T$, gives the linear part, which we denote $H^{\text{lin}}$.
-Its components are given by the contraction $\sum_k \Omega_k \frac{\partial^2 \theta_k}{\partial \eta_i \partial \eta_j}$:
+The linear part $H^{\text{lin}} = (\frac{\partial}{\partial \eta} \Theta_\eta^T) \nabla_\theta \Omega$ expands to
 %
 \begin{align}
   H^{\text{lin}} & = \sum_k \Omega_k \Theta_{\eta\eta}^{(\theta_k)} = \Omega_{x'} \Theta_{\eta\eta}^{(x')} + \Omega_{\nu'} \Theta_{\eta\eta}^{(\nu')} + \Omega_{\delta'} \Theta_{\eta\eta}^{(\delta')} \\
                  & = \Omega_{x'} \begin{bsmallmatrix} 0 & 0 \\ 0 & x' \end{bsmallmatrix} + \Omega_{\nu'} \begin{bsmallmatrix} \nu' & -\nu' \\ -\nu' & \nu' \end{bsmallmatrix} + \Omega_{\delta'} \begin{bsmallmatrix} 0 & 0 \\ 0 & \delta' \end{bsmallmatrix}                                    \\
-                 & = \begin{bsmallmatrix}
-    \nu' \Omega_{\nu'} & -\nu' \Omega_{\nu'} \\
-    -\nu' \Omega_{\nu'} & x' \Omega_{x'} + \nu' \Omega_{\nu'} + \delta' \Omega_{\delta'}
-  \end{bsmallmatrix}.
+                 & = \begin{bsmallmatrix} \nu' \Omega_{\nu'} & -\nu' \Omega_{\nu'} \\ -\nu' \Omega_{\nu'} & x' \Omega_{x'} + \nu' \Omega_{\nu'} + \delta' \Omega_{\delta'} \end{bsmallmatrix}.
 \end{align}
 %
-Thus, the components of the symmetric matrix $H^{\text{lin}}$ are:
+The components of this symmetric matrix are
 %
 \begin{align}
-  H^{\text{lin}}_{11} & = \nu' \Omega_{\nu'}                                              \\
-  H^{\text{lin}}_{12} & = -\nu' \Omega_{\nu'}                                             \\
+  H^{\text{lin}}_{11} & = \nu' \Omega_{\nu'},                                             \\
+  H^{\text{lin}}_{12} & = -\nu' \Omega_{\nu'},                                            \\
   H^{\text{lin}}_{22} & = x' \Omega_{x'} + \nu' \Omega_{\nu'} + \delta' \Omega_{\delta'}.
 \end{align}
 %
-The second term gives the quadratic part, $H^{\text{quad}} = \Theta_\eta^T (\nabla_\theta^2 \Omega) \Theta_\eta$:
+The quadratic part $H^{\text{quad}} = \Theta_\eta^T (\nabla_\theta^2 \Omega) \Theta_\eta$ expands to
 %
 \begin{align}
-  H^{\text{quad}} & =
-  \begin{bmatrix}
+  H^{\text{quad}} & = \begin{bmatrix}
     0   & \nu'  & 0        \\
     -x' & -\nu' & -\delta'
   \end{bmatrix}
@@ -1796,296 +1794,163 @@ The second term gives the quadratic part, $H^{\text{quad}} = \Theta_\eta^T (\nab
     0    & -x'      \\
     \nu' & -\nu'    \\
     0    & -\delta'
-  \end{bmatrix}                     \\
+  \end{bmatrix}                      \\
                   & = \begin{bsmallmatrix}
     \nu'^2 \Omega_{\nu'\nu'} & -x'\nu'\Omega_{x'\nu'} - \nu'^2\Omega_{\nu'\nu'} - \nu'\delta'\Omega_{\nu'\delta'} \\
     -x'\nu'\Omega_{x'\nu'} - \nu'^2\Omega_{\nu'\nu'} - \nu'\delta'\Omega_{\nu'\delta'} & x'^2\Omega_{x'x'} + \nu'^2\Omega_{\nu'\nu'} + \delta'^2\Omega_{\delta'\delta'} + 2x'\nu'\Omega_{x'\nu'} + 2x'\delta'\Omega_{x'\delta'} + 2\nu'\delta'\Omega_{\nu'\delta'}
-  \end{bsmallmatrix}
+  \end{bsmallmatrix},
 \end{align}
 %
-where we use the shorthand $\Omega_{x'x'} \coloneqq \frac{\partial^2 \Omega}{\partial x'^2}$, etc.
-The components of this matrix are:
+where we use $\Omega_{x'x'} \coloneqq \frac{\partial^2 \Omega}{\partial x'^2}$, etc.
+The components are
 %
 \begin{align}
-  H^{\text{quad}}_{11} & = \nu'^2 \Omega_{\nu'\nu'}                                                                                                                                                   \\
-  H^{\text{quad}}_{12} & = -x'\nu'\Omega_{x'\nu'} - \nu'^2\Omega_{\nu'\nu'} - \nu'\delta'\Omega_{\nu'\delta'}                                                                                         \\
-  H^{\text{quad}}_{22} & = x'^2\Omega_{x'x'} + \nu'^2\Omega_{\nu'\nu'} + \delta'^2\Omega_{\delta'\delta'} + 2x'\nu'\Omega_{x'\nu'} + 2x'\delta'\Omega_{x'\delta'} + 2\nu'\delta'\Omega_{\nu'\delta'}.
+  H^{\text{quad}}_{11} & = \nu'^2 \Omega_{\nu'\nu'},                                                                                                                                                  \\
+  H^{\text{quad}}_{12} & = -x'\nu'\Omega_{x'\nu'} - \nu'^2\Omega_{\nu'\nu'} - \nu'\delta'\Omega_{\nu'\delta'},                                                                                        \\
+  H^{\text{quad}}_{22} & = x'^2\Omega_{x'x'} + \nu'^2\Omega_{\nu'\nu'} + \delta'^2\Omega_{\delta'\delta'} + 2x'\nu'\Omega_{x'\nu'} + 2x'\delta'\Omega_{x'\delta'} + 2\nu'\delta'\Omega_{\nu'\delta'},
 \end{align}
 %
 where we have used the symmetry of $\nabla_\theta^2 \Omega$.
 
-\subsubsection{Third Derivatives and VJPs (explicit)}
+\subsubsection{Vector-Jacobian products with $\ell_{\eta\eta}$}
 
-We now derive the VJP contractions required for the pullbacks, $\Delta^H \bullet \ell_{\eta\eta\xi}$ and $\Delta^H \bullet \ell_{\eta\eta\eta}$, by substituting the concrete derivatives of $\theta$ into the general chain rule formulae.
-We do this term-by-term for each component of the VJP.
-
-\paragraph{VJP with respect to $\xi$: coefficient grouping}
-
-The general expression for the $k$-th component of the VJP with respect to $\xi$ is:
+We now derive the vector-Jacobian products required for the third-order pullbacks.
+Starting from the expression
 %
 \begin{align}
-  (\Delta^H \bullet \ell_{\eta\eta\xi})_k & = \sum_{i,j,a} \left( \Delta^H_{ij} \frac{\partial^3 \theta_a}{\partial \eta_i \partial \eta_j \partial \xi_k} \right) \frac{\partial \Omega}{\partial \theta_a} \nonumber                                                                                                                                                          \\
-                                          & + \sum_{i,j,a,b} \Delta^H_{ij} \left( 2 \frac{\partial^2 \theta_a}{\partial \eta_i \partial \xi_k} \frac{\partial \theta_b}{\partial \eta_j} + \frac{\partial^2 \theta_a}{\partial \eta_i \partial \eta_j} \frac{\partial \theta_b}{\partial \xi_k} \right) \frac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b} \nonumber \\
-                                          & + \sum_{i,j,a,b,c} \left( \Delta^H_{ij} \frac{\partial \theta_a}{\partial \eta_i} \frac{\partial \theta_b}{\partial \eta_j} \right) \frac{\partial \theta_c}{\partial \xi_k} \frac{\partial^3 \Omega}{\partial \theta_a \partial \theta_b \partial \theta_c}.
+  \ell_{\eta\eta} = \Theta_\eta^T (\nabla_\theta^2 \Omega) \Theta_\eta + \sum_{k} (\nabla_\theta \Omega)_k \Theta_{\eta\eta}^{(\theta_k)},
+\end{align}
+%
+we contract with the symmetric cotangent $\Delta^H$ to obtain the scalar
+%
+\begin{align}
+  S \coloneqq \Delta^H \bullet \ell_{\eta\eta}
+  = \Delta^H_{ij} (\ell_{\eta\eta})_{ij}
+  = \underbrace{(\Theta_\eta \Delta^H \Theta_\eta^T)_{ab}}_{\Delta^\theta_{ab}} \Omega_{\theta_a \theta_b}
+  + \underbrace{\operatorname{tr}(\Delta^H \Theta_{\eta\eta}^{(\theta_k)})}_{\alpha_k} \Omega_{\theta_k}
+\end{align}
+%
+where we have defined $\Delta^\theta = \Theta_\eta \Delta^H \Theta_\eta^T$ and $\alpha_k = \mathrm{tr}(\Delta^H \Theta_{\eta\eta}^{(\theta_k)})$.
+With $\theta = (x', \nu', \delta')$ and the derivative tensors
+%
+\begin{align}
+  \Theta_\eta = \begin{bmatrix} 0 & -x' \\ \nu' & -\nu' \\ 0 & -\delta' \end{bmatrix},
+  \quad
+  \Theta_{\eta\eta}^{(x')} = \begin{bmatrix} 0 & 0 \\ 0 & x' \end{bmatrix},
+  \quad
+  \Theta_{\eta\eta}^{(\nu')} = \begin{bmatrix} \nu' & -\nu' \\ -\nu' & \nu' \end{bmatrix},
+  \quad
+  \Theta_{\eta\eta}^{(\delta')} = \begin{bmatrix} 0 & 0 \\ 0 & \delta' \end{bmatrix},
+\end{align}
+%
+the nonzero entries of $\Delta^\theta$ and the coefficients $\alpha_k$ are given by
+%
+\begin{align}
+  \Delta^{\theta}_{11} & = x'^2 \Delta^H_{22},                                      &  & \Delta^{\theta}_{12} = -x' \nu' (\Delta^H_{21} - \Delta^H_{22}),       &  & \Delta^{\theta}_{13} = x' \delta' \Delta^H_{22}, \\
+  \Delta^{\theta}_{22} & = \nu'^2 (\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22}), &  & \Delta^{\theta}_{23} = \nu' \delta' (\Delta^H_{22} - \Delta^H_{12}),   &  & \Delta^{\theta}_{33} = \delta'^2 \Delta^H_{22},  \\
+  \alpha_{x'}          & = x' \Delta^H_{22},                                        &  & \alpha_{\nu'} = \nu' (\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22}), &  & \alpha_{\delta'} = \delta' \Delta^H_{22}.
+\end{align}
+%
+Differentiating $S$ with respect to $\theta_c \in \{x', \nu', \delta'\}$ yields
+%
+\begin{align}
+  \frac{\partial S}{\partial \theta_c}
+  = \underbrace{\Delta^\theta_{ab} \Omega_{\theta_a \theta_b \theta_c}}_{C_{\theta_c}}
+  + \underbrace{\left(\frac{\partial \Delta^\theta_{ab}}{\partial \theta_c}\right) \Omega_{\theta_a \theta_b}}_{H_{\theta_c}}
+  + \underbrace{\left(\frac{\partial \alpha_k}{\partial \theta_c}\right) \Omega_{\theta_k}}_{G_{\theta_c}}
+  + \underbrace{\alpha_k \Omega_{\theta_k \theta_c}}_{Q_{\theta_c}}.
+\end{align}
+%
+We identify four contributions: the cubic contraction $C_{\theta_c}$, the Hessian term $H_{\theta_c}$, the gradient term $G_{\theta_c}$, and the linear-Hessian coupling $Q_{\theta_c}$.
+
+\paragraph{Gradient contribution.}
+
+From the explicit forms $\alpha_{x'} = x' \Delta^H_{22}$, $\alpha_{\nu'} = \nu' (\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22})$, and $\alpha_{\delta'} = \delta' \Delta^H_{22}$, we obtain
+%
+\begin{align}
+  G_{x'}      = \Delta^H_{22} \Omega_{x'}, \qquad
+  G_{\nu'}    = (\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22}) \Omega_{\nu'}, \qquad
+  G_{\delta'} = \Delta^H_{22} \Omega_{\delta'}.
 \end{align}
 
-\paragraph{Gradient terms (Term 1)}
+\paragraph{Hessian contribution.}
 
-The coefficient of $\frac{\partial \Omega}{\partial \theta_a}$ is $C^{(1)}_{k,a} = \sum_{i,j} \Delta^H_{ij} \frac{\partial^3 \theta_a}{\partial \eta_i \partial \eta_j \partial \xi_k}$.
-This requires differentiating $\Theta_{\eta\eta}^{(\theta_a)}$ with respect to $\xi_k$:
+Defining $\Theta_{\eta\theta_c} \coloneqq \frac{\partial \Theta_\eta}{\partial \theta_c}$, the derivative of $\Delta^\theta$ is
 %
 \begin{align}
-  \frac{\partial \Theta_{\eta\eta}^{(x')}}{\partial x}           & = \begin{bsmallmatrix} 0 & 0 \\ 0 & 1/\sigma \end{bsmallmatrix},                  &
-  \frac{\partial \Theta_{\eta\eta}^{(\nu')}}{\partial \mu}       & = \frac{s}{\sigma} \begin{bsmallmatrix} 1 & -1 \\ -1 & 1 \end{bsmallmatrix}, &
-  \frac{\partial \Theta_{\eta\eta}^{(\delta')}}{\partial \delta} & = \begin{bsmallmatrix} 0 & 0 \\ 0 & 1/\sigma \end{bsmallmatrix}.
+  \frac{\partial \Delta^\theta}{\partial \theta_c} & = \Theta_{\eta\theta_c} \Delta^H \Theta_\eta^T + \Theta_\eta \Delta^H \Theta_{\eta\theta_c}^T, \\
+  \text{where} \quad
+  \Theta_{\eta x'}                                 & = \begin{bsmallmatrix} 0 & -1 \\ 0 & 0 \\ 0 & 0 \end{bsmallmatrix},
+  \quad
+  \Theta_{\eta\nu'} = \begin{bsmallmatrix} 0 & 0 \\ 1 & -1 \\ 0 & 0 \end{bsmallmatrix},
+  \quad
+  \Theta_{\eta\delta'} = \begin{bsmallmatrix} 0 & 0 \\ 0 & 0 \\ 0 & -1 \end{bsmallmatrix}.
 \end{align}
 %
-All other derivatives $\frac{\partial}{\partial \xi_k} \Theta_{\eta\eta}^{(\theta_a)}$ are zero.
-Contracting with $\Delta^H$ yields:
+Contracting with $\Omega_{\theta\theta}$ yields
 %
 \begin{align}
-  (\text{Term 1})_x      & = \frac{1}{\sigma} \Delta^H_{22} \Omega_{x'},                                      \\
-  (\text{Term 1})_\mu    & = \frac{s}{\sigma} (\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22}) \Omega_{\nu'}, \\
-  (\text{Term 1})_\delta & = \frac{1}{\sigma} \Delta^H_{22} \Omega_{\delta'}.
-\end{align}
-
-\paragraph{Hessian terms (Term 2)}
-
-The coefficient of $\frac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b}$ is $C^{(2,\xi_k)}_{ab} = \sum_{i,j} \Delta^H_{ij} ( 2 \frac{\partial^2 \theta_a}{\partial \eta_i \partial \xi_k} \frac{\partial \theta_b}{\partial \eta_j} + \frac{\partial^2 \theta_a}{\partial \eta_i \partial \eta_j} \frac{\partial \theta_b}{\partial \xi_k} )$.
-We compute this for $k=x, \mu, \delta$ by substituting the relevant derivatives of $\theta$.
-
-$C^{(2,x)}_{ab}$:
-The non-zero derivatives with respect to $x$ are $\frac{\partial x'}{\partial x} = \frac{1}{\sigma}$ and $\frac{\partial^2 x'}{\partial \eta_2 \partial x} = -\frac{1}{\sigma}$:
-%
-\begin{align}
-  C^{(2,x)}_{11} & = 2 \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 x'}{\partial\eta_i\partial x}\frac{\partial x'}{\partial\eta_j} + \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 x'}{\partial\eta_i\partial\eta_j}\frac{\partial x'}{\partial x} = 2(-\tfrac{1}{\sigma})(-x')\Delta^H_{22} + \frac{x'}{\sigma}\Delta^H_{22} = \frac{3x'}{\sigma}\Delta^H_{22} \\
-  C^{(2,x)}_{12} & = 2 \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 x'}{\partial\eta_i\partial x}\frac{\partial \nu'}{\partial\eta_j} = 2(-\tfrac{1}{\sigma}) (\nu'\Delta^H_{21} - \nu'\Delta^H_{22}) = -\frac{2\nu'}{\sigma}(\Delta^H_{21} - \Delta^H_{22})                                                                                                 \\
-  C^{(2,x)}_{13} & = 2 \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 x'}{\partial\eta_i\partial x}\frac{\partial \delta'}{\partial\eta_j} = 2(-\tfrac{1}{\sigma})(-\delta'\Delta^H_{22}) = \frac{2\delta'}{\sigma}\Delta^H_{22}                                                                                                                               \\
-  C^{(2,x)}_{21} & = \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 \nu'}{\partial\eta_i\partial\eta_j}\frac{\partial x'}{\partial x} = \frac{\nu'}{\sigma}(\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22})                                                                                                                                                    \\
-  C^{(2,x)}_{31} & = \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 \delta'}{\partial\eta_i\partial\eta_j}\frac{\partial x'}{\partial x} = \frac{\delta'}{\sigma}\Delta^H_{22}.
-\end{align}
-%
-All other coefficients $C^{(2,x)}_{ab}$ are zero.
-
-$C^{(2,\mu)}_{ab}$:
-The non-zero derivatives with respect to $\mu$ are $\frac{\partial \nu'}{\partial \mu} = \frac{s}{\sigma}$, $\frac{\partial^2 \nu'}{\partial \eta_1 \partial \mu} = \frac{s}{\sigma}$, and $\frac{\partial^2 \nu'}{\partial \eta_2 \partial \mu} = -\frac{s}{\sigma}$.
-The non-zero coefficients $C^{(2,\mu)}_{ab}$ are:
-%
-\begin{align}
-  C^{(2,\mu)}_{12} & = \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 x'}{\partial\eta_i\partial\eta_j}\frac{\partial \nu'}{\partial \mu} = \frac{s}{\sigma} x' \Delta^H_{22}                                                                                   \\
-  C^{(2,\mu)}_{21} & = 2 \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 \nu'}{\partial\eta_i\partial \mu}\frac{\partial x'}{\partial\eta_j} = -\frac{2sx'}{\sigma}(\Delta^H_{12} - \Delta^H_{22})                                                               \\
-  C^{(2,\mu)}_{22} & = 2 \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 \nu'}{\partial\eta_i\partial \mu}\frac{\partial \nu'}{\partial\eta_j} + \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 \nu'}{\partial\eta_i\partial\eta_j}\frac{\partial \nu'}{\partial \mu} \\
-                   & = \frac{3s\nu'}{\sigma}(\Delta^H_{11}-2\Delta^H_{12}+\Delta^H_{22})                                                                                                                                                                   \\
-  C^{(2,\mu)}_{23} & = 2 \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 \nu'}{\partial\eta_i\partial \mu}\frac{\partial \delta'}{\partial\eta_j} = -\frac{2s\delta'}{\sigma}(\Delta^H_{12} - \Delta^H_{22})                                                     \\
-  C^{(2,\mu)}_{32} & = \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 \delta'}{\partial\eta_i\partial\eta_j}\frac{\partial \nu'}{\partial \mu} = \frac{s}{\sigma} \delta' \Delta^H_{22}.
+  H_{x'}      & = 2 \Delta^H_{22} \big( x' \Omega_{x'x'} + \delta' \Omega_{x'\delta'} \big) + 2(\Delta^H_{22} - \Delta^H_{12}) \nu' \Omega_{x'\nu'},                                         \\
+  H_{\nu'}    & = 2(\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22}) \nu' \Omega_{\nu'\nu'} + 2(\Delta^H_{22} - \Delta^H_{12}) \big( x' \Omega_{x'\nu'} + \delta' \Omega_{\nu'\delta'} \big), \\
+  H_{\delta'} & = 2 \Delta^H_{22} \big( x' \Omega_{x'\delta'} + \delta' \Omega_{\delta'\delta'} \big) + 2(\Delta^H_{22} - \Delta^H_{12}) \nu' \Omega_{\nu'\delta'}.
 \end{align}
 
-$C^{(2,\delta)}_{ab}$:
-The non-zero derivatives with respect to $\delta$ are $\frac{\partial \delta'}{\partial \delta} = \frac{1}{\sigma}$ and $\frac{\partial^2 \delta'}{\partial \eta_2 \partial \delta} = -\frac{1}{\sigma}$.
-The non-zero coefficients $C^{(2,\delta)}_{ab}$ are therefore:
+\paragraph{Cubic contribution.}
+
+The cubic contraction is defined by
 %
 \begin{align}
-  C^{(2,\delta)}_{13} & = \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 x'}{\partial\eta_i\partial\eta_j}\frac{\partial \delta'}{\partial \delta} = \frac{x'}{\sigma}\Delta^H_{22}                                                                                                                                          \\
-  C^{(2,\delta)}_{23} & = 2 \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 \delta'}{\partial\eta_i\partial \delta}\frac{\partial \nu'}{\partial\eta_j} = -\frac{2\nu'}{\sigma}(\Delta^H_{21}-\Delta^H_{22})                                                                                                                  \\
-  C^{(2,\delta)}_{31} & = 2 \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 \delta'}{\partial\eta_i\partial \delta}\frac{\partial x'}{\partial\eta_j} = \frac{2x'}{\sigma}\Delta^H_{22}                                                                                                                                       \\
-  C^{(2,\delta)}_{32} & = \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 \nu'}{\partial\eta_i\partial\eta_j}\frac{\partial \delta'}{\partial \delta} = \frac{\nu'}{\sigma}(\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22})                                                                                                   \\
-  C^{(2,\delta)}_{33} & = 2 \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 \delta'}{\partial\eta_i\partial \delta}\frac{\partial \delta'}{\partial\eta_j} + \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 \delta'}{\partial\eta_i\partial\eta_j}\frac{\partial \delta'}{\partial \delta} = \frac{3\delta'}{\sigma}\Delta^H_{22}.
+  C_{\theta_c} = \Delta^\theta_{ab} \Omega_{\theta_a \theta_b \theta_c}
+  = (\Theta_\eta \Delta^H \Theta_\eta^T)_{ab} \Omega_{\theta_a \theta_b \theta_c}.
 \end{align}
 
-Summing the contributions for the Hessian terms (using $\Delta^H_{12}=\Delta^H_{21}$):
+\paragraph{Linear-Hessian coupling.}
+
+Using the coefficients $\alpha_k$ derived above, we have
 %
 \begin{align}
-  (\text{Term 2})_x      & = \frac{1}{\sigma} \Big[ 3 x' \Delta^H_{22} \Omega_{x'x'} + (\Delta^H_{11} - 4\Delta^H_{12} + 3\Delta^H_{22}) \nu' \Omega_{x'\nu'} + 3 \delta' \Delta^H_{22} \Omega_{x'\delta'} \Big],                                     \\
-  (\text{Term 2})_\mu    & = \frac{s}{\sigma} \Big[ x'(3\Delta^H_{22} - 2\Delta^H_{12})\Omega_{x'\nu'} + 3\nu'(\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22})\Omega_{\nu'\nu'} + \delta'(3\Delta^H_{22} - 2\Delta^H_{12})\Omega_{\nu'\delta'} \Big], \\
-  (\text{Term 2})_\delta & = \frac{1}{\sigma} \Big[ 3 x' \Delta^H_{22} \Omega_{x'\delta'} + \nu'(\Delta^H_{11} - 4\Delta^H_{12} + 3\Delta^H_{22}) \Omega_{\nu'\delta'} + 3\delta'\Delta^H_{22}\Omega_{\delta'\delta'} \Big].
+  Q_{x'}      = x' \Delta^H_{22} \Omega_{x'x'} + \nu' (\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22}) \Omega_{\nu' x'} + \delta' \Delta^H_{22} \Omega_{\delta' x'},      \\
+  Q_{\nu'}    = x' \Delta^H_{22} \Omega_{x'\nu'} + \nu' (\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22}) \Omega_{\nu'\nu'} + \delta' \Delta^H_{22} \Omega_{\delta' \nu'}, \\
+  Q_{\delta'} = x' \Delta^H_{22} \Omega_{x'\delta'} + \nu' (\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22}) \Omega_{\nu'\delta'} + \delta' \Delta^H_{22} \Omega_{\delta' \delta'}.
 \end{align}
 
-\paragraph{Third-order terms (Term 3)}
+\paragraph{Combined expressions.}
 
-The third term in the VJP expression is
+Summing all four contributions, each $\theta$-space component is
 %
 \begin{align}
-  (\text{Term 3})_{\xi_k} = \sum_{a,b,c} \left( \sum_{i,j} \Delta^H_{ij} \frac{\partial \theta_a}{\partial \eta_i} \frac{\partial \theta_b}{\partial \eta_j} \right) \frac{\partial \theta_c}{\partial \xi_k} \frac{\partial^3 \Omega}{\partial \theta_a \partial \theta_b \partial \theta_c}.
+  \mathcal{J}_{\theta_c} \coloneqq \frac{\partial S}{\partial \theta_c}
+  = G_{\theta_c} + H_{\theta_c} + C_{\theta_c} + Q_{\theta_c}.
 \end{align}
 %
-This expression involves all 10 unique components of the third-derivative tensor $\nabla_\theta^3 \Omega$.
-However, we can exploit the structure of the coefficient multiplying the tensor to reduce the computational burden.
-Let us define the \textit{upstream Hessian quadratic form} $Q$ as the $3 \times 3$ symmetric matrix whose components are given by the contraction in the parentheses:
+After algebraic simplification, we have
 %
 \begin{align}
-  Q_{ab} \coloneqq \sum_{i,j} \Delta^H_{ij} \frac{\partial \theta_a}{\partial \eta_i} \frac{\partial \theta_b}{\partial \eta_j} = (\Theta_\eta \Delta^H \Theta_\eta^T)_{ab}.
-\end{align}
-%
-Recalling the definition of $\Theta_\eta$,
-\begin{align}
-  \Theta_{\eta} =
-  \begin{bmatrix}
-    0    & -x'      \\
-    \nu' & -\nu'    \\
-    0    & -\delta'
-  \end{bmatrix},
-\end{align}
-%
-and performing the matrix multiplication yields the explicit components of $Q$ (up to symmetry):
-%
-\begin{align}
-  Q_{11} & = x'^2 \Delta^H_{22},                                      & Q_{12} & = -x' \nu' (\Delta^H_{21} - \Delta^H_{22}),     & Q_{13} & = x' \delta' \Delta^H_{22}, \\
-  Q_{22} & = \nu'^2 (\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22}), & Q_{23} & = \nu' \delta' (\Delta^H_{22} - \Delta^H_{12}), & Q_{33} & = \delta'^2 \Delta^H_{22}.
-\end{align}
-%
-With this definition, the third-order term can be rewritten as:
-%
-\begin{align}
-  (\text{Term 3})_{\xi_k} = \sum_{a,b,c} Q_{ab} \frac{\partial \theta_c}{\partial \xi_k} \frac{\partial^3 \Omega}{\partial \theta_a \partial \theta_b \partial \theta_c} = \sum_c \frac{\partial \theta_c}{\partial \xi_k} \left( \sum_{a,b} Q_{ab} \frac{\partial^3 \Omega}{\partial \theta_a \partial \theta_b \partial \theta_c} \right).
-\end{align}
-%
-The term in the parentheses is a vector of 3 linear combinations of the third derivatives of $\Omega$.
-We define this vector as the \textit{contracted tensor gradient} $T$:
-%
-\begin{align}
-  T_c \coloneqq (Q \bullet \nabla_\theta^3 \Omega)_c = \sum_{a,b} Q_{ab} \frac{\partial^3 \Omega}{\partial \theta_a \partial \theta_b \partial \theta_c}.
-\end{align}
-%
-This reduces the computational burden from evaluating 10 third-derivative components to just the 3 components of $T$.
-The third-order term of the VJP is now simply $(\text{Term 3})_k = \sum_c \frac{\partial \theta_c}{\partial \xi_k} T_c$.
-Since $\Theta_\xi$ is a diagonal matrix, this contraction is straightforward:
-%
-\begin{align}
-  (\text{Term 3})_x      & = \frac{\partial \theta_1}{\partial x} T_1 + \frac{\partial \theta_2}{\partial x} T_2 + \frac{\partial \theta_3}{\partial x} T_3 = \frac{1}{\sigma} T_1,                \\
-  (\text{Term 3})_\mu    & = \frac{\partial \theta_1}{\partial \mu} T_1 + \frac{\partial \theta_2}{\partial \mu} T_2 + \frac{\partial \theta_3}{\partial \mu} T_3 = \frac{s}{\sigma} T_2,          \\
-  (\text{Term 3})_\delta & = \frac{\partial \theta_1}{\partial \delta} T_1 + \frac{\partial \theta_2}{\partial \delta} T_2 + \frac{\partial \theta_3}{\partial \delta} T_3 = \frac{1}{\sigma} T_3.
+  \mathcal{J}_{x'}      & = \Delta^H_{22} \Omega_{x'} + 3 \Delta^H_{22} \big( x' \Omega_{x'x'} + \delta' \Omega_{x'\delta'} \big) + (\Delta^H_{11} - 4\Delta^H_{12} + 3\Delta^H_{22}) \nu' \Omega_{x'\nu'} + C_{x'},                                                                                                                          \\
+  \mathcal{J}_{\nu'}    & = (\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22}) \big( \Omega_{\nu'} + 3\nu' \Omega_{\nu'\nu'} \big) + (3\Delta^H_{22} - 2\Delta^H_{12}) \big( x' \Omega_{x'\nu'} + \delta' \Omega_{\nu'\delta'} \big) + C_{\nu'},                                                                                                                        \\
+  \mathcal{J}_{\delta'} & = \Delta^H_{22} \big( \Omega_{\delta'} + 3 x' \Omega_{x'\delta'} + 3 \delta' \Omega_{\delta'\delta'} \big) + (\Delta^H_{11} - 4\Delta^H_{12} + 3\Delta^H_{22}) \nu' \Omega_{\nu'\delta'} + C_{\delta'}.
 \end{align}
 
-\paragraph{VJP with respect to $\eta$: coefficient grouping}
+\paragraph{Transformation to $(\xi,\eta)$ coordinates.}
 
-The general expression for the $l$-th component of the VJP with respect to $\eta$ is:
+Recalling $\theta = (x', \nu', \delta') = (\frac{x}{\sigma}, \frac{s\mu}{\sigma}, \frac{\delta}{\sigma})$ and the Jacobians
 %
 \begin{align}
-  (\Delta^H \bullet \ell_{\eta\eta\eta})_l & = \sum_{i,j,a} \left( \Delta^H_{ij} \frac{\partial^3 \theta_a}{\partial \eta_i \partial \eta_j \partial \eta_l} \right) \frac{\partial \Omega}{\partial \theta_a} \nonumber                                                                                                                                                           \\
-                                           & + \sum_{i,j,a,b} \Delta^H_{ij} \left( 2 \frac{\partial^2 \theta_a}{\partial \eta_i \partial \eta_l} \frac{\partial \theta_b}{\partial \eta_j} + \frac{\partial^2 \theta_a}{\partial \eta_i \partial \eta_j} \frac{\partial \theta_b}{\partial \eta_l} \right) \frac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b} \nonumber \\
-                                           & + \sum_{i,j,a,b,c} \left( \Delta^H_{ij} \frac{\partial \theta_a}{\partial \eta_i} \frac{\partial \theta_b}{\partial \eta_j} \right) \frac{\partial \theta_c}{\partial \eta_l} \frac{\partial^3 \Omega}{\partial \theta_a \partial \theta_b \partial \theta_c}.
+  \Theta_\xi = \frac{\partial \theta}{\partial \xi} = \operatorname{diag}\Big(\frac{1}{\sigma}, \frac{s}{\sigma}, \frac{1}{\sigma}\Big),
+  \qquad
+  \Theta_\eta = \frac{\partial \theta}{\partial \eta} = \begin{bmatrix} 0 & -x' \\ \nu' & -\nu' \\ 0 & -\delta' \end{bmatrix}
 \end{align}
-
-\paragraph{Gradient terms (Term 1)}
-
-The coefficient of $\frac{\partial \Omega}{\partial \theta_a}$ is $C^{(1)}_{l,a} = \sum_{i,j} \Delta^H_{ij} \frac{\partial^3 \theta_a}{\partial \eta_i \partial \eta_j \partial \eta_l}$.
-We need the tensors $\frac{\partial}{\partial \eta_l} \Theta_{\eta\eta}^{(\theta_a)}$:
+%
+and applying the chain rule, the desired VJPs in $(\xi,\eta)$ coordinates are
 %
 \begin{align}
-  \frac{\partial \Theta_{\eta\eta}^{(x')}}{\partial \eta_1}      & = \begin{bsmallmatrix} 0 & 0 \\ 0 & 0 \end{bsmallmatrix},                              & \frac{\partial \Theta_{\eta\eta}^{(x')}}{\partial \eta_2}      & = \begin{bsmallmatrix} 0 & 0 \\ 0 & -x' \end{bsmallmatrix},                               \\
-  \frac{\partial \Theta_{\eta\eta}^{(\nu')}}{\partial \eta_1}    & = \Theta_{\eta\eta}^{(\nu')} = \begin{bsmallmatrix} \nu' & -\nu' \\ -\nu' & \nu' \end{bsmallmatrix}, & \frac{\partial \Theta_{\eta\eta}^{(\nu')}}{\partial \eta_2}    & = -\Theta_{\eta\eta}^{(\nu')} = \begin{bsmallmatrix} -\nu' & \nu' \\ \nu' & -\nu' \end{bsmallmatrix}, \\
-  \frac{\partial \Theta_{\eta\eta}^{(\delta')}}{\partial \eta_1} & = \begin{bsmallmatrix} 0 & 0 \\ 0 & 0 \end{bsmallmatrix},                              & \frac{\partial \Theta_{\eta\eta}^{(\delta')}}{\partial \eta_2} & = \begin{bsmallmatrix} 0 & 0 \\ 0 & -\delta' \end{bsmallmatrix}.
+  (\Delta^H \bullet \ell_{\eta\eta\xi})_x              & = \frac{1}{\sigma} \mathcal{J}_{x'},                                                          \\
+  (\Delta^H \bullet \ell_{\eta\eta\xi})_\mu            & = \frac{s}{\sigma} \mathcal{J}_{\nu'},                                                        \\
+  (\Delta^H \bullet \ell_{\eta\eta\xi})_\delta         & = \frac{1}{\sigma} \mathcal{J}_{\delta'},                                                     \\
+  (\Delta^H \bullet \ell_{\eta\eta\eta})_{\log s}      & = \nu' \mathcal{J}_{\nu'},                                                                    \\
+  (\Delta^H \bullet \ell_{\eta\eta\eta})_{\log \sigma} & = -\big( x' \mathcal{J}_{x'} + \nu' \mathcal{J}_{\nu'} + \delta' \mathcal{J}_{\delta'} \big).
 \end{align}
 %
-Contracting with $\Delta^H$ gives the gradient terms:
-%
-\begin{align}
-  (\text{Term 1})_{\log s}      & = \operatorname{tr}(\Delta^H \Theta_{\eta\eta}^{(\nu')}) \Omega_{\nu'} = \nu'(\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22}) \Omega_{\nu'}, \\
-  (\text{Term 1})_{\log \sigma} & = -x'\Delta^H_{22}\Omega_{x'} - \nu'(\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22})\Omega_{\nu'} - \delta'\Delta^H_{22}\Omega_{\delta'}.
-\end{align}
-
-\paragraph{Hessian terms (Term 2)}
-
-The coefficient of $\frac{\partial^2 \Omega}{\partial \theta_a \partial \theta_b}$ is $C^{(2,\eta_l)}_{ab} = \sum_{i,j} \Delta^H_{ij} ( 2 \frac{\partial^2 \theta_a}{\partial \eta_i \partial \eta_l} \frac{\partial \theta_b}{\partial \eta_j} + \frac{\partial^2 \theta_a}{\partial \eta_i \partial \eta_j} \frac{\partial \theta_b}{\partial \eta_l} )$.
-We compute this for $l=1,2$.
-
-VJP with respect to $\log s$ ($l=1$):
-The non-zero derivatives w.r.t. $\eta_1 = \log s$ are $\frac{\partial\nu'}{\partial\eta_1}=\nu'$, $\frac{\partial^2\nu'}{\partial\eta_1^2}=\nu'$, and $\frac{\partial^2\nu'}{\partial\eta_2\partial\eta_1}=-\nu'$.
-The only non-zero coefficients are:
-%
-\begin{align}
-  C^{(2,\log s)}_{12} & = \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 x'}{\partial\eta_i\partial\eta_j} \frac{\partial \nu'}{\partial\eta_1} = x'\nu' \Delta^H_{22}                                                                                                                                                     \\
-  C^{(2,\log s)}_{21} & = 2 \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 \nu'}{\partial\eta_i\partial\eta_1} \frac{\partial x'}{\partial\eta_j} = 2x'\nu'(\Delta^H_{22} - \Delta^H_{12})                                                                                                                                 \\
-  C^{(2,\log s)}_{22} & = 2 \sum_{i,j} \Delta^H_{ij} \frac{\partial^2\nu'}{\partial\eta_i\partial\eta_1} \frac{\partial\nu'}{\partial\eta_j} + \sum_{i,j} \Delta^H_{ij} \frac{\partial^2\nu'}{\partial\eta_i\partial\eta_j} \frac{\partial\nu'}{\partial\eta_1} = 3\nu'^2(\Delta^H_{11}-2\Delta^H_{12}+\Delta^H_{22}) \\
-  C^{(2,\log s)}_{23} & = 2 \sum_{i,j} \Delta^H_{ij} \frac{\partial^2\nu'}{\partial\eta_i\partial\eta_1} \frac{\partial\delta'}{\partial\eta_j} = 2\nu'\delta'(\Delta^H_{22} - \Delta^H_{12})                                                                                                                         \\
-  C^{(2,\log s)}_{32} & = \sum_{i,j} \Delta^H_{ij} \frac{\partial^2 \delta'}{\partial\eta_i\partial\eta_j} \frac{\partial \nu'}{\partial\eta_1} = \nu'\delta' \Delta^H_{22}.
-\end{align}
-
-VJP with respect to $\log \sigma$ ($l=2$):
-The derivatives w.r.t. $\eta_2 = \log \sigma$ are more numerous.
-We list the non-zero coefficients:
-%
-\begin{align}
-  C^{(2,\log\sigma)}_{11} & = -3x'^2\Delta^H_{22}                                                                                       \\
-  C^{(2,\log\sigma)}_{12} & = 2x'(\nu'\Delta^H_{21}-\nu'\Delta^H_{22}) + x'(-\nu')\Delta^H_{22} = x'\nu'(2\Delta^H_{12}-3\Delta^H_{22}) \\
-  C^{(2,\log\sigma)}_{13} & = -3x'\delta'\Delta^H_{22}                                                                                  \\
-  C^{(2,\log\sigma)}_{21} & = 2(-\nu'(-x'\Delta^H_{12}) + \nu'(-x'\Delta^H_{22})) -x'(\nu'(\Delta^H_{11}-2\Delta^H_{12}+\Delta^H_{22})) \\
-                          & = x'\nu'(-\Delta^H_{11} + 4\Delta^H_{12} - 3\Delta^H_{22})                                                  \\
-  C^{(2,\log\sigma)}_{22} & = -3\nu'^2(\Delta^H_{11}-2\Delta^H_{12}+\Delta^H_{22})                                                      \\
-  C^{(2,\log\sigma)}_{23} & = \nu'\delta'(-\Delta^H_{11} + 4\Delta^H_{12} - 3\Delta^H_{22})                                             \\
-  C^{(2,\log\sigma)}_{31} & = -3x'\delta'\Delta^H_{22}                                                                                  \\
-  C^{(2,\log\sigma)}_{32} & = \nu'\delta'(2\Delta^H_{12}-3\Delta^H_{22})                                                                \\
-  C^{(2,\log\sigma)}_{33} & = -3\delta'^2\Delta^H_{22}.
-\end{align}
-
-Summing these contributions gives the full Hessian term for the VJP w.r.t. $\log s$ and $\log \sigma$:
-%
-\begin{align}
-  (\text{Term 2})_{\log s}     & = x'\nu'(3\Delta^H_{22} - 2\Delta^H_{12}) \Omega_{x'\nu'} + 3\nu'^2(\Delta^H_{11}-2\Delta^H_{12}+\Delta^H_{22})\Omega_{\nu'\nu'} + \nu'\delta'(3\Delta^H_{22} - 2\Delta^H_{12})\Omega_{\nu'\delta'}, \\
-  (\text{Term 2})_{\log\sigma} & = - 3x'^2\Delta^H_{22} \Omega_{x'x'} + x'\nu'(-\Delta^H_{11} + 6\Delta^H_{12} - 6\Delta^H_{22}) \Omega_{x'\nu'} - 6 x'\delta'\Delta^H_{22} \Omega_{x'\delta'} \nonumber                              \\ & \quad - 3\nu'^2(\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22}) \Omega_{\nu'\nu'} + \nu'\delta'(-\Delta^H_{11} + 6\Delta^H_{12} - 6\Delta^H_{22}) \Omega_{\nu'\delta'} \nonumber \\ & \quad - 3\delta'^2\Delta^H_{22} \Omega_{\delta'\delta'}.
-\end{align}
-
-\paragraph{Third-order terms (Term 3)}
-
-The third-order term is:
-%
-\begin{align}
-  (\text{Term 3})_l         & = \sum_c \frac{\partial\theta_c}{\partial\eta_l} T_c = (\Theta_\eta^T T)_l \\
-  \Rightarrow \text{Term 3} & = \Theta_\eta^T T =
-  \begin{bmatrix}
-    0   & \nu'  & 0        \\
-    -x' & -\nu' & -\delta'
-  \end{bmatrix}
-  \begin{bmatrix} T_1 \\ T_2 \\ T_3 \end{bmatrix} =
-  \begin{bmatrix} \nu' T_2 \\ -(x'T_1 + \nu'T_2 + \delta'T_3) \end{bmatrix}.
-\end{align}
-%
-Thus, the components of the third term are:
-%
-\begin{align}
-  (\text{Term 3})_{\log s}      & = \nu' T_2,                           \\
-  (\text{Term 3})_{\log \sigma} & = -(x' T_1 + \nu' T_2 + \delta' T_3).
-\end{align}
-
-\subsubsection{Simplified VJP expressions}
-
-The brute-force expansion of the VJP expressions is algebraically complex and prone to implementation error.
-A more robust approach is to exploit the structure of the coordinate transformation to simplify the formulae.
-This is achieved by first defining a set of core VJP components for the $\xi$ derivatives, and then deriving the $\eta$ derivatives from these via simple scaling relationships.
-
-Let the core VJP components with respect to $\theta$, denoted $\mathcal{J}_{\theta} \in \mathbb{R}^3$, be the terms of the full VJP $\Delta^H \bullet \ell_{\eta\eta\xi}$ with the scaling from the Jacobian $\Theta_\xi$ factored out.
-Explicitly:
-%
-\begin{align}
-  \mathcal{J}_{x'}      & \coloneqq \Delta^H_{22} \Omega_{x'} + 3 \Delta^H_{22} (x' \Omega_{x'x'} + \delta' \Omega_{x'\delta'}) + (\Delta^H_{11} - 4\Delta^H_{12} + 3\Delta^H_{22}) \nu' \Omega_{x'\nu'} + T_1            \\
-  \mathcal{J}_{\mu'}    & \coloneqq (\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22}) (\Omega_{\nu'} + 3\nu'\Omega_{\nu'\nu'}) + (3\Delta^H_{22} - 2\Delta^H_{12}) (x'\Omega_{x'\nu'} + \delta'\Omega_{\nu'\delta'}) + T_2 \\
-  \mathcal{J}_{\delta'} & \coloneqq \Delta^H_{22} (\Omega_{\delta'} + 3 x' \Omega_{x'\delta'} + 3 \delta' \Omega_{\delta'\delta'}) + (\Delta^H_{11} - 4\Delta^H_{12} + 3\Delta^H_{22}) \nu' \Omega_{\nu'\delta'} + T_3
-\end{align}
-%
-The full VJP with respect to $\xi$, which we denote $\mathcal{J}_{\xi_k} \coloneqq (\Delta^H \bullet \ell_{\eta\eta\xi})_k$, is then recovered by applying the diagonal Jacobian $\Theta_\xi$:
-%
-\begin{align}
-  \mathcal{J}_x & = \frac{1}{\sigma} \mathcal{J}_{x'}, \qquad \mathcal{J}_\mu = \frac{s}{\sigma} \mathcal{J}_{\mu'}, \qquad \mathcal{J}_\delta = \frac{1}{\sigma} \mathcal{J}_{\delta'}.
-\end{align}
-%
-The VJPs with respect to $\eta$ can be derived from these results without re-expanding the chain rule.
-The partial derivatives of the coordinate transformation $\theta$ are related as follows:
-%
-\begin{align}
-  \frac{\partial}{\partial (\log s)}      & = \frac{\nu' \sigma}{s} \frac{\partial}{\partial \mu},                                                                                                            \\
-  \frac{\partial}{\partial (\log \sigma)} & = - \left( x' \sigma \frac{\partial}{\partial x} + \frac{\nu' \sigma}{s} \frac{\partial}{\partial \mu} + \delta' \sigma \frac{\partial}{\partial \delta} \right).
-\end{align}
-%
-Since the VJP components $\mathcal{J}_{\eta_l} \coloneqq (\Delta^H \bullet \ell_{\eta\eta\eta})_l$ is the derivative of the scalar quantity $\Delta^H \bullet \ell_{\eta\eta}$ with respect to $\eta_l$, applying the chain rule gives:
-%
-\begin{align}
-  \mathcal{J}_{\log s}      & = \frac{\nu' \sigma}{s} \mathcal{J}_{\mu} = \nu' \mathcal{J}_{\mu'},                                                                                                                                                                           \\
-  \mathcal{J}_{\log \sigma} & = - \left( x' \sigma \mathcal{J}_x + \frac{\nu' \sigma}{s} \mathcal{J}_\mu + \delta' \sigma \mathcal{J}_\delta \right) = - (x' \mathcal{J}_{x'} + \nu' \mathcal{J}_{\mu'} + \delta' \mathcal{J}_{\delta'}) \nonumber                           \\
-                            & = - \Big[ \Delta^H_{22} (x' \Omega_{x'} + \delta' \Omega_{\delta'}) + (\Delta^H_{11} - 2\Delta^H_{12} + \Delta^H_{22}) (\nu' \Omega_{\nu'} + 3 \nu'^2 \Omega_{\nu'\nu'}) \nonumber                                                             \\
-                            & \qquad + 3 \Delta^H_{22} (x'^2 \Omega_{x'x'} + 2 x'\delta' \Omega_{x'\delta'} + \delta'^2 \Omega_{\delta'\delta'}) + (\Delta^H_{11} - 6\Delta^H_{12} + 6\Delta^H_{22}) (x' \nu' \Omega_{x'\nu'} + \nu' \delta' \Omega_{\nu'\delta'}) \nonumber \\
-                            & \qquad + (x' T_1 + \nu' T_2 + \delta' T_3) \Big]
-\end{align}
-%
-This formulation computes all five VJP components by first computing the three core components $\mathcal{J}_{\theta}$ and then applying the change of variables, which is simpler and more computationally efficient than evaluating the large explicit expression for $\mathcal{J}_{\log \sigma}$.
+These expressions complete the derivation of the third-order VJPs required for the pullback computations.
 
 \end{document}

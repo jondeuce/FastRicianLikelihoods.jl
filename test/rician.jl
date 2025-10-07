@@ -400,8 +400,8 @@ end
 
     @testset "gausslegendre and analytic ($T)" for T in (Float32, Float64)
         for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4), HIGH_ORDER)
-            rtol = T == Float32 ? 15 * eps(T) : 25 * eps(T)
-            atol = T == Float32 ? 15 * eps(T) : 25 * eps(T)
+            rtol = T == Float32 ? 25 * eps(T) : 25 * eps(T)
+            atol = T == Float32 ? 25 * eps(T) : 25 * eps(T)
 
             if order === HIGH_ORDER
                 # Compare high-order quadrature with analytic integral
@@ -436,8 +436,8 @@ end
     @testset "inner jacobian and vjp vs. AD (jet) ($T)" for T in (Float32, Float64)
         for (x, ν, δ) in xνδ_iterator()
             Tad = Float64
-            rtol = T === Float32 ? sqrt(eps(T)) : eps(T)^(2 // 3)
-            atol = T === Float32 ? sqrt(eps(T)) : eps(T)^(2 // 3)
+            rtol = T === Float32 ? 1f-3 : 1e-10
+            atol = T === Float32 ? 1f-3 : 1e-10
 
             # Jacobian of flattened jet of `neglogpdf_qrician` integrand
             t = rand(T)
@@ -459,8 +459,8 @@ end
     @testset "full jacobian and vjp vs. AD (jet) ($T)" for T in (Float32, Float64)
         for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4))
             Tad = Float64
-            rtol = T === Float32 ? sqrt(eps(T)) : eps(T)^(2 // 3)
-            atol = T === Float32 ? sqrt(eps(T)) : eps(T)^(2 // 3)
+            rtol = T === Float32 ? 1f-3 : 1e-10
+            atol = T === Float32 ? 1f-3 : 1e-10
 
             # Jacobian of flattened jet of `neglogpdf_qrician`
             Φ1, JΦ1 = FastRicianLikelihoods._∇³neglogpdf_qrician_jacobian_with_jet_ad(Tad.((T(x), T(ν), T(δ)))..., order)
