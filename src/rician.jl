@@ -1301,7 +1301,7 @@ const DEFAULT_GAUSSLAGUERRE_ORDER = 16
 end
 
 @generated function gausslaguerre_positive_real_axis(::Val{order}, ::Type{Float64}) where {order}
-    x, w = gausslaguerre(order) # note: nodes and weights are hardcoded to Float64 in FastGaussQuadrature.jl
+    x, w = FastGaussQuadrature.gausslaguerre(order) # note: nodes and weights are hardcoded to Float64 in FastGaussQuadrature.jl
     x = SVector{order, Float64}(x) # nodes lie in [0, ∞)
     w = SVector{order, Float64}(w) # exponentially decreasing weights
     return :($x, $w)
@@ -1310,7 +1310,7 @@ end
 
 @generated function gausshalfhermite_positive_real_axis(::Val{order}, ::Type{T}, ::Val{γ}) where {order, T, γ}
     @assert γ > -1 "γ must be greater than -1"
-    x, w = gausshalfhermite_gw(order, BigFloat(γ); normalize = true) # compute nodes and weights in `BigFloat`, then convert to type `T`
+    x, w = GaussHalfHermite.gausshalfhermite_gw(order, BigFloat(γ); normalize = true) # compute nodes and weights in `BigFloat`, then convert to type `T`
     x = SVector{order, T}(T.(x)) # nodes lie in [0, ∞)
     w = SVector{order, T}(T.(w)) # exponentially decreasing weights
     return :($x, $w)

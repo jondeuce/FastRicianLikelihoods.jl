@@ -146,9 +146,9 @@ version = "1.1.2"
 
 [[deps.ArnoldiMethod]]
 deps = ["LinearAlgebra", "Random", "StaticArrays"]
-git-tree-sha1 = "62e51b39331de8911e4a7ff6f5aaf38a5f4cc0ae"
+git-tree-sha1 = "d57bd3762d308bded22c3b82d033bff85f6195c6"
 uuid = "ec485272-7323-5ecc-a04f-4719b315124d"
-version = "0.2.0"
+version = "0.4.0"
 
 [[deps.Arpack]]
 deps = ["Arpack_jll", "Libdl", "LinearAlgebra", "Logging"]
@@ -164,9 +164,9 @@ version = "3.5.1+1"
 
 [[deps.ArrayLayouts]]
 deps = ["FillArrays", "LinearAlgebra", "StaticArrays"]
-git-tree-sha1 = "120e392af69350960b1d3b89d41dcc1d66543858"
+git-tree-sha1 = "355ab2d61069927d4247cd69ad0e1f140b31e30d"
 uuid = "4c555306-a7a7-4459-81d9-ec55ddd5c99a"
-version = "1.11.2"
+version = "1.12.0"
 weakdeps = ["SparseArrays"]
 
     [deps.ArrayLayouts.extensions]
@@ -220,9 +220,9 @@ version = "0.5.1"
 
 [[deps.BandedMatrices]]
 deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "PrecompileTools"]
-git-tree-sha1 = "e35c672b239c5105f597963c33e740eeb46cf0ab"
+git-tree-sha1 = "d5133c6b1326fe10042e41ddf1d46b0a1a4011f4"
 uuid = "aae01518-5342-5314-be14-df237901396f"
-version = "1.9.4"
+version = "1.9.5"
 
     [deps.BandedMatrices.extensions]
     BandedMatricesSparseArraysExt = "SparseArrays"
@@ -361,10 +361,10 @@ uuid = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
 version = "0.5.2"
 
 [[deps.CaratheodoryFejerApprox]]
-deps = ["AbstractFFTs", "ApproxFun", "ArnoldiMethod", "Arpack", "DoubleFloats", "FFTW", "GenericFFT", "GenericLinearAlgebra", "LinearAlgebra", "Polynomials", "PrecompileTools", "Roots", "Setfield", "ToeplitzMatrices"]
-git-tree-sha1 = "ba323eb4ead34bae8bdf79773dd37f9394b61c01"
+deps = ["AbstractFFTs", "ApproxFun", "ArnoldiMethod", "Arpack", "DocStringExtensions", "DoubleFloats", "FFTW", "GenericFFT", "GenericLinearAlgebra", "LinearAlgebra", "Polynomials", "PrecompileTools", "Roots", "Setfield", "ToeplitzMatrices"]
+git-tree-sha1 = "4842d5360a3725e64c2e9c29e08ce9321203c32e"
 uuid = "591793e0-8db6-4f40-aac6-a66fe5f65964"
-version = "0.1.0"
+version = "0.1.1"
 
 [[deps.ChainRules]]
 deps = ["Adapt", "ChainRulesCore", "Compat", "Distributed", "GPUArraysCore", "IrrationalConstants", "LinearAlgebra", "Random", "RealDot", "SparseArrays", "SparseInverseSubset", "Statistics", "StructArrays", "SuiteSparse"]
@@ -699,9 +699,9 @@ version = "0.6.3+0"
 
 [[deps.FileIO]]
 deps = ["Pkg", "Requires", "UUIDs"]
-git-tree-sha1 = "b66970a70db13f45b7e57fbda1736e1cf72174ea"
+git-tree-sha1 = "d60eb76f37d7e5a40cc2e7c36974d864b82dc802"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-version = "1.17.0"
+version = "1.17.1"
 
     [deps.FileIO.extensions]
     HTTPExt = "HTTP"
@@ -811,9 +811,9 @@ version = "6.3.0+0"
 
 [[deps.GPUArrays]]
 deps = ["Adapt", "GPUArraysCore", "KernelAbstractions", "LLVM", "LinearAlgebra", "Printf", "Random", "Reexport", "ScopedValues", "Serialization", "Statistics"]
-git-tree-sha1 = "ec30748ac561b82e531f6b8ed2fb52498e82f307"
+git-tree-sha1 = "8ddb438e956891a63a5367d7fab61550fc720026"
 uuid = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
-version = "11.2.5"
+version = "11.2.6"
 
     [deps.GPUArrays.extensions]
     JLD2Ext = "JLD2"
@@ -829,9 +829,9 @@ version = "0.2.0"
 
 [[deps.GPUCompiler]]
 deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "PrecompileTools", "Preferences", "Scratch", "Serialization", "TOML", "Tracy", "UUIDs"]
-git-tree-sha1 = "4b477428fbc2b3f4a906a47c9d4156764074f581"
+git-tree-sha1 = "9a8b92a457f55165923fcfe48997b7b93b712fca"
 uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
-version = "1.6.2"
+version = "1.7.2"
 
 [[deps.GPUToolbox]]
 deps = ["LLVM"]
@@ -975,9 +975,9 @@ version = "1.0.0"
 
 [[deps.InfiniteArrays]]
 deps = ["ArrayLayouts", "FillArrays", "Infinities", "LazyArrays", "LinearAlgebra"]
-git-tree-sha1 = "1be0996f4db8cc82621287999b605ee75275c8d7"
+git-tree-sha1 = "aafc249a1a7da83316e9f78a1985d1c4426f9233"
 uuid = "4858937d-0d70-526a-a4dd-2d5cb5dd786c"
-version = "0.15.7"
+version = "0.15.8"
 weakdeps = ["BandedMatrices", "BlockArrays", "BlockBandedMatrices", "DSP", "Statistics"]
 
     [deps.InfiniteArrays.extensions]
@@ -988,9 +988,9 @@ weakdeps = ["BandedMatrices", "BlockArrays", "BlockBandedMatrices", "DSP", "Stat
     InfiniteArraysStatisticsExt = "Statistics"
 
 [[deps.Infinities]]
-git-tree-sha1 = "437cd9b81b649574582507d8b9ca3ffc981f2fc2"
+git-tree-sha1 = "4495006c20b2fd27b8c453a1dd31d423654f3772"
 uuid = "e1ba4f0e-776d-440f-acd9-e1d2e9742647"
-version = "0.1.11"
+version = "0.1.12"
 
 [[deps.Inflate]]
 git-tree-sha1 = "d1b1b796e47d94588b3757fe84fbf65a5ec4a80d"
@@ -1175,9 +1175,9 @@ version = "4.0.1+0"
 
 [[deps.LLVM]]
 deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Preferences", "Printf", "Unicode"]
-git-tree-sha1 = "9c7c721cfd800d87d48c745d8bfb65144f0a91df"
+git-tree-sha1 = "0f8b6110c766baff87e54f83986afaf7e2a44d96"
 uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
-version = "9.4.2"
+version = "9.4.3"
 weakdeps = ["BFloat16s"]
 
     [deps.LLVM.extensions]
@@ -1213,9 +1213,9 @@ version = "1.4.0"
 
 [[deps.LazyArrays]]
 deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "MacroTools", "SparseArrays"]
-git-tree-sha1 = "fe06989ec1136a31aa8051d994d32a480678b006"
+git-tree-sha1 = "79ee64f6ba0a5a49930f51c86f60d7526b5e12c8"
 uuid = "5078a376-72f3-5289-bfd5-ec5146d43c02"
-version = "2.7.0"
+version = "2.8.0"
 weakdeps = ["BandedMatrices", "BlockArrays", "BlockBandedMatrices", "StaticArrays"]
 
     [deps.LazyArrays.extensions]
@@ -1837,9 +1837,9 @@ version = "0.7.0"
 
 [[deps.SIMD]]
 deps = ["PrecompileTools"]
-git-tree-sha1 = "fea870727142270bdf7624ad675901a1ee3b4c87"
+git-tree-sha1 = "e24dc23107d426a096d3eae6c165b921e74c18e4"
 uuid = "fdea26ae-647d-5447-a871-4b548cad5224"
-version = "3.7.1"
+version = "3.7.2"
 
 [[deps.ScopedValues]]
 deps = ["HashArrayMappedTries", "Logging"]
@@ -1927,9 +1927,9 @@ version = "0.1.2"
 
 [[deps.SpecialFunctions]]
 deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
-git-tree-sha1 = "41852b8679f78c8d8961eeadc8f62cef861a52e3"
+git-tree-sha1 = "f2685b435df2613e25fc10ad8c26dddb8640f547"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
-version = "2.5.1"
+version = "2.6.1"
 weakdeps = ["ChainRulesCore"]
 
     [deps.SpecialFunctions.extensions]
@@ -2254,9 +2254,9 @@ version = "0.2.3+0"
 
 [[deps.libaom_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "4bba74fa59ab0755167ad24f98800fe5d727175b"
+git-tree-sha1 = "371cc681c00a3ccc3fbc5c0fb91f58ba9bec1ecf"
 uuid = "a4ae2306-e953-59d6-aa16-d00cac43593b"
-version = "3.12.1+0"
+version = "3.13.1+0"
 
 [[deps.libass_jll]]
 deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl", "Zlib_jll"]

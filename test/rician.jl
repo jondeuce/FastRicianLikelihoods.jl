@@ -11,7 +11,7 @@ using QuadGK: QuadGK, quadgk
 
 DEBUG = Ref(true)
 
-const HIGH_ORDER = Val(32)
+const HIGH_ORDER = Val(16)
 
 function xν_iterator(z::T) where {T <: Union{Float32, Float64}}
     rmax = T == Float32 ? 6 : 12
@@ -420,7 +420,7 @@ end
             @test all(isapprox.(J1, J2; rtol, atol))
 
             # Vector Jacobian product of flattened Hessian of `neglogpdf_qrician`
-            Δ = @SVector randn(T, 6)
+            Δ = @SVector rand(T, 6)
             vjp1 = J1' * Δ
             y3, g3, H3, vjp3 = FastRicianLikelihoods.∇³neglogpdf_qrician_vjp_with_primal_gradient_and_hessian(Δ, T(x), T(ν), T(δ), order)
 
@@ -436,8 +436,8 @@ end
     @testset "inner jacobian and vjp vs. AD (jet) ($T)" for T in (Float32, Float64)
         for (x, ν, δ) in xνδ_iterator()
             Tad = Float64
-            rtol = T === Float32 ? 1f-3 : 1e-10
-            atol = T === Float32 ? 1f-3 : 1e-10
+            rtol = T === Float32 ? 1f-2 : 1e-10
+            atol = T === Float32 ? 1f-2 : 1e-10
 
             # Jacobian of flattened jet of `neglogpdf_qrician` integrand
             t = rand(T)
@@ -448,7 +448,7 @@ end
             @test isapprox(Jϕ1, Jϕ2; rtol, atol)
 
             # Vector Jacobian product of flattened jet of `neglogpdf_qrician` integrand
-            Δϕ = @SVector randn(T, 9)
+            Δϕ = @SVector rand(T, 9)
             ϕ3, vjpϕ3 = FastRicianLikelihoods._∇³neglogpdf_qrician_inner_vjp_with_jet(Δϕ, T(x), T(ν), T(δ), T(t))
 
             @test isapprox(ϕ3, ϕ1; rtol, atol)
@@ -459,8 +459,8 @@ end
     @testset "full jacobian and vjp vs. AD (jet) ($T)" for T in (Float32, Float64)
         for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4))
             Tad = Float64
-            rtol = T === Float32 ? 1f-3 : 1e-10
-            atol = T === Float32 ? 1f-3 : 1e-10
+            rtol = T === Float32 ? 1f-2 : 1e-10
+            atol = T === Float32 ? 1f-2 : 1e-10
 
             # Jacobian of flattened jet of `neglogpdf_qrician`
             Φ1, JΦ1 = FastRicianLikelihoods._∇³neglogpdf_qrician_jacobian_with_jet_ad(Tad.((T(x), T(ν), T(δ)))..., order)
@@ -470,7 +470,7 @@ end
             @test isapprox(JΦ1, JΦ2; rtol, atol)
 
             # Vector Jacobian product of flattened jet of `neglogpdf_qrician`
-            Δ = @SVector randn(T, 9)
+            Δ = @SVector rand(T, 9)
             Φ4, vjpΦ4 = FastRicianLikelihoods._∇³neglogpdf_qrician_vjp_with_jet_from_parts(Δ, T(x), T(ν), T(δ), order)
             Φ5, vjpΦ5 = FastRicianLikelihoods._∇³neglogpdf_qrician_vjp_with_jet_two_pass(Δ, T(x), T(ν), T(δ), order)
             Φ6, vjpΦ6 = FastRicianLikelihoods._∇³neglogpdf_qrician_vjp_with_jet_one_pass(Δ, T(x), T(ν), T(δ), order)

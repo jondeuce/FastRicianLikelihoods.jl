@@ -587,10 +587,10 @@ end
 # Combined table for Bessel ratios (Float64 and Float32)
 function save_bessel_table(
     rows64::Vector{<:NamedTuple},
-    rows32::Vector{<:NamedTuple},
+    rows32::Vector{<:NamedTuple};
+    metrics = ["minerr"],
 )
     all_rows = vcat(rows64, rows32)
-    metrics = ["minerr"]
     quantities = ["r", "r′", "r′′", "two_r′_plus_z_r′′", "one_minus_r_minus_z_r′"]
     methods = ["naive", "stable"]
     method_labels = Dict("naive" => "Naive", "stable" => "Proposed")
@@ -1156,28 +1156,28 @@ function save_qrician_performance_table(
 end
 
 @info "Evaluating Bessel ratio accuracy"
-rows64_bessel = evaluate_bessel_ratios(Float64)
-rows32_bessel = evaluate_bessel_ratios(Float32)
+rows64_bessel = evaluate_bessel_ratios(Float64);
+rows32_bessel = evaluate_bessel_ratios(Float32);
 
 @info "Evaluating NLL accuracy"
-rows64_nll = evaluate_nll_accuracy(Float64)
-rows32_nll = evaluate_nll_accuracy(Float32)
+rows64_nll = evaluate_nll_accuracy(Float64);
+rows32_nll = evaluate_nll_accuracy(Float32);
 
 @info "Evaluating QRice accuracy (high-SNR) vs order"
-@time rows64_qrice = evaluate_qrice_accuracy(Float64)
-@time rows32_qrice = evaluate_qrice_accuracy(Float32)
+@time rows64_qrice = evaluate_qrice_accuracy(Float64);
+@time rows32_qrice = evaluate_qrice_accuracy(Float32);
 
 @info "Benchmarking Rician NLL performance"
-benchmark_rician_nll(Float64)
-benchmark_rician_nll(Float32)
-rows64_rician_perf = benchmark_rician_nll(Float64)
-rows32_rician_perf = benchmark_rician_nll(Float32)
+benchmark_rician_nll(Float64);
+benchmark_rician_nll(Float32);
+rows64_rician_perf = benchmark_rician_nll(Float64);
+rows32_rician_perf = benchmark_rician_nll(Float32);
 
 @info "Benchmarking Quantized Rician NLL performance"
-benchmark_qrician_nll(Float64)
-benchmark_qrician_nll(Float32)
-rows64_qrician_perf = benchmark_qrician_nll(Float64)
-rows32_qrician_perf = benchmark_qrician_nll(Float32)
+benchmark_qrician_nll(Float64);
+benchmark_qrician_nll(Float32);
+rows64_qrician_perf = benchmark_qrician_nll(Float64);
+rows32_qrician_perf = benchmark_qrician_nll(Float32);
 
 function main()
     @info "Generating bessel ratio accuracy figure"
