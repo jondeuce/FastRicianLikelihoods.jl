@@ -25,7 +25,7 @@ SOFTWARE.
 @doc raw"""
     GaussLegendre
 
-Compute nodes `x` and weights `w` for Gauss–Legendre quadrature on `[-1, 1]`.
+Compute nodes `x` and weights `w` for Gauss--Legendre quadrature on `[-1, 1]`.
 
 ```math
 \int_{-1}^{1} f(x)\,dx \approx \sum_{i=1}^{n} w_i f(x_i)
@@ -57,15 +57,15 @@ Return nodes `x` and weights `w` of [Gauss-Legendre quadrature](https://en.wikip
 \int_{-1}^{1} f(x) dx \approx \sum_{i=1}^{n} w_i f(x_i)
 ```
 
-# Examples
-```jldoctest; setup = :(using .GaussLegendre: gausslegendre)
+# Example
+```jldoctest; setup = :(using FastRicianLikelihoods, LinearAlgebra; using FastRicianLikelihoods.GaussLegendre: gausslegendre)
 julia> x, w = gausslegendre(3);
 
 julia> f(x) = x^4;
 
 julia> I = dot(w, f.(x));
 
-julia> I ≈ 2/5
+julia> I ≈ 2/5 # ∫_{-1}^{1} x^4 dx
 true
 ```
 """

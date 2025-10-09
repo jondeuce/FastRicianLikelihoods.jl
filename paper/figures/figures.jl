@@ -432,7 +432,7 @@ function evaluate_nll_accuracy(
     return rows
 end
 
-# Evaluate QRice accuracy (high-SNR slab) vs Gauss–Legendre order N
+# Evaluate QRice accuracy (high-SNR slab) vs Gauss--Legendre order N
 function evaluate_qrice_accuracy(
     ::Type{T};
     νmin = T(1e-3), νmax = T(1e3), num_ν = 13,

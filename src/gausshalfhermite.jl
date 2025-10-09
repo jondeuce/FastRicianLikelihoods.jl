@@ -3,7 +3,7 @@
 @doc raw"""
     GaussHalfHermite
 
-Compute nodes `x` and weights `w` for Gauss–Half–Hermite quadrature on `[0, ∞)` with weight
+Compute nodes `x` and weights `w` for Gauss--Half--Hermite quadrature on `[0, ∞)` with weight
 `w(x) = x^γ * exp(-x^2)`.
 
 ```math
@@ -13,17 +13,17 @@ Compute nodes `x` and weights `w` for Gauss–Half–Hermite quadrature on `[0, 
 Numerical method:
 - Stable recurrence coefficients `(α_n, β_n)` via Ball’s reparameterization `g_n` and Newton’s method
   (tridiagonal Jacobian; `O(N)` per iteration).
-- Nodes/weights from the symmetric Jacobi matrix via Golub–Welsch.
+- Nodes/weights from the symmetric Jacobi matrix via Golub--Welsch.
 
 Exported:
 - `gausshalfhermite_gw(N, γ; normalize=false) -> x, w`
 - `gausshalfhermite_rec_coeffs(N, γ) -> α, β`
 
 References:
-- Ball J. (2002) SIAM J. Numer. Anal. 40:2311–2317.
-- Golub GH, Welsch JH. (1969) Math. Comp. 23:221–230.
-- Shizgal B. (1981) J. Comput. Phys. 41:309–328.
-- Galant D. (1969) Math. Comp. 23:674–s39.
+- Ball J. (2002) SIAM J. Numer. Anal. 40:2311--2317.
+- Golub GH, Welsch JH. (1969) Math. Comp. 23:221--230.
+- Shizgal B. (1981) J. Comput. Phys. 41:309--328.
+- Galant D. (1969) Math. Comp. 23:674--s39.
 """
 module GaussHalfHermite
 
@@ -278,13 +278,13 @@ end
 @doc raw"""
     gausshalfhermite_gw(N, γ; normalize = false) -> (x, w)
 
-Nodes `x` and weights `w` for `N`‑point Gauss–Half–Hermite quadrature.
+Nodes `x` and weights `w` for `N`‑point Gauss--Half--Hermite quadrature.
 
 ```math
 \int_{0}^{\infty} x^{\gamma} e^{-x^{2}} f(x)\,dx \approx \sum_{i=1}^{N} w_i f(x_i)
 ```
 
-Method: Golub–Welsch on the symmetric Jacobi matrix from `(α, β)` computed by `gausshalfhermite_rec_coeffs`.
+Method: Golub--Welsch on the symmetric Jacobi matrix from `(α, β)` computed by `gausshalfhermite_rec_coeffs`.
 If `normalize=true`, scale to weight `x^γ * exp(-x^2 / 2) / √(2π)` and set `x ← √2 * x`.
 
 Arguments:
@@ -296,6 +296,18 @@ Keyword arguments:
 
 Returns:
 - `(x, w)`: nodes and weights
+
+# Example
+```jldoctest; setup = :(using FastRicianLikelihoods, LinearAlgebra; using FastRicianLikelihoods.GaussHalfHermite: gausshalfhermite_gw)
+julia> x, w = gausshalfhermite_gw(2, 2.0);
+
+julia> f(x) = x^2;
+
+julia> I = dot(w, f.(x));
+
+julia> I ≈ 3 * sqrt(π) / 8 # ∫_{0}^{∞} x^4 * exp(-x^2) dx
+true
+```
 """
 function gausshalfhermite_gw(N, γ; normalize = false)
     # Golub-Welsch algorithm for computing nodes and weights from recurrence coefficients
