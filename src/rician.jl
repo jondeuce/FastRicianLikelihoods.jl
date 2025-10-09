@@ -1,4 +1,217 @@
 ####
+#### Docstrings
+####
+
+@doc raw"""
+    pdf_rician(x::Real, ν::Real, logσ::Real)
+    pdf_rician(x::Real, ν::Real)
+
+Probability density function of the Rician distribution.
+
+# Three-parameter form
+
+For $\sigma = \exp(\log\sigma)$, computes $p(x \mid \nu, \sigma)$ as defined in `neglogpdf_rician(x, ν, logσ)`.
+
+# Two-parameter form (unit scale)
+
+The two-argument method sets $\sigma = 1$ and computes $p(x \mid \nu, \sigma = 1) = \exp(-f(x, \nu))$.
+
+See `neglogpdf_rician(x, ν)`.
+"""
+function pdf_rician end
+
+@doc raw"""
+    ∇pdf_rician(x::Real, ν::Real)
+
+Gradient of the unit-scale Rician density with respect to $(x, \nu)$.
+
+Computes $(p_x, p_\nu)$ where $p = p(x \mid \nu, 1)$.
+
+See `pdf_rician(x, ν)`.
+"""
+function ∇pdf_rician end
+
+@doc raw"""
+    neglogpdf_rician(x::Real, ν::Real, logσ::Real)
+    neglogpdf_rician(x::Real, ν::Real)
+
+Negative log-density of the Rician distribution.
+
+# Three-parameter form
+
+For $\sigma = \exp(\log\sigma)$, computes the negative log-density $-\log p(x \mid \nu, \sigma)$:
+```math
+p(x \mid \nu, \sigma) = \frac{x}{\sigma^2}\, \exp\!\left(-\frac{x^2+\nu^2}{2\sigma^2}\right) I_0\!\left(\frac{x\nu}{\sigma^2}\right)
+```
+where $I_0$ is the modified Bessel function of the first kind of order zero, and $x \ge 0$.
+
+# Two-parameter form (unit scale)
+
+The two-argument method sets $\sigma = 1$ and computes $f(x, \nu) = -\log p(x \mid \nu, \sigma = 1)$:
+```math
+f(x,\nu) \coloneqq -\log p(x \mid \nu, \sigma = 1) = \frac{x^2+\nu^2}{2} - \log x - \log I_0(x\nu)
+```
+"""
+function neglogpdf_rician end
+
+@doc raw"""
+    ∇neglogpdf_rician(x::Real, ν::Real)
+
+Gradient of the unit-scale negative log-density.
+
+Computes $(f_x, f_\nu)$ where $f = f(x, \nu)$ is defined in `neglogpdf_rician(x, ν)`.
+"""
+function ∇neglogpdf_rician end
+
+@doc raw"""
+    ∇²neglogpdf_rician(x::Real, ν::Real)
+
+Hessian of the unit-scale negative log-density.
+
+Computes $(f_{xx}, f_{x\nu}, f_{\nu\nu})$ in half-vectorized (`vech`) order,
+where $f = f(x, \nu)$ is defined in `neglogpdf_rician(x, ν)`.
+"""
+function ∇²neglogpdf_rician end
+
+@doc raw"""
+    ∇²neglogpdf_rician_with_gradient(x::Real, ν::Real)
+
+Gradient and Hessian of the unit-scale negative log-density.
+
+Computes $((f_x, f_\nu), (f_{xx}, f_{x\nu}, f_{\nu\nu}))$ in `vech` order.
+
+See `neglogpdf_rician(x, ν)`.
+"""
+function ∇²neglogpdf_rician_with_gradient end
+
+@doc raw"""
+    ∇³neglogpdf_rician_with_gradient_and_hessian(x::Real, ν::Real)
+
+Gradient, Hessian, and third-order partial derivatives of the unit-scale negative log-density.
+
+Computes $((f_x, f_\nu), (f_{xx}, f_{x\nu}, f_{\nu\nu}), (f_{xxx}, f_{xx\nu}, f_{x\nu\nu}, f_{\nu\nu\nu}))$
+in `vech` order.
+
+See `neglogpdf_rician(x, ν)`.
+"""
+function ∇³neglogpdf_rician_with_gradient_and_hessian end
+
+@doc raw"""
+    neglogpdf_qrician(x::Real, ν::Real, logσ::Real, δ::Real, order::Val)
+    neglogpdf_qrician(n::Int, ν::Real, logσ::Real, δ::Real, order::Val)
+    neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val)
+
+Negative log-probability mass function of the quantized Rician distribution.
+
+# Five-parameter form (real-valued argument)
+
+For $\sigma = \exp(\log\sigma)$ and bin width $\delta$, the pmf is
+```math
+p_Q(x \mid \nu, \sigma, \delta) = \int_{x}^{x+\delta} p(y \mid \nu, \sigma)\, dy
+```
+Computes $-\log p_Q(x \mid \nu, \sigma, \delta)$ using $N$-point Gauss--Legendre quadrature
+with `order::Val{N}` where $N \ge 1$; the case $N = 1$ reduces to the midpoint rule.
+
+# Four-parameter form (unit scale)
+
+The four-argument method sets $\sigma = 1$ and computes $-\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+
+# Five-parameter form (discrete argument)
+
+For integer argument `n::Int`, computes the negative log-probability at $x = n\delta$;
+equivalent to `neglogpdf_qrician(n*δ, ν, logσ, δ, order)`.
+"""
+function neglogpdf_qrician end
+
+@doc raw"""
+    ∇neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val)
+
+Gradient of the unit-scale quantized negative log-probability.
+
+Computes $(\Omega_x, \Omega_\nu, \Omega_\delta)$ where $\Omega = -\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+
+See `neglogpdf_qrician(x, ν, δ, order)`.
+"""
+function ∇neglogpdf_qrician end
+
+@doc raw"""
+    ∇neglogpdf_qrician_with_primal(x::Real, ν::Real, δ::Real, order::Val)
+
+Primal value and gradient of the unit-scale quantized negative log-probability.
+
+Computes $(\Omega, (\Omega_x, \Omega_\nu, \Omega_\delta))$ where $\Omega = -\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+
+See `neglogpdf_qrician(x, ν, δ, order)`.
+"""
+function ∇neglogpdf_qrician_with_primal end
+
+@doc raw"""
+    ∇²neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val)
+
+Hessian of the unit-scale quantized negative log-probability.
+
+Computes $(\Omega_{xx}, \Omega_{x\nu}, \Omega_{x\delta}, \Omega_{\nu\nu}, \Omega_{\nu\delta}, \Omega_{\delta\delta})$
+in half-vectorized (`vech`) order, where $\Omega = -\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+
+See `neglogpdf_qrician(x, ν, δ, order)`.
+"""
+function ∇²neglogpdf_qrician end
+
+@doc raw"""
+    ∇²neglogpdf_qrician_with_gradient(x::Real, ν::Real, δ::Real, order::Val)
+
+Gradient and Hessian of the unit-scale quantized negative log-probability.
+
+Computes $((\Omega_x, \Omega_\nu, \Omega_\delta), (\Omega_{xx}, \Omega_{x\nu}, \Omega_{x\delta}, \Omega_{\nu\nu}, \Omega_{\nu\delta}, \Omega_{\delta\delta}))$
+in `vech` order, where $\Omega = -\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+
+See `neglogpdf_qrician(x, ν, δ, order)`.
+"""
+function ∇²neglogpdf_qrician_with_gradient end
+
+@doc raw"""
+    ∇²neglogpdf_qrician_with_primal_and_gradient(x::Real, ν::Real, δ::Real, order::Val)
+
+Primal value, gradient, and Hessian of the unit-scale quantized negative log-probability.
+
+Computes $(\Omega, (\Omega_x, \Omega_\nu, \Omega_\delta), (\Omega_{xx}, \Omega_{x\nu}, \Omega_{x\delta}, \Omega_{\nu\nu}, \Omega_{\nu\delta}, \Omega_{\delta\delta}))$
+in `vech` order, where $\Omega = -\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+
+See `neglogpdf_qrician(x, ν, δ, order)`.
+"""
+function ∇²neglogpdf_qrician_with_primal_and_gradient end
+
+@doc raw"""
+    ∇³neglogpdf_qrician_vjp_with_primal_gradient_and_hessian(Δ::SVector{6, <:Real}, x::Real, ν::Real, δ::Real, order::Val)
+
+Vector-Jacobian product for third-order derivatives of the unit-scale quantized negative log-probability.
+
+Given $\Delta \in \mathbb{R}^6$ in `vech` order, computes $(\Omega, g, H, J^\top\Delta)$ where:
+$g = (\Omega_x, \Omega_\nu, \Omega_\delta)$,
+$H = \mathrm{vech}(\nabla^2\Omega)$,
+$J = \frac{\partial}{\partial(x, \nu, \delta)} \mathrm{vech}(\nabla^2\Omega) \in \mathbb{R}^{6\times 3}$,
+and $\Omega = -\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+
+See `neglogpdf_qrician(x, ν, δ, order)`.
+"""
+function ∇³neglogpdf_qrician_vjp_with_primal_gradient_and_hessian end
+
+@doc raw"""
+    ∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian(x::Real, ν::Real, δ::Real, order::Val)
+
+Jacobian of third-order derivatives of the unit-scale quantized negative log-probability.
+
+Computes $(\Omega, g, H, J)$ where
+$g = (\Omega_x, \Omega_\nu, \Omega_\delta)$,
+$H = \mathrm{vech}(\nabla^2\Omega)$ in `vech` order,
+$J = \frac{\partial}{\partial(x, \nu, \delta)} \mathrm{vech}(\nabla^2\Omega) \in \mathbb{R}^{6\times 3}$ with columns $x, \nu, \delta$,
+and $\Omega = -\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+
+See `neglogpdf_qrician(x, ν, δ, order)`.
+"""
+function ∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian end
+
+####
 #### Rician negative log-likelihood
 ####
 
@@ -12,8 +225,9 @@ end
 @inline ∇²neglogpdf_rician_with_gradient(x::Real, ν::Real) = _∇²neglogpdf_rician_with_gradient(promote(x, ν)...)
 @inline ∇³neglogpdf_rician_with_gradient_and_hessian(x::Real, ν::Real) = _∇³neglogpdf_rician_with_gradient_and_hessian(promote(x, ν)...)
 
-@inline pdf_rician(args...) = exp(-neglogpdf_rician(args...))
-@inline ∇pdf_rician(args...) = -exp(-neglogpdf_rician(args...)) .* ∇neglogpdf_rician(args...)
+@inline pdf_rician(x::Real, ν::Real, logσ::Real) = exp(-neglogpdf_rician(x, ν, logσ))
+@inline pdf_rician(x::Real, ν::Real) = exp(-neglogpdf_rician(x, ν))
+@inline ∇pdf_rician(x::Real, ν::Real) = -exp(-neglogpdf_rician(x, ν)) .* ∇neglogpdf_rician(x, ν)
 
 #### Internal methods with strict type signatures (enables dual number overloads with single method)
 

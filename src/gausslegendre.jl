@@ -58,7 +58,7 @@ Return nodes `x` and weights `w` of [Gauss-Legendre quadrature](https://en.wikip
 ```
 
 # Examples
-```jldoctest; setup = :(using FastRicianLikelihoods, LinearAlgebra; using FastRicianLikelihoods.GaussLegendre: gausslegendre)
+```jldoctest; setup = :(using .GaussLegendre: gausslegendre)
 julia> x, w = gausslegendre(3);
 
 julia> f(x) = x^4;

@@ -5,18 +5,17 @@ DocMeta.setdocmeta!(
     FastRicianLikelihoods,
     :DocTestSetup,
     quote
+        using LinearAlgebra
         using FastRicianLikelihoods
-        using FastRicianLikelihoods.LinearAlgebra
-        using FastRicianLikelihoods.GaussHalfHermite
-        using FastRicianLikelihoods.GaussLegendre
-    end,
+        using FastRicianLikelihoods: GaussHalfHermite, GaussLegendre
+    end;
     recursive = true,
 )
 
 makedocs(;
     modules = [FastRicianLikelihoods],
     authors = "Jonathan Doucette <jdoucette@physics.ubc.ca> and contributors",
-    repo = "https://github.com/jondeuce/FastRicianLikelihoods.jl/blob/{commit}{path}#{line}",
+    # repo = "https://github.com/jondeuce/FastRicianLikelihoods.jl/blob/{commit}{path}#{line}",
     sitename = "FastRicianLikelihoods.jl",
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", "false") == "true",
@@ -30,6 +29,8 @@ makedocs(;
 )
 
 deploydocs(;
-    repo = "github.com/jondeuce/FastRicianLikelihoods.jl",
+    repo = "github.com/jondeuce/FastRicianLikelihoods.jl.git",
     devbranch = "master",
+    push_preview = true,
+    deploy_config = Documenter.GitHubActions(),
 )

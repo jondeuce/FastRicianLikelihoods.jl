@@ -2,18 +2,20 @@
 #### Rice distribution
 ####
 
-"""
+@doc raw"""
     Rice(ν, σ)
 
-The *Rice distribution* with parameters `ν` and `σ` has probability density function:
+The Rice distribution with shape parameter $\nu$ and scale parameter $\sigma$.
 
+The probability density function is
 ```math
-f(x; \\nu, \\sigma) = \\frac{x}{\\sigma^2} \\exp\\left( \\frac{-(x^2 + \\nu^2)}{2\\sigma^2} \\right) I_0\\left( \\frac{x\\nu}{\\sigma^2} \\right).
+p(x \mid \nu, \sigma) = \frac{x}{\sigma^2} \exp\!\left(-\frac{x^2 + \nu^2}{2\sigma^2}\right) I_0\!\left(\frac{x\nu}{\sigma^2}\right)
 ```
+where $I_0$ is the modified Bessel function of the first kind of order zero, and $x \ge 0$.
 
-External links:
+# External links
 
-  - [Rice distribution on Wikipedia](https://en.wikipedia.org/wiki/Rice_distribution)
+- [Rice distribution Wiki](https://en.wikipedia.org/wiki/Rice_distribution)
 """
 struct Rice{T <: Real} <: Distributions.ContinuousUnivariateDistribution
     ν::T

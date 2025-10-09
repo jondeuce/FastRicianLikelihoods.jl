@@ -3,16 +3,39 @@
 ####
 
 # Bessels.jl provides `besseli0x` and `besseli1x`, but not `besseli2x`
+
+"""
+    besseli0(x::T) where {T <: Union{Float32, Float64}}
+
+Modified Bessel function of the first kind of order zero, ``I_0(x)``.
+"""
 @inline besseli0(x) = Bessels.besseli0(x)
+
+"""
+    besseli0x(x::T) where {T <: Union{Float32, Float64}}
+
+Scaled modified Bessel function of the first kind of order zero, ``I_0(x) e^{-|x|}``.
+"""
 @inline besseli0x(x) = Bessels.besseli0x(x)
 
+"""
+    besseli1(x::T) where {T <: Union{Float32, Float64}}
+
+Modified Bessel function of the first kind of order one, ``I_1(x)``.
+"""
 @inline besseli1(x) = Bessels.besseli1(x)
+
+"""
+    besseli1x(x::T) where {T <: Union{Float32, Float64}}
+
+Scaled modified Bessel function of the first kind of order one, ``I_1(x) e^{-|x|}``.
+"""
 @inline besseli1x(x) = Bessels.besseli1x(x)
 
 """
     logbesseli0x(x::T) where T <: Union{Float32, Float64}
 
-Log of scaled modified Bessel function of the first kind of order zero, ``log(I_0(x)*e^{-x})``.
+Log of scaled modified Bessel function of the first kind of order zero, ``\\log(I_0(x) e^{-|x|})``.
 """
 @inline function logbesseli0x(x::Real)
     T = checkedfloattype(x)
@@ -27,6 +50,11 @@ Log of scaled modified Bessel function of the first kind of order zero, ``log(I_
     end
 end
 
+"""
+    logbesseli0(x::T) where {T <: Union{Float32, Float64}}
+
+Log of modified Bessel function of the first kind of order zero, ``\\log I_0(x)``.
+"""
 @inline function logbesseli0(x::Real)
     T = checkedfloattype(x)
     low, mid1, mid2, mid3, high = logbesseli0x_branches(T)
@@ -106,7 +134,7 @@ end
 """
     besseli2x(x::T) where {T <: Union{Float32, Float64}}
 
-Scaled modified Bessel function of the first kind of order two, ``I_2(x)*e^{-|x|}``.
+Scaled modified Bessel function of the first kind of order two, ``I_2(x) e^{-|x|}``.
 """
 @inline function besseli2x(x::Real)
     T = checkedfloattype(x)
@@ -131,10 +159,32 @@ end
 
 #### Derived special functions
 
+"""
+    logbesseli1(x::T) where {T <: Union{Float32, Float64}}
+
+Log of modified Bessel function of the first kind of order one, ``\\log I_1(x)``.
+"""
 @inline logbesseli1(x::Real) = logbesseli1x(x) + abs(x) # log(besselix(1, x)) = log(I1(x)) - |x|
+
+"""
+    logbesseli1x(x::T) where {T <: Union{Float32, Float64}}
+
+Log of scaled modified Bessel function of the first kind of order one, ``\\log(I_1(x) e^{-|x|})``.
+"""
 @inline logbesseli1x(x::Real) = log(besseli1x(x))
 
+"""
+    logbesseli2(x::T) where {T <: Union{Float32, Float64}}
+
+Log of modified Bessel function of the first kind of order two, ``\\log I_2(x)``.
+"""
 @inline logbesseli2(x::Real) = logbesseli2x(x) + abs(x) # log(besselix(2, x)) = log(I2(x)) - |x|
+
+"""
+    logbesseli2x(x::T) where {T <: Union{Float32, Float64}}
+
+Log of scaled modified Bessel function of the first kind of order two, ``\\log(I_2(x) e^{-|x|})``.
+"""
 @inline logbesseli2x(x::Real) = log(besseli2x(x))
 
 @inline laguerre½(x::Real) = (x < zero(x) ? one(x) : exp(x)) * ((1 - x) * besseli0x(-x / 2) - x * besseli1x(-x / 2)) # besselix(ν, ±x/2) = Iν(±x/2) * exp(-|±x/2|) = Iν(-x/2) * exp(∓x/2)
@@ -163,7 +213,19 @@ end
 Ratio of modified Bessel functions of the first kind of orders one and zero, ``I_1(x) / I_0(x)``.
 """
 @inline besseli1i0(x::Real) = _besseli1i0_parts(x)[1]
+
+"""
+    besseli1i0x(x::T) where {T <: Union{Float32, Float64}}
+
+Ratio of modified Bessel functions divided by argument, ``(I_1(x) / I_0(x)) / x``.
+"""
 @inline besseli1i0x(x::Real) = _besseli1i0_parts(x)[2]
+
+"""
+    besseli1i0m1(x::T) where {T <: Union{Float32, Float64}}
+
+Ratio of modified Bessel functions minus one, ``I_1(x) / I_0(x) - 1``.
+"""
 @inline besseli1i0m1(x::Real) = _besseli1i0_parts(x)[3]
 
 @inline function _besseli1i0_parts(x::Real)
