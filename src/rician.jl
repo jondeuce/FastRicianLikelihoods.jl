@@ -10,24 +10,24 @@ Probability density function of the Rician distribution.
 
 # Three-parameter form
 
-For $\sigma = \exp(\log\sigma)$, computes $p(x \mid \nu, \sigma)$ as defined in `neglogpdf_rician(x, ν, logσ)`.
+For ``\sigma = \exp(\log\sigma)``, computes ``p_{\mathrm{Rice}}(x \mid \nu, \sigma)`` as defined in `neglogpdf_rician(x, ν, logσ)`.
 
 # Two-parameter form (unit scale)
 
-The two-argument method sets $\sigma = 1$ and computes $p(x \mid \nu, \sigma = 1) = \exp(-f(x, \nu))$.
+The two-argument method sets ``\sigma = 1`` and computes ``p_{\mathrm{Rice}}(x \mid \nu, \sigma = 1) = \exp(-f(x, \nu))``.
 
-See `neglogpdf_rician(x, ν)`.
+See [`neglogpdf_rician`](@ref).
 """
 function pdf_rician end
 
 @doc raw"""
     ∇pdf_rician(x::Real, ν::Real)
 
-Gradient of the unit-scale Rician density with respect to $(x, \nu)$.
+Gradient of the unit-scale Rician density with respect to ``(x, \nu)``.
 
-Computes $(p_x, p_\nu)$ where $p = p(x \mid \nu, 1)$.
+Computes ``(p_x, p_\nu)`` where ``p = p_{\mathrm{Rice}}(x \mid \nu, \sigma = 1)``.
 
-See `pdf_rician(x, ν)`.
+See [`pdf_rician`](@ref), [`neglogpdf_rician`](@ref).
 """
 function ∇pdf_rician end
 
@@ -39,17 +39,17 @@ Negative log-density of the Rician distribution.
 
 # Three-parameter form
 
-For $\sigma = \exp(\log\sigma)$, computes the negative log-density $-\log p(x \mid \nu, \sigma)$:
+For ``\sigma = \exp(\log\sigma)``, computes the negative log-density ``-\log p_{\mathrm{Rice}}(x \mid \nu, \sigma)``:
 ```math
-p(x \mid \nu, \sigma) = \frac{x}{\sigma^2}\, \exp\!\left(-\frac{x^2+\nu^2}{2\sigma^2}\right) I_0\!\left(\frac{x\nu}{\sigma^2}\right)
+p_{\mathrm{Rice}}(x \mid \nu, \sigma) = \frac{x}{\sigma^2} \exp\left(-\frac{x^2+\nu^2}{2\sigma^2}\right) I_0\left(\frac{x\nu}{\sigma^2}\right)
 ```
-where $I_0$ is the modified Bessel function of the first kind of order zero, and $x \ge 0$.
+where ``I_0`` is the modified Bessel function of the first kind of order zero, and ``x \ge 0``.
 
 # Two-parameter form (unit scale)
 
-The two-argument method sets $\sigma = 1$ and computes $f(x, \nu) = -\log p(x \mid \nu, \sigma = 1)$:
+The two-argument method sets ``\sigma = 1`` and computes ``f(x, \nu) = -\log p_{\mathrm{Rice}}(x \mid \nu, \sigma = 1)``:
 ```math
-f(x,\nu) \coloneqq -\log p(x \mid \nu, \sigma = 1) = \frac{x^2+\nu^2}{2} - \log x - \log I_0(x\nu)
+f(x,\nu) \coloneqq -\log p_{\mathrm{Rice}}(x \mid \nu, \sigma = 1) = \frac{x^2+\nu^2}{2} - \log x - \log I_0(x\nu)
 ```
 """
 function neglogpdf_rician end
@@ -59,7 +59,9 @@ function neglogpdf_rician end
 
 Gradient of the unit-scale negative log-density.
 
-Computes $(f_x, f_\nu)$ where $f = f(x, \nu)$ is defined in `neglogpdf_rician(x, ν)`.
+Computes ``g = (f_x, f_\nu)`` where ``f = -\log p_{\mathrm{Rice}}(x \mid \nu, \sigma = 1)``.
+
+See [`neglogpdf_rician`](@ref).
 """
 function ∇neglogpdf_rician end
 
@@ -68,8 +70,9 @@ function ∇neglogpdf_rician end
 
 Hessian of the unit-scale negative log-density.
 
-Computes $(f_{xx}, f_{x\nu}, f_{\nu\nu})$ in half-vectorized (`vech`) order,
-where $f = f(x, \nu)$ is defined in `neglogpdf_rician(x, ν)`.
+Computes ``H = (f_{xx}, f_{x\nu}, f_{\nu\nu})`` where ``f = -\log p_{\mathrm{Rice}}(x \mid \nu, \sigma = 1)``.
+
+See [`neglogpdf_rician`](@ref).
 """
 function ∇²neglogpdf_rician end
 
@@ -78,9 +81,12 @@ function ∇²neglogpdf_rician end
 
 Gradient and Hessian of the unit-scale negative log-density.
 
-Computes $((f_x, f_\nu), (f_{xx}, f_{x\nu}, f_{\nu\nu}))$ in `vech` order.
+Computes ``(g, H)`` where
+- ``f = -\log p_{\mathrm{Rice}}(x \mid \nu, \sigma = 1)``
+- ``g = (f_x, f_\nu)``,
+- ``H = (f_{xx}, f_{x\nu}, f_{\nu\nu})``,
 
-See `neglogpdf_rician(x, ν)`.
+See [`neglogpdf_rician`](@ref).
 """
 function ∇²neglogpdf_rician_with_gradient end
 
@@ -89,10 +95,13 @@ function ∇²neglogpdf_rician_with_gradient end
 
 Gradient, Hessian, and third-order partial derivatives of the unit-scale negative log-density.
 
-Computes $((f_x, f_\nu), (f_{xx}, f_{x\nu}, f_{\nu\nu}), (f_{xxx}, f_{xx\nu}, f_{x\nu\nu}, f_{\nu\nu\nu}))$
-in `vech` order.
+Computes ``(g, H, T)`` where
+- ``f = -\log p_{\mathrm{Rice}}(x \mid \nu, \sigma = 1)``.
+- ``g = (f_x, f_\nu)``,
+- ``H = (f_{xx}, f_{x\nu}, f_{\nu\nu})``,
+- ``T = (f_{xxx}, f_{xx\nu}, f_{x\nu\nu}, f_{\nu\nu\nu})``,
 
-See `neglogpdf_rician(x, ν)`.
+See [`neglogpdf_rician`](@ref).
 """
 function ∇³neglogpdf_rician_with_gradient_and_hessian end
 
@@ -105,21 +114,23 @@ Negative log-probability mass function of the quantized Rician distribution.
 
 # Five-parameter form (real-valued argument)
 
-For $\sigma = \exp(\log\sigma)$ and bin width $\delta$, the pmf is
+For ``\sigma = \exp(\log\sigma)`` and bin width ``\delta``, the pmf is
 ```math
-p_Q(x \mid \nu, \sigma, \delta) = \int_{x}^{x+\delta} p(y \mid \nu, \sigma)\, dy
+p_{\mathrm{QRice}}(x \mid \nu, \sigma, \delta) = \int_{x}^{x+\delta} p_{\mathrm{Rice}}(y \mid \nu, \sigma) \, dy
 ```
-Computes $-\log p_Q(x \mid \nu, \sigma, \delta)$ using $N$-point Gauss--Legendre quadrature
-with `order::Val{N}` where $N \ge 1$; the case $N = 1$ reduces to the midpoint rule.
+Computes ``-\log p_{\mathrm{QRice}}(x \mid \nu, \sigma, \delta)`` using ``N``-point Gauss--Legendre quadrature
+with `order::Val{N}` where ``N \ge 1``; the case ``N = 1`` reduces to the midpoint rule.
 
 # Four-parameter form (unit scale)
 
-The four-argument method sets $\sigma = 1$ and computes $-\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+The four-argument method sets ``\sigma = 1`` and computes ``-\log p_{\mathrm{QRice}}(x \mid \nu, \sigma = 1, \delta)``.
 
 # Five-parameter form (discrete argument)
 
-For integer argument `n::Int`, computes the negative log-probability at $x = n\delta$;
-equivalent to `neglogpdf_qrician(n*δ, ν, logσ, δ, order)`.
+For integer argument `n::Int`, computes the negative log-probability at ``x = n\delta``;
+equivalent to `neglogpdf_qrician(n * δ, ν, logσ, δ, order)`.
+
+See [`neglogpdf_rician`](@ref).
 """
 function neglogpdf_qrician end
 
@@ -128,9 +139,10 @@ function neglogpdf_qrician end
 
 Gradient of the unit-scale quantized negative log-probability.
 
-Computes $(\Omega_x, \Omega_\nu, \Omega_\delta)$ where $\Omega = -\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+Computes ``g = \nabla \Omega = (\Omega_x, \Omega_\nu, \Omega_\delta)`` where
+``\Omega = -\log p_{\mathrm{QRice}}(x \mid \nu, \sigma = 1, \delta)``.
 
-See `neglogpdf_qrician(x, ν, δ, order)`.
+See [`neglogpdf_qrician`](@ref).
 """
 function ∇neglogpdf_qrician end
 
@@ -139,9 +151,11 @@ function ∇neglogpdf_qrician end
 
 Primal value and gradient of the unit-scale quantized negative log-probability.
 
-Computes $(\Omega, (\Omega_x, \Omega_\nu, \Omega_\delta))$ where $\Omega = -\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+Computes ``(\Omega, g)`` where
+- ``\Omega = -\log p_{\mathrm{QRice}}(x \mid \nu, \sigma = 1, \delta)``,
+- ``g = \nabla \Omega = (\Omega_x, \Omega_\nu, \Omega_\delta)``.
 
-See `neglogpdf_qrician(x, ν, δ, order)`.
+See [`neglogpdf_qrician`](@ref).
 """
 function ∇neglogpdf_qrician_with_primal end
 
@@ -150,10 +164,10 @@ function ∇neglogpdf_qrician_with_primal end
 
 Hessian of the unit-scale quantized negative log-probability.
 
-Computes $(\Omega_{xx}, \Omega_{x\nu}, \Omega_{x\delta}, \Omega_{\nu\nu}, \Omega_{\nu\delta}, \Omega_{\delta\delta})$
-in half-vectorized (`vech`) order, where $\Omega = -\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+Computes ``H = \mathrm{vech}(\nabla^2 \Omega) = (\Omega_{xx}, \Omega_{x\nu}, \Omega_{x\delta}, \Omega_{\nu\nu}, \Omega_{\nu\delta}, \Omega_{\delta\delta})`` where
+``\Omega = -\log p_{\mathrm{QRice}}(x \mid \nu, \sigma = 1, \delta)``.
 
-See `neglogpdf_qrician(x, ν, δ, order)`.
+See [`neglogpdf_qrician`](@ref).
 """
 function ∇²neglogpdf_qrician end
 
@@ -162,10 +176,11 @@ function ∇²neglogpdf_qrician end
 
 Gradient and Hessian of the unit-scale quantized negative log-probability.
 
-Computes $((\Omega_x, \Omega_\nu, \Omega_\delta), (\Omega_{xx}, \Omega_{x\nu}, \Omega_{x\delta}, \Omega_{\nu\nu}, \Omega_{\nu\delta}, \Omega_{\delta\delta}))$
-in `vech` order, where $\Omega = -\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+Computes ``(g, H)`` where
+- ``g = \nabla \Omega = (\Omega_x, \Omega_\nu, \Omega_\delta)``,
+- ``H = \mathrm{vech}(\nabla^2 \Omega) = (\Omega_{xx}, \Omega_{x\nu}, \Omega_{x\delta}, \Omega_{\nu\nu}, \Omega_{\nu\delta}, \Omega_{\delta\delta})``.
 
-See `neglogpdf_qrician(x, ν, δ, order)`.
+See [`neglogpdf_qrician`](@ref).
 """
 function ∇²neglogpdf_qrician_with_gradient end
 
@@ -174,10 +189,12 @@ function ∇²neglogpdf_qrician_with_gradient end
 
 Primal value, gradient, and Hessian of the unit-scale quantized negative log-probability.
 
-Computes $(\Omega, (\Omega_x, \Omega_\nu, \Omega_\delta), (\Omega_{xx}, \Omega_{x\nu}, \Omega_{x\delta}, \Omega_{\nu\nu}, \Omega_{\nu\delta}, \Omega_{\delta\delta}))$
-in `vech` order, where $\Omega = -\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+Computes ``(\Omega, g, H)`` where
+- ``\Omega = -\log p_{\mathrm{QRice}}(x \mid \nu, \sigma = 1, \delta)``,
+- ``g = \nabla \Omega = (\Omega_x, \Omega_\nu, \Omega_\delta)``,
+- ``H = \mathrm{vech}(\nabla^2 \Omega) = (\Omega_{xx}, \Omega_{x\nu}, \Omega_{x\delta}, \Omega_{\nu\nu}, \Omega_{\nu\delta}, \Omega_{\delta\delta})``.
 
-See `neglogpdf_qrician(x, ν, δ, order)`.
+See [`neglogpdf_qrician`](@ref).
 """
 function ∇²neglogpdf_qrician_with_primal_and_gradient end
 
@@ -186,13 +203,13 @@ function ∇²neglogpdf_qrician_with_primal_and_gradient end
 
 Vector-Jacobian product for third-order derivatives of the unit-scale quantized negative log-probability.
 
-Given $\Delta \in \mathbb{R}^6$ in `vech` order, computes $(\Omega, g, H, J^\top\Delta)$ where:
-$g = (\Omega_x, \Omega_\nu, \Omega_\delta)$,
-$H = \mathrm{vech}(\nabla^2\Omega)$,
-$J = \frac{\partial}{\partial(x, \nu, \delta)} \mathrm{vech}(\nabla^2\Omega) \in \mathbb{R}^{6\times 3}$,
-and $\Omega = -\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+Computes ``(\Omega, g, H, J^T \Delta)`` where
+- ``\Omega = -\log p_{\mathrm{QRice}}(x \mid \nu, \sigma = 1, \delta)``,
+- ``g = \nabla \Omega = (\Omega_x, \Omega_\nu, \Omega_\delta)``,
+- ``H = \mathrm{vech}(\nabla^2 \Omega) = (\Omega_{xx}, \Omega_{x\nu}, \Omega_{x\delta}, \Omega_{\nu\nu}, \Omega_{\nu\delta}, \Omega_{\delta\delta})``,
+- ``J^T \Delta = (\nabla H)^T \Delta = \begin{bmatrix} \Omega_{xxx} & \Omega_{x\nu x} & \Omega_{x\delta x} & \Omega_{\nu\nu x} & \Omega_{\nu\delta x} & \Omega_{\delta\delta x} \\ \Omega_{xx\nu} & \Omega_{x\nu\nu} & \Omega_{x\delta\nu} & \Omega_{\nu\nu\nu} & \Omega_{\nu\delta\nu} & \Omega_{\delta\delta\nu} \\ \Omega_{xx\delta} & \Omega_{x\nu\delta} & \Omega_{x\delta\delta} & \Omega_{\nu\nu\delta} & \Omega_{\nu\delta\delta} & \Omega_{\delta\delta\delta} \end{bmatrix} \Delta \in \mathbb{R}^3``.
 
-See `neglogpdf_qrician(x, ν, δ, order)`.
+See [`neglogpdf_qrician`](@ref).
 """
 function ∇³neglogpdf_qrician_vjp_with_primal_gradient_and_hessian end
 
@@ -201,13 +218,13 @@ function ∇³neglogpdf_qrician_vjp_with_primal_gradient_and_hessian end
 
 Jacobian of third-order derivatives of the unit-scale quantized negative log-probability.
 
-Computes $(\Omega, g, H, J)$ where
-$g = (\Omega_x, \Omega_\nu, \Omega_\delta)$,
-$H = \mathrm{vech}(\nabla^2\Omega)$ in `vech` order,
-$J = \frac{\partial}{\partial(x, \nu, \delta)} \mathrm{vech}(\nabla^2\Omega) \in \mathbb{R}^{6\times 3}$ with columns $x, \nu, \delta$,
-and $\Omega = -\log p_Q(x \mid \nu, \sigma = 1, \delta)$.
+Computes ``(\Omega, g, H, J)`` where
+- ``\Omega = -\log p_{\mathrm{QRice}}(x \mid \nu, \sigma = 1, \delta)``,
+- ``g = \nabla \Omega = (\Omega_x, \Omega_\nu, \Omega_\delta)``,
+- ``H = \mathrm{vech}(\nabla^2 \Omega) = (\Omega_{xx}, \Omega_{x\nu}, \Omega_{x\delta}, \Omega_{\nu\nu}, \Omega_{\nu\delta}, \Omega_{\delta\delta})``,
+- ``J = \nabla H = \begin{bmatrix} \Omega_{xxx} & \Omega_{xx\nu} & \Omega_{xx\delta} \\ \Omega_{x\nu x} & \Omega_{x\nu\nu} & \Omega_{x\nu\delta} \\ \Omega_{x\delta x} & \Omega_{x\delta\nu} & \Omega_{x\delta\delta} \\ \Omega_{\nu\nu x} & \Omega_{\nu\nu\nu} & \Omega_{\nu\nu\delta} \\ \Omega_{\nu\delta x} & \Omega_{\nu\delta\nu} & \Omega_{\nu\delta\delta} \\ \Omega_{\delta\delta x} & \Omega_{\delta\delta\nu} & \Omega_{\delta\delta\delta} \end{bmatrix} \in \mathbb{R}^{6\times 3}``.
 
-See `neglogpdf_qrician(x, ν, δ, order)`.
+See [`neglogpdf_qrician`](@ref).
 """
 function ∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian end
 

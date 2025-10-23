@@ -35,13 +35,13 @@ Numerical method:
 - For `n ≤ 60`, roots are found by Newton’s method; Legendre polynomials are evaluated via a three‑term recurrence.
 - For `n > 60`, an `O(n)` asymptotic expansion provides nodes and weights; optional refinement by Newton is available via `refine=true`.
 
-Porting notes:
-- Adapted from `FastGaussQuadrature.jl` (`gausslegendre.jl`), generalized from `Float64` to arbitrary `T`.
-- Added `refine` keyword to control Newton refinement for large `n`.
-- Source: https://github.com/JuliaApproximation/FastGaussQuadrature.jl/blob/b654654677bc254e8f936c54bd2128a6dda57bba/src/gausslegendre.jl
+Public API:
+- `gausslegendre(n::Integer, ::Type{T} = Float64; refine = true) -> x, w`
 
-Exported:
-- `gausslegendre(n::Integer, ::Type{T}=Float64; refine=true) -> x, w`
+Porting notes:
+- Adapted from `FastGaussQuadrature.jl` ([`gausslegendre.jl`](https://github.com/JuliaApproximation/FastGaussQuadrature.jl/blob/b654654677bc254e8f936c54bd2128a6dda57bba/src/gausslegendre.jl))
+- Generalized from `Float64` to arbitrary `T`.
+- Added `refine` keyword to control Newton refinement for large `n`.
 """
 module GaussLegendre
 

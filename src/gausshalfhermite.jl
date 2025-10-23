@@ -7,15 +7,14 @@ Compute nodes `x` and weights `w` for Gauss--Half--Hermite quadrature on `[0, �
 `w(x) = x^γ * exp(-x^2)`.
 
 ```math
-\int_{0}^{\infty} x^{\gamma} e^{-x^{2}} f(x)\,dx \approx \sum_{i=1}^{N} w_i f(x_i)
+\int_{0}^{\infty} x^{\gamma} e^{-x^{2}} f(x) \, dx \approx \sum_{i=1}^{N} w_i f(x_i)
 ```
 
 Numerical method:
-- Stable recurrence coefficients `(α_n, β_n)` via Ball’s reparameterization `g_n` and Newton’s method
-  (tridiagonal Jacobian; `O(N)` per iteration).
+- Stable recurrence coefficients `(α_n, β_n)` via Ball’s reparameterization `g_n` and Newton’s method (tridiagonal Jacobian; `O(N)` per iteration).
 - Nodes/weights from the symmetric Jacobi matrix via Golub--Welsch.
 
-Exported:
+Public API:
 - `gausshalfhermite_gw(N, γ; normalize=false) -> x, w`
 - `gausshalfhermite_rec_coeffs(N, γ) -> α, β`
 
@@ -246,10 +245,8 @@ end
 @doc raw"""
     gausshalfhermite_rec_coeffs(N, γ) -> (α, β)
 
-Recurrence coefficients for monic polynomials orthogonal w.r.t. `w(x) = x^γ * exp(-x^2)` on `[0, ∞)`.
-
-Three-term recurrence:
-`P_{n+1}(x) = (x - α_n) P_n(x) - β_n P_{n-1}(x)`
+Recurrence coefficients for monic polynomials orthogonal w.r.t. `w(x) = x^γ * exp(-x^2)` on `[0, ∞)`
+using the three-term recurrence formula `P_{n+1}(x) = (x - α_n) P_n(x) - β_n P_{n-1}(x)`.
 
 Arguments:
 - `N::Integer`: number of coefficients; returns `α₀:α_{N-1}` and `β₀:β_{N-1}`
@@ -281,11 +278,12 @@ end
 Nodes `x` and weights `w` for `N`‑point Gauss--Half--Hermite quadrature.
 
 ```math
-\int_{0}^{\infty} x^{\gamma} e^{-x^{2}} f(x)\,dx \approx \sum_{i=1}^{N} w_i f(x_i)
+\int_{0}^{\infty} x^{\gamma} e^{-x^{2}} f(x) \, dx \approx \sum_{i=1}^{N} w_i f(x_i)
 ```
 
-Method: Golub--Welsch on the symmetric Jacobi matrix from `(α, β)` computed by `gausshalfhermite_rec_coeffs`.
-If `normalize=true`, scale to weight `x^γ * exp(-x^2 / 2) / √(2π)` and set `x ← √2 * x`.
+Uses the Golub--Welsch algorithm on the symmetric Jacobi matrix from `(α, β)` coefficients computed by [`gausshalfhermite_rec_coeffs`](@ref).
+
+If `normalize=true`, rescale weights and nodes to correspond to weighting function `w(x) = x^γ * exp(-x^2 / 2) / √(2π)` by setting `x ← √2 * x` and `w ← 2^{γ/2} w / √π`.
 
 Arguments:
 - `N::Integer`
