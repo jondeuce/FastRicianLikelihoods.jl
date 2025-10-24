@@ -243,7 +243,10 @@ function dual_rule_from_frule(ex)
         :body        => quote
             vx = ($(primals...),)
             px = ($(tangents...),)
-            y, dy = $(CRC).frule(($(CRC).NoTangent(), px...), $(fname), vx...)
+            res = $(CRC).frule(($(CRC).NoTangent(), px...), $(fname), vx...)
+            res === nothing && error("No forward rule found for ", $(fname), "; ChainRulesCore.frule((Δf, Δx...), f, x...) returned nothing")
+            y, dy = res
+            dy = dy isa $(CRC).ZeroTangent ? zero(first(px)) : dy
             return $(FD).Dual{$(Tag)}(y, dy)
         end,
     )

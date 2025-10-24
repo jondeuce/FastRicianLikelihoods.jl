@@ -373,7 +373,7 @@ end
 
 @inline function _∇³neglogpdf_rician_with_gradient_and_hessian_ad(x::D, ν::D) where {D}
     (∂x, ∂ν, ∂xx, ∂xν, ∂νν), J = withjacobian(SVector(x, ν)) do p
-        local (∂x, ∂ν), (∂xx, ∂xν, ∂νν) = _∂²neglogpdf_rician_with_gradient(p...)
+        local (∂x, ∂ν), (∂xx, ∂xν, ∂νν) = _∇²neglogpdf_rician_with_gradient(p...)
         return SVector(∂x, ∂ν, ∂xx, ∂xν, ∂νν)
     end
     ∂xxx, ∂xxν, ∂xνν, ∂ννν = J[3], J[4], J[5], J[10]

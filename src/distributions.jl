@@ -68,7 +68,7 @@ end
 # @inline Distributions.median(d::Rice) = ?
 
 @inline Distributions.var(d::Rice) = var_rician(d.ν, d.σ)
-@inline Distributions.std(d::Rice) = sqrt(var(d))
+@inline Distributions.std(d::Rice) = sqrt(Distributions.var(d))
 # @inline Distributions.skewness(d::Rice{T}) where {T <: Real} = ?
 # @inline Distributions.kurtosis(d::Rice{T}) where {T <: Real} = ?
 # @inline Distributions.entropy(d::Rice) = ?

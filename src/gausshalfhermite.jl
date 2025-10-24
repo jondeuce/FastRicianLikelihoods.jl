@@ -307,7 +307,10 @@ julia> I ≈ 3 * sqrt(π) / 8 # ∫_{0}^{∞} x^4 * exp(-x^2) dx
 true
 ```
 """
-function gausshalfhermite_gw(N, γ; normalize = false)
+function gausshalfhermite_gw(N::Int, γ::Real; normalize = false)
+    @assert N > 0 "N must be a positive integer"
+    @assert γ > -1 "γ must be greater than -1"
+
     # Golub-Welsch algorithm for computing nodes and weights from recurrence coefficients
     #   see: https://en.wikipedia.org/wiki/Gaussian_quadrature#The_Golub-Welsch_algorithm
     γ = float(γ)
