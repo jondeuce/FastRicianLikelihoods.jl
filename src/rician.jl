@@ -109,6 +109,7 @@ function ∇³neglogpdf_rician_with_gradient_and_hessian end
     neglogpdf_qrician(x::Real, ν::Real, logσ::Real, δ::Real, order::Val)
     neglogpdf_qrician(n::Int, ν::Real, logσ::Real, δ::Real, order::Val)
     neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val)
+    neglogpdf_qrician(n::Int, ν::Real, δ::Real, order::Val)
 
 Negative log-probability mass function of the quantized Rician distribution.
 
@@ -540,7 +541,9 @@ end
     σ⁻¹ = exp(-logσ)
     return neglogpdf_qrician(σ⁻¹ * x, σ⁻¹ * ν, σ⁻¹ * δ, order)
 end
+
 @inline neglogpdf_qrician(n::Int, ν::Real, logσ::Real, δ::Real, order::Val) = neglogpdf_qrician(n * δ, ν, logσ, δ, order)
+@inline neglogpdf_qrician(n::Int, ν::Real, δ::Real, order::Val) = neglogpdf_qrician(n * δ, ν, δ, order)
 
 # Wrapper functions that dispatch to fast path for single point quadrature
 @inline neglogpdf_qrician(x::Real, ν::Real, δ::Real, order::Val) = order == Val(1) ? _neglogpdf_qrician_midpoint(promote(x, ν, δ)...) : _neglogpdf_qrician(promote(x, ν, δ)..., order)

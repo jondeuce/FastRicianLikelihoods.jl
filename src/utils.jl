@@ -4,7 +4,7 @@
 
 @inline basefloattype(::Type{T}) where {T} = error("Argument is not a floating-point type: T = $T.")
 @inline basefloattype(::Type{T}) where {T <: AbstractFloat} = T
-@inline basefloattype(::Type{D}) where {T, D <: ForwardDiff.Dual{<:Any, T}} = basefloattype(T)
+@inline basefloattype(::Type{D}) where {T, D <: Dual{<:Any, T}} = basefloattype(T)
 @inline basefloattype(x::Number) = basefloattype(typeof(x))
 @inline basefloattype(x1::Number, x2::Number, xs::Number...) = promote_type(basefloattype(x1), basefloattype(x2), map(basefloattype, xs)...)
 

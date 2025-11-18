@@ -21,25 +21,60 @@
 @inline untuple_scalar(x::Tuple) = only(x)
 @inline untuple_scalar(x::Number) = x
 
-# See: https://github.com/JuliaDiff/ForwardDiff.jl/pull/735
-const ForwardDiffStaticArraysExt = Base.get_extension(ForwardDiff, :ForwardDiffStaticArraysExt)
+#### ForwardDiff utilities
+
+# Notes:
+# - We copy in some methods from `ForwardDiffStaticArraysExt` to avoid `Base.get_extension`, which affects precompilation; see: const ForwardDiffStaticArraysExt = Base.get_extension(ForwardDiff, :ForwardDiffStaticArraysExt)
+# - Base.Fix1(ForwardDiff.value, T) may cause dynamic dispatch; see: https://github.com/JuliaDiff/ForwardDiff.jl/pull/735, https://github.com/JuliaLang/julia/pull/59623
+# - ForwardDiffStaticArraysExt.static_dual_eval(T, f, x) is not a generated function and can cause dynamic dispatch
 
 struct DualValue{T} end
-@inline (::DualValue{T})(y::ForwardDiff.Dual{T}) where {T} = ForwardDiff.value(T, y)
+@inline (::DualValue{T})(y::Dual{T}) where {T} = ForwardDiff.value(T, y)
+
+@generated function dualize(::Type{T}, x::StaticArray) where {T}
+    N = length(x)
+    dx = Expr(:tuple, [:(Dual{T}(x[$i], chunk, Val{$i}())) for i in 1:N]...)
+    V = StaticArrays.similar_type(x, Dual{T, eltype(x), N})
+    return quote
+        chunk = $ForwardDiff.Chunk{$N}()
+        $(Expr(:meta, :inline))
+        return $V($(dx))
+    end
+end
+
+@generated function extract_gradient(::Type{T}, y::Real, x::S) where {T, S <: StaticArray}
+    result = Expr(:tuple, [:($ForwardDiff.partials(T, y, $i)) for i in 1:length(x)]...)
+    return quote
+        $(Expr(:meta, :inline))
+        V = StaticArrays.similar_type(S, $ForwardDiff.valtype(T, $y))
+        return V($result)
+    end
+end
+
+@generated function extract_jacobian(::Type{T}, ydual::Union{StaticArray, Partials}, x::S) where {T, S <: StaticArray}
+    M = ydual <: Partials ? ForwardDiff.npartials(ydual) : length(ydual)
+    N = length(x)
+    result = Expr(:tuple, [:($ForwardDiff.partials(T, ydual[$i], $j)) for i in 1:M, j in 1:N]...)
+    return quote
+        $(Expr(:meta, :inline))
+        V = StaticArrays.similar_type(S, $ForwardDiff.valtype(T, eltype($ydual)), $StaticArrays.Size($M, $N))
+        return V($result)
+    end
+end
 
 @inline function withgradient(f::F, x::S) where {F, S <: StaticArray}
     T = typeof(ForwardDiff.Tag(f, eltype(S))) # note: T === ForwardDiff.Tag{F, eltype(S)}
-    ydual = f(ForwardDiffStaticArraysExt.dualize(T, x)) # note: ForwardDiffStaticArraysExt.static_dual_eval(T, f, x) is not a generated function and can cause dynamic dispatch
+    ydual = f(dualize(T, x))
     y = ForwardDiff.value(T, ydual)
-    ∇y = ForwardDiffStaticArraysExt.extract_gradient(T, ydual, x)
+    ∇y = extract_gradient(T, ydual, x)
     return y, ∇y
 end
 
 @inline function withjacobian(f::F, x::S) where {F, S <: StaticArray}
     T = typeof(ForwardDiff.Tag(f, eltype(S))) # note: T === ForwardDiff.Tag{F, eltype(S)}
-    ydual = f(ForwardDiffStaticArraysExt.dualize(T, x)) # note: ForwardDiffStaticArraysExt.static_dual_eval(T, f, x) is not a generated function and can cause dynamic dispatch
-    y = map(DualValue{T}(), ydual) # note: Base.Fix1(ForwardDiff.value, T) may cause dynamic dispatch; see: https://github.com/JuliaLang/julia/pull/59623
-    J = ForwardDiffStaticArraysExt.extract_jacobian(T, ydual, x)
+    ydual = f(dualize(T, x))
+    y = map(DualValue{T}(), ydual)
+    J = extract_jacobian(T, ydual, x)
     return y, J
 end
 
