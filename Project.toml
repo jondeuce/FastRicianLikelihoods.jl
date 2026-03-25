@@ -1,7 +1,7 @@
 name = "FastRicianLikelihoods"
 uuid = "055965c9-ba11-4dd1-a5dd-741b25c2e658"
-authors = ["Jonathan Doucette <jdoucette@physics.ubc.ca> and contributors"]
 version = "0.1.0"
+authors = ["Jonathan Doucette <jdoucette@physics.ubc.ca> and contributors"]
 
 [deps]
 Bessels = "0e736298-9ec6-45e8-9647-e4fc86a2fe38"
@@ -24,7 +24,7 @@ ChainRulesCore = "1"
 Distributions = "0.25"
 FastGaussQuadrature = "0.5, 1"
 ForwardDiff = "0.10, 1"
-GenericLinearAlgebra = "0.3"
+GenericLinearAlgebra = "0.3, 0.4"
 IrrationalConstants = "0.2"
 LinearAlgebra = "1"
 MacroTools = "0.5"
