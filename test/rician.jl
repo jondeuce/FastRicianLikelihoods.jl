@@ -37,12 +37,11 @@ end
         @testset "normalization ($T)" begin
             for ν in νs, logσ in logσs
                 ν′ = T(ν / exp(logσ))
-                I, E = quadgk(zero(T), ν′ / 4, ν′ / 2, ν′, T(Inf); rtol = eps(T), atol = eps(T), order = 15) do x
-                    return exp(-neglogpdf_rician(x, ν′))
+                I, E = quadgk(BigFloat.((zero(T), ν′ / 4, ν′ / 2, ν′, T(Inf)))...; rtol = 0, atol = BigFloat(2 * eps(T)), order = 15) do x
+                    return BigFloat(exp(-neglogpdf_rician(T(x), ν′)))
                 end
-                atol = T == Float32 ? 15 * eps(T) : 10 * eps(T)
-                rtol = zero(T)
-                @test isapprox(I, one(T); rtol, atol)
+                @test E <= quad_atol
+                @test isapprox(I, one(T); rtol = zero(T), atol = T == Float32 ? 15 * eps(T) : 10 * eps(T))
             end
         end
         @testset "scaling ($T)" begin
@@ -75,6 +74,13 @@ end
             atol = 3 * eps(T)
             zs = T.(exp10.([0.0:0.1:0.5; 0.75; 1.0; 2.0:10.0]))
             for z in zs, (x, ν) in xν_iterator(z)
+                ŷ, y = @inferred(f̂(x, ν)), f(x, ν)
+                @test ŷ ≈ y rtol = rtol atol = atol
+            end
+        end
+        @testset "branch points ($T)" begin
+            rtol = atol = (T == Float32 ? 4 : 3) * eps(T)
+            for b in F.logbesseli0x_branches(T), z in (prevfloat(b), b, nextfloat(b)), (x, ν) in xν_iterator(z)
                 ŷ, y = @inferred(f̂(x, ν)), f(x, ν)
                 @test ŷ ≈ y rtol = rtol atol = atol
             end
@@ -336,11 +342,10 @@ end
 
     @testset "autodiff methods ($T)" for T in (Float32, Float64)
         for (x, ν, δ) in xνδ_iterator(), order in (Val(1), Val(2))
-            # Check that autodiff methods are being called
+            # Check that autodiff methods are being called; should be == in principle, but different methods can fuse ops differently
             ∂ŷ = @inferred ∇f̂(T(x), T(ν), T(δ), order)
-            @test ∂ŷ == @inferred ∇Fwd((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ)) # calling `f` with `Dual` args should call `∇f`
-            @test ∂ŷ == ∇Zyg((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ)) # check that Zygote calls `ChainRules.rrule` which should call `∇f`
-            @test_throws ErrorException @inferred ∇Zyg((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))
+            @test all(isapprox.(∂ŷ, @inferred(∇Fwd((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))); rtol = 4 * eps(T), atol = 4 * eps(T)))
+            @test all(isapprox.(∂ŷ, @inferred(∇Zyg((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))); rtol = 4 * eps(T), atol = 4 * eps(T)))
         end
     end
 

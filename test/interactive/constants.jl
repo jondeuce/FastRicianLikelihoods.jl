@@ -1,6 +1,6 @@
 using Pkg
 Pkg.activate(joinpath(@__DIR__, ".."))
-Revise.includet(joinpath(@__DIR__, "../utils.jl"))
+Revise.includet(joinpath(@__DIR__, "../test_utils.jl"))
 Revise.includet(joinpath(@__DIR__, "autotune.jl"))
 
 using FastRicianLikelihoods

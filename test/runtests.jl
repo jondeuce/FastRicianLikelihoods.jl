@@ -3,7 +3,7 @@ using Test
 using Aqua
 using Random
 
-include("utils.jl")
+include("test_utils.jl")
 
 # Test files to run, in order. With no arguments the whole suite runs, otherwise names are matched as substrings of the file name:
 #   julia --project=test test/runtests.jl
@@ -11,7 +11,7 @@ include("utils.jl")
 #   julia --project=test test/runtests.jl gauss rician
 #   julia -e 'using Pkg; Pkg.test("FastRicianLikelihoods"; test_args = ["bessels"])'
 
-const TEST_FILES = ["gausslegendre", "gausshalfhermite", "forwarddiff", "bessels", "rician", "aqua"]
+const TEST_FILES = ["utils", "gausslegendre", "gausshalfhermite", "forwarddiff", "bessels", "distributions", "rician", "aqua"]
 for arg in ARGS
     any(name -> occursin(arg, name), TEST_FILES) || error("No test files match $arg. Available test files: $(join(TEST_FILES, ", "))")
 end

@@ -2,7 +2,7 @@ using Pkg
 Pkg.activate(".")
 
 using Revise
-Revise.includet("../../test/utils.jl")
+Revise.includet("../../test/test_utils.jl")
 
 using FastRicianLikelihoods
 using .Utils: Utils, arbify
@@ -160,19 +160,19 @@ end
 
 # Stable piecewise implementation from package internals
 function stable_rician_parts(z::T) where {T <: Union{Float32, Float64}}
-    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = F._neglogpdf_rician_parts(T(z), Val(2))
+    (; r, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′) = F._neglogpdf_rician_parts(T(z), Val(2))
     return (; r, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′)
 end
 
 # Small-z formulas via a1 Taylor, as in the paper
 function stable_rician_parts_smallz(z::T) where {T <: Union{Float32, Float64}}
-    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = F._neglogpdf_rician_parts_taylor(T(z), Val(2))
+    (; r, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′) = F._neglogpdf_rician_parts_taylor(T(z), Val(2))
     return (; r, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′)
 end
 
 # Large-z asymptotic (simple 3-term for r), recurrences for derivatives
 function stable_rician_parts_largez(z::T) where {T <: Union{Float32, Float64}}
-    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = F._neglogpdf_rician_parts_asymptotic(T(z), Val(2))
+    (; r, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′) = F._neglogpdf_rician_parts_asymptotic(T(z), Val(2))
     return (; r, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′)
 end
 

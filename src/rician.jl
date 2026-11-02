@@ -285,7 +285,7 @@ end
     z = x * ν
     T = checkedfloattype(z)
 
-    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(0))
+    (; r, r_tail) = _neglogpdf_rician_parts(z, Val(0))
     if z < neglogpdf_rician_parts_taylor_branch(T)
         ∂x = (x - inv(x)) - r * ν
         ∂ν = ν - r * x
@@ -304,15 +304,17 @@ end
     z = x * ν
     T = checkedfloattype(z)
 
-    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(1))
+    (; r, r_tail, r′) = _neglogpdf_rician_parts(z, Val(1), Val(true))
+    x⁻¹ = inv(x)
     if z < neglogpdf_rician_parts_taylor_branch(T)
-        ∂xx = inv(x)^2 + (one(T) - ν^2 * r′)
+        ∂xx = x⁻¹ * x⁻¹ + (one(T) - ν * ν * r′)
         ∂xν = -(r + z * r′)
-        ∂νν = one(T) - x^2 * r′
+        ∂νν = one(T) - x * x * r′
     else
-        ∂xx = one(T) + inv(x)^2 * (one(T) - z^2 * r′)
+        ν⁻¹ = inv(ν)
+        ∂xx = one(T) + x⁻¹ * x⁻¹ * (one(T) - r′)
         ∂xν = -r_tail * (one(T) + r)
-        ∂νν = one(T) - x^2 * r′
+        ∂νν = one(T) - ν⁻¹ * ν⁻¹ * r′
     end
 
     return (∂xx, ∂xν, ∂νν)
@@ -322,21 +324,21 @@ end
     z = x * ν
     T = checkedfloattype(z)
 
-    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(1))
+    (; r, r_tail, r′) = _neglogpdf_rician_parts(z, Val(1), Val(true))
     if z < neglogpdf_rician_parts_taylor_branch(T)
         x⁻¹ = inv(x)
         ∂x = (x - x⁻¹) - r * ν
         ∂ν = ν - r * x
-        ∂xx = x⁻¹ * x⁻¹ + (one(T) - ν^2 * r′)
+        ∂xx = x⁻¹ * x⁻¹ + (one(T) - ν * ν * r′)
         ∂xν = -(r + z * r′)
-        ∂νν = one(T) - x^2 * r′
+        ∂νν = one(T) - x * x * r′
     else
         x⁻¹, ν⁻¹ = inv(x), inv(ν)
         ∂x = (x - ν) - x⁻¹ * (one(T) - r_tail)
         ∂ν = (ν - x) + ν⁻¹ * r_tail
-        ∂xx = one(T) + x⁻¹ * x⁻¹ * (one(T) - z^2 * r′)
+        ∂xx = one(T) + x⁻¹ * x⁻¹ * (one(T) - r′)
         ∂xν = -r_tail * (one(T) + r)
-        ∂νν = one(T) - x^2 * r′
+        ∂νν = one(T) - ν⁻¹ * ν⁻¹ * r′
     end
 
     return (∂x, ∂ν), (∂xx, ∂xν, ∂νν)
@@ -346,28 +348,33 @@ end
     z = x * ν
     T = checkedfloattype(z)
 
-    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(2))
+    (; u, r, r_tail, r′, r′′, two_r′_plus_z_r′′) = _neglogpdf_rician_parts(z, Val(2), Val(true))
     x⁻¹ = inv(x)
+    x⁻² = x⁻¹ * x⁻¹
     if z < neglogpdf_rician_parts_taylor_branch(T)
-        x⁻² = x⁻¹ * x⁻¹
+        x², ν² = x * x, ν * ν
         ∂x = (x - x⁻¹) - r * ν
         ∂ν = ν - r * x
-        ∂xx = x⁻² + (one(T) - ν^2 * r′)
+        ∂xx = x⁻² + (one(T) - ν² * r′)
         ∂xν = -(r + z * r′)
-        ∂νν = one(T) - x^2 * r′
+        ∂νν = one(T) - x² * r′
+        ∂xxx = T(-2) * x⁻¹ * x⁻² - ν * ν² * r′′
+        ∂xxν = -ν * two_r′_plus_z_r′′
+        ∂xνν = -x * two_r′_plus_z_r′′
+        ∂ννν = -x * x² * r′′
     else
         ν⁻¹ = inv(ν)
-        x⁻² = x⁻¹ * x⁻¹
+        ν⁻² = ν⁻¹ * ν⁻¹
         ∂x = (x - ν) - x⁻¹ * (one(T) - r_tail)
         ∂ν = (ν - x) + ν⁻¹ * r_tail
-        ∂xx = one(T) + x⁻² * (one(T) - z^2 * r′)
+        ∂xx = one(T) + x⁻² * (one(T) - r′)
         ∂xν = -r_tail * (one(T) + r)
-        ∂νν = one(T) - x^2 * r′
+        ∂νν = one(T) - ν⁻² * r′
+        ∂xxx = -x⁻¹ * x⁻² * (T(2) + r′′)
+        ∂xxν = -x⁻¹ * u * u * two_r′_plus_z_r′′
+        ∂xνν = -ν⁻¹ * u * u * two_r′_plus_z_r′′
+        ∂ννν = -ν⁻¹ * ν⁻² * r′′
     end
-    ∂xxx = T(-2) * x⁻¹ * x⁻² - ν^3 * r′′
-    ∂xxν = -ν * two_r′_plus_z_r′′
-    ∂xνν = -x * two_r′_plus_z_r′′
-    ∂ννν = -x^3 * r′′
 
     return (∂x, ∂ν), (∂xx, ∂xν, ∂νν), (∂xxx, ∂xxν, ∂xνν, ∂ννν)
 end
@@ -404,7 +411,7 @@ end
     z = y * ν
     T = checkedfloattype(z)
 
-    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(0))
+    (; r, r_tail) = _neglogpdf_rician_parts(z, Val(0))
     if z < neglogpdf_rician_parts_taylor_branch(T)
         ∂x = ((one(T) - r) * ν + Δx) - inv(y)
         ∂ν = (one(T) - r) * x - r * Δx
@@ -421,21 +428,21 @@ end
     z = y * ν
     T = checkedfloattype(z)
 
-    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(1))
+    (; r, r_tail, r′, one_minus_r_minus_z_r′) = _neglogpdf_rician_parts(z, Val(1), Val(true))
     if z < neglogpdf_rician_parts_taylor_branch(T)
         y⁻¹ = inv(y)
         ∂x = ((one(T) - r) * ν + Δx) - y⁻¹
         ∂ν = (one(T) - r) * x - r * Δx
-        ∂xx = y⁻¹ * y⁻¹ - ν^2 * r′
+        ∂xx = y⁻¹ * y⁻¹ - ν * ν * r′
         ∂xν = one(T) - (r + z * r′)
-        ∂νν = -y^2 * r′
+        ∂νν = -y * y * r′
     else
         y⁻¹, ν⁻¹ = inv(y), inv(ν)
         ∂x = Δx - y⁻¹ * (one(T) - r_tail)
         ∂ν = -(Δx - ν⁻¹ * r_tail)
-        ∂xx = y⁻¹ * y⁻¹ * (one(T) - z^2 * r′)
+        ∂xx = y⁻¹ * y⁻¹ * (one(T) - r′)
         ∂xν = one_minus_r_minus_z_r′
-        ∂νν = -y^2 * r′
+        ∂νν = -ν⁻¹ * ν⁻¹ * r′
     end
 
     return (∂x, ∂ν), (∂xx, ∂xν, ∂νν)
@@ -446,28 +453,32 @@ end
     z = y * ν
     T = checkedfloattype(z)
 
-    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(2))
-    y² = y * y
+    (; u, r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′) = _neglogpdf_rician_parts(z, Val(2), Val(true))
     y⁻¹ = inv(y)
     y⁻² = y⁻¹ * y⁻¹
     if z < neglogpdf_rician_parts_taylor_branch(T)
+        y², ν² = y * y, ν * ν
         ∂x = ((one(T) - r) * ν + Δx) - y⁻¹
         ∂ν = (one(T) - r) * x - r * Δx
-        ∂xx = y⁻² - ν^2 * r′
+        ∂xx = y⁻² - ν² * r′
         ∂xν = one(T) - (r + z * r′)
         ∂νν = -y² * r′
+        ∂xxx = T(-2) * y⁻¹ * y⁻² - ν * ν² * r′′
+        ∂xxν = -ν * two_r′_plus_z_r′′
+        ∂xνν = -y * two_r′_plus_z_r′′
+        ∂ννν = -y * y² * r′′
     else
         ν⁻¹ = inv(ν)
         ∂x = Δx - y⁻¹ * (one(T) - r_tail)
         ∂ν = -(Δx - ν⁻¹ * r_tail)
-        ∂xx = y⁻² * (one(T) - z^2 * r′)
+        ∂xx = y⁻² * (one(T) - r′)
         ∂xν = one_minus_r_minus_z_r′
-        ∂νν = -y² * r′
+        ∂νν = -ν⁻¹ * ν⁻¹ * r′
+        ∂xxx = -y⁻¹ * y⁻² * (T(2) + r′′)
+        ∂xxν = -y⁻¹ * u * u * two_r′_plus_z_r′′
+        ∂xνν = -ν⁻¹ * u * u * two_r′_plus_z_r′′
+        ∂ννν = -ν⁻¹ * ν⁻¹ * ν⁻¹ * r′′
     end
-    ∂xxx = T(-2) * y⁻¹ * y⁻² - ν^3 * r′′
-    ∂xxν = -ν * two_r′_plus_z_r′′
-    ∂xνν = -y * two_r′_plus_z_r′′
-    ∂ννν = -y * y² * r′′
 
     return (∂x, ∂ν), (∂xx, ∂xν, ∂νν), (∂xxx, ∂xxν, ∂xνν, ∂ννν)
 end
@@ -479,21 +490,20 @@ end
     z = y * ν
     T = checkedfloattype(z)
 
-    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(1))
+    (; r, r_tail, r′, one_minus_r_minus_z_r′) = _neglogpdf_rician_parts(z, Val(1), Val(true))
     if z < neglogpdf_rician_parts_taylor_branch(T)
-        y⁻¹ = inv(y)
         ∂x = (one(T) - r) * ν + Δx
         ∂ν = (one(T) - r) * x - r * Δx
-        ∂xx = -ν^2 * r′
+        ∂xx = -ν * ν * r′
         ∂xν = one(T) - (r + z * r′)
-        ∂νν = -y^2 * r′
+        ∂νν = -y * y * r′
     else
         y⁻¹, ν⁻¹ = inv(y), inv(ν)
         ∂x = y⁻¹ * r_tail + Δx
         ∂ν = ν⁻¹ * r_tail - Δx
-        ∂xx = -y⁻¹ * y⁻¹ * z^2 * r′
+        ∂xx = -y⁻¹ * y⁻¹ * r′
         ∂xν = one_minus_r_minus_z_r′
-        ∂νν = -y^2 * r′
+        ∂νν = -ν⁻¹ * ν⁻¹ * r′
     end
 
     return (∂x, ∂ν), (∂xx, ∂xν, ∂νν)
@@ -504,28 +514,31 @@ end
     z = y * ν
     T = checkedfloattype(z)
 
-    r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′ = _neglogpdf_rician_parts(z, Val(2))
-    y² = y * y
-    y⁻¹ = inv(y)
-    y⁻² = y⁻¹ * y⁻¹
+    (; u, r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′) = _neglogpdf_rician_parts(z, Val(2), Val(true))
     if z < neglogpdf_rician_parts_taylor_branch(T)
+        y², ν² = y * y, ν * ν
         ∂x = (one(T) - r) * ν + Δx
         ∂ν = (one(T) - r) * x - r * Δx
-        ∂xx = -ν^2 * r′
+        ∂xx = -ν² * r′
         ∂xν = one(T) - (r + z * r′)
         ∂νν = -y² * r′
+        ∂xxx = -ν * ν² * r′′
+        ∂xxν = -ν * two_r′_plus_z_r′′
+        ∂xνν = -y * two_r′_plus_z_r′′
+        ∂ννν = -y * y² * r′′
     else
-        ν⁻¹ = inv(ν)
+        y⁻¹, ν⁻¹ = inv(y), inv(ν)
+        y⁻², ν⁻² = y⁻¹ * y⁻¹, ν⁻¹ * ν⁻¹
         ∂x = y⁻¹ * r_tail + Δx
         ∂ν = ν⁻¹ * r_tail - Δx
-        ∂xx = -y⁻² * z^2 * r′
+        ∂xx = -y⁻² * r′
         ∂xν = one_minus_r_minus_z_r′
-        ∂νν = -y² * r′
+        ∂νν = -ν⁻² * r′
+        ∂xxx = -y⁻¹ * y⁻² * r′′
+        ∂xxν = -y⁻¹ * u * u * two_r′_plus_z_r′′
+        ∂xνν = -ν⁻¹ * u * u * two_r′_plus_z_r′′
+        ∂ννν = -ν⁻¹ * ν⁻² * r′′
     end
-    ∂xxx = -ν^3 * r′′
-    ∂xxν = -ν * two_r′_plus_z_r′′
-    ∂xνν = -y * two_r′_plus_z_r′′
-    ∂ννν = -y * y² * r′′
 
     return (∂x, ∂ν), (∂xx, ∂xν, ∂νν), (∂xxx, ∂xxν, ∂xνν, ∂ννν)
 end

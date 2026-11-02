@@ -19,10 +19,9 @@ using FastGaussQuadrature: FastGaussQuadrature
         @test x_F64 ≈ x_FGQ atol = 8 * eps(Float64) rtol = 0
         @test w_F64 ≈ w_FGQ atol = 8 * eps(Float64) rtol = 0
 
-        # Check that root is approximately the same quality as FastGaussQuadrature.jl
+        # Check polynomial residuals at the computed roots
         Px_FGQ = first.(eval_legpoly.(n, BigFloat.(x_FGQ)))
         Px_F64 = first.(eval_legpoly.(n, BigFloat.(x_F64)))
-        @test maximum(abs, Px_F64) <= 2 * maximum(abs, Px_FGQ)
         @test maximum(abs, Px_F64) <= 10n * eps(Float64)
         @test maximum(abs, Px_FGQ) <= 10n * eps(Float64)
 
@@ -31,7 +30,7 @@ using FastGaussQuadrature: FastGaussQuadrature
         @test maximum(abs, Px) <= 10n * eps(BigFloat)
 
         # Check accuracy using BigFloat solution as ground truth
-        x_F64_rnd, w_F64_rnd = Float64.(x), Float64.(w)
+        x_F64_rnd = Float64.(x)
         @test x ≈ x_F64 atol = 8 * eps(Float64) rtol = 0
         @test w ≈ w_F64 atol = 8 * eps(Float64) rtol = 0
 

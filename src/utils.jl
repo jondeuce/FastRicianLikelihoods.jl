@@ -47,6 +47,30 @@ end
 @inline logexpminus(x, y) = x + log1p(-exp(y - x)) # robust log(exp(x) - exp(y)) (note: requires x > y)
 @inline logabsexpm1(x) = ifelse(x > 0, x, zero(x)) + log(-expm1(-abs(x))) # robust log|exp(x) - 1|
 
+# Estrin's scheme for evaluating `c[1] + c[2] * x + ... + c[N] * x^(N-1)`
+#   See: https://en.wikipedia.org/wiki/Estrin%27s_scheme
+@generated function estrin(x, c::NTuple{N, Any}) where {N}
+    N < 8 && return :(evalpoly(x, c))
+    terms = Any[:(c[$i]) for i in 1:N]
+    body, power = Expr[], :x
+    while length(terms) > 1
+        next = Any[i == length(terms) ? terms[i] : :(muladd($power, $(terms[i+1]), $(terms[i]))) for i in 1:2:length(terms)]
+        names = [gensym(:e) for _ in next]
+        append!(body, [:($name = $term) for (name, term) in zip(names, next)])
+        terms = names
+        if length(terms) > 1
+            squared = gensym(:x)
+            push!(body, :($squared = $power * $power))
+            power = squared
+        end
+    end
+    return quote
+        $(Expr(:meta, :inline))
+        $(body...)
+        return $(terms[1])
+    end
+end
+
 # Clenshaw scheme for evaluating scalar-valued Chebyshev polynomials
 #   See: https://github.com/chebfun/chebfun/blob/18f759287b6b88e3c3e0cf7885f559791a483127/%40chebtech/clenshaw.m#L94
 

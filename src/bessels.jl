@@ -39,7 +39,7 @@ Log of scaled modified Bessel function of the first kind of order zero, ``\\log(
 """
 @inline function logbesseli0x(x::Real)
     T = checkedfloattype(x)
-    low, mid1, mid2, mid3, high = logbesseli0x_branches(T)
+    low, _, _, _, high = logbesseli0x_branches(T)
     x = abs(x)
     if x < low
         return logbesseli0_taylor(x) - x
@@ -57,7 +57,7 @@ Log of modified Bessel function of the first kind of order zero, ``\\log I_0(x)`
 """
 @inline function logbesseli0(x::Real)
     T = checkedfloattype(x)
-    low, mid1, mid2, mid3, high = logbesseli0x_branches(T)
+    low, _, _, _, _ = logbesseli0x_branches(T)
     x = abs(x)
     return x < low ? logbesseli0_taylor(x) : logbesseli0x(x) + x # log(I0(x)) = log(besselix(0, x)) + |x|
 end
@@ -65,53 +65,53 @@ end
 @inline function logbesseli0_taylor(x::Real)
     T = checkedfloattype(x)
     x² = abs2(x)
-    return x² * (T(0.25) + x² * evalpoly(x², logbesseli0_taylor_coefs(T))) # log(I0x(x)) = log(exp(-x) * I0(x)) loses accuracy near x = 0 since I0x(x) -> 1 as x -> 0
+    return x² * (T(0.25) + x² * estrin(x², logbesseli0_taylor_coefs(T))) # log(I0x(x)) = log(exp(-x) * I0(x)) loses accuracy near x = 0 since I0x(x) -> 1 as x -> 0
 end
 
 @inline function logbesseli0x_middle(x::Real)
     T = checkedfloattype(x)
-    low, mid1, mid2, mid3, high = logbesseli0x_branches(T)
+    _, mid1, mid2, mid3, _ = logbesseli0x_branches(T)
     x = abs(x)
     if x < mid1
-        return x * evalpoly(muladd(x, logbesseli0x_mid1_transplant(T)...), logbesseli0x_mid1_coefs(T))
+        return x * estrin(muladd(x, logbesseli0x_mid1_transplant(T)...), logbesseli0x_mid1_coefs(T))
     elseif x < mid2
-        return x * evalpoly(muladd(x, logbesseli0x_mid2_transplant(T)...), logbesseli0x_mid2_coefs(T))
+        return x * estrin(muladd(x, logbesseli0x_mid2_transplant(T)...), logbesseli0x_mid2_coefs(T))
     elseif x < mid3
-        return x * evalpoly(muladd(x, logbesseli0x_mid3_transplant(T)...), logbesseli0x_mid3_coefs(T))
+        return x * estrin(muladd(x, logbesseli0x_mid3_transplant(T)...), logbesseli0x_mid3_coefs(T))
     else # x < high
-        return x * evalpoly(muladd(x, logbesseli0x_mid4_transplant(T)...), logbesseli0x_mid4_coefs(T))
+        return x * estrin(muladd(x, logbesseli0x_mid4_transplant(T)...), logbesseli0x_mid4_coefs(T))
     end
 end
 
 @inline function logbesseli0x_scaled_tail(x::Real)
     T = checkedfloattype(x)
     x⁻¹ = inv(x)
-    return x⁻¹ * evalpoly(x⁻¹, logbesseli0x_tail_coefs(T)) # log(sqrt(2πx) * exp(-x) * I0(x)) ~ 1/8x⁻¹ + 1/16x⁻² + 25/384x⁻³ + 𝒪(x⁻⁴)
+    return x⁻¹ * (x < inv(sqrt(eps(T))) ? estrin(x⁻¹, logbesseli0x_tail_coefs(T)) : muladd(x⁻¹, T(1 / 16), T(1 / 8))) # log(sqrt(2πx) * exp(-x) * I0(x)) ~ 1/8x⁻¹ + 1/16x⁻² + 25/384x⁻³ + 𝒪(x⁻⁴)
 end
 
-@inline logbesseli0x_branches(::Type{Float32}) = (1.0f0, 2.0262144f0, 3.032815f0, 5.18301f0, 7.1340613f0)
+@inline logbesseli0x_branches(::Type{Float32}) = (1.0f0, 2.012587f0, 2.9916978f0, 5.218942f0, 7.3152285f0)
 @inline logbesseli0_taylor_coefs(::Type{Float32}) = (-0.015624976f0, 0.0017352961f0, -0.00021954361f0, 2.360602f-5)
-@inline logbesseli0x_mid1_transplant(::Type{Float32}) = (1.9489106f0, -2.9489107f0)
-@inline logbesseli0x_mid1_coefs(::Type{Float32}) = (-0.6651776f0, 0.08970585f0, -0.009135113f0, 0.00022245155f0, 0.00013069467f0, -2.4635681f-5)
-@inline logbesseli0x_mid2_transplant(::Type{Float32}) = (1.9868851f0, -5.025855f0)
-@inline logbesseli0x_mid2_coefs(::Type{Float32}) = (-0.5202778f0, 0.057392687f0, -0.0061008586f0, 0.00049862283f0, -1.2916373f-5, -4.5256024f-6)
-@inline logbesseli0x_mid3_transplant(::Type{Float32}) = (0.93014824f0, -3.8209674f0)
-@inline logbesseli0x_mid3_coefs(::Type{Float32}) = (-0.38694486f0, 0.06660385f0, -0.012341707f0, 0.0022151936f0, -0.0003573263f0, 4.17854f-5)
-@inline logbesseli0x_mid4_transplant(::Type{Float32}) = (1.0250883f0, -6.3130426f0)
-@inline logbesseli0x_mid4_coefs(::Type{Float32}) = (-0.2931732f0, 0.032936238f0, -0.0040817023f0, 0.0005173513f0, -6.647147f-5, 8.107054f-6)
-@inline logbesseli0x_tail_coefs(::Type{Float32}) = (0.12499994f0, 0.06252784f0, 0.06290423f0, 0.16337825f0, -0.52516294f0, 3.8941476f0)
+@inline logbesseli0x_mid1_coefs(::Type{Float32}) = (-0.6663704f0, 0.088754125f0, -0.008902577f0, 0.00020709152f0, 0.00012540427f0, -2.313366f-5)
+@inline logbesseli0x_mid1_transplant(::Type{Float32}) = (1.9751388f0, -2.975139f0)
+@inline logbesseli0x_mid2_coefs(::Type{Float32}) = (-0.52341723f0, 0.056475032f0, -0.005849333f0, 0.0004616325f0, -1.0493147f-5, -4.2228025f-6)
+@inline logbesseli0x_mid2_transplant(::Type{Float32}) = (2.04267f0, -5.111051f0)
+@inline logbesseli0x_mid3_coefs(::Type{Float32}) = (-0.38710552f0, 0.06905217f0, -0.013259217f0, 0.0024660034f0, -0.00041200756f0, 4.962626f-5)
+@inline logbesseli0x_mid3_transplant(::Type{Float32}) = (0.8979706f0, -3.6864567f0)
+@inline logbesseli0x_mid4_coefs(::Type{Float32}) = (-0.28955814f0, 0.03443216f0, -0.004517907f0, 0.0006069093f0, -8.3052546f-5, 1.0799444f-5)
+@inline logbesseli0x_mid4_transplant(::Type{Float32}) = (0.9540682f0, -5.9792266f0)
+@inline logbesseli0x_tail_coefs(::Type{Float32}) = (0.12499995f0, 0.062525846f0, 0.06303961f0, 0.16020738f0, -0.49523312f0, 3.7963736f0)
 
-@inline logbesseli0x_branches(::Type{Float64}) = (1.0, 2.4539954370828134, 4.426675225425466, 8.113004453118227, 13.79718132864979)
+@inline logbesseli0x_branches(::Type{Float64}) = (1.0, 2.4273313920504247, 4.368422375132864, 7.804751908461284, 13.115758945221774)
 @inline logbesseli0_taylor_coefs(::Type{Float64}) = (-0.01562499999999995, 0.0017361111111010013, -0.00022379557257775202, 3.092447475294501e-5, -4.455160371599049e-6, 6.601794380225889e-7, -9.963839425018547e-8, 1.496590273686032e-8, -2.0311101682813397e-9, 1.784377125069117e-10)
-@inline logbesseli0x_mid1_transplant(::Type{Float64}) = (1.3755201350649688, -2.375520135064969)
-@inline logbesseli0x_mid1_coefs(::Type{Float64}) = (-0.6293509921334998, 0.1165222156862489, -0.017543241808282393, 0.0011263889520766045, 0.00032222558333416774, -0.00012176511385428864, 1.6070398691462904e-5, 1.5165939776545204e-6, -1.1419110868276816e-6, 2.191954526212264e-7, -2.4282770550872775e-10, -1.0977853470173317e-8, 2.902257499240661e-9, -1.9267719751651386e-10, -1.023777707120882e-10, 3.3047056495605973e-11, -2.612196667913543e-12)
-@inline logbesseli0x_mid2_transplant(::Type{Float64}) = (1.0138492885762773, -3.4879815280558413)
-@inline logbesseli0x_mid2_coefs(::Type{Float64}) = (-0.433648178631133, 0.07785990208975836, -0.014641801812046053, 0.0025229449612280725, -0.0003453680388341347, 2.135186866647759e-5, 6.801589942277674e-6, -3.2577624319146623e-6, 8.273124612471309e-7, -1.407801084204267e-7, 1.1292965383300882e-8, 2.565188338696305e-9, -1.4394021269523833e-9, 3.975416943967199e-10, -7.30324481618524e-11, 3.163082922739749e-12, 2.098918916266162e-12)
-@inline logbesseli0x_mid3_transplant(::Type{Float64}) = (0.5425451381215293, -3.4016711215976114)
-@inline logbesseli0x_mid3_coefs(::Type{Float64}) = (-0.2894676393211177, 0.06050732983792175, -0.013958370849695728, 0.0032965788519068446, -0.0007742680839766047, 0.00017655604402086076, -3.7888051852072746e-5, 7.245606514336846e-6, -1.07400018711158e-6, 4.550555059341293e-8, 4.934991263707759e-8, -2.6916330419166043e-8, 9.66295495228346e-9, -2.850929991938722e-9, 7.368411765561862e-10, -1.6070835311259337e-10, 2.1091869151328898e-11)
-@inline logbesseli0x_mid4_transplant(::Type{Float64}) = (0.35185393484311084, -3.854592540229329)
-@inline logbesseli0x_mid4_coefs(::Type{Float64}) = (-0.19204323036278093, 0.03768199446511169, -0.008157807879284613, 0.0018280979828959336, -0.000416301900904904, 9.552336542286533e-5, -2.1970050940049594e-5, 5.044041118490876e-6, -1.1512652564047615e-6, 2.5996853766320234e-7, -5.7700172869363094e-8, 1.24572056976531e-8, -2.5769860973226465e-9, 5.080843549259749e-10, -8.967154903917677e-11, 6.013660636164252e-12, 2.3047924090477283e-12)
-@inline logbesseli0x_tail_coefs(::Type{Float64}) = (0.125, 0.06249999999990704, 0.06510416677685975, 0.1015624484769859, 0.20958291517669933, 0.534604986182686, 1.8155149103752943, -5.79677657036416, 556.8677969367772, -17339.18845642846, 406001.5911443486, -6.564842028194815e6, 7.056595146213631e7, -4.4273395883670574e8, 9.37272527534153e8, 5.461197809026326e9, -2.8269544002663994e10)
+@inline logbesseli0x_mid1_coefs(::Type{Float64}) = (-0.6314937374457755, 0.11501811747051277, -0.016964792253668346, 0.0010428006147571967, 0.0003096745255119058, -0.00011260405860526542, 1.4197326426499429e-5, 1.4817997937189319e-6, -1.0159423988239176e-6, 1.8542342958162965e-7, 1.6913322557800307e-9, -9.480097797535782e-9, 2.359654865642401e-9, -1.302358772144236e-10, -8.69022995592349e-11, 2.5713301162051096e-11, -1.7342796618966495e-12)
+@inline logbesseli0x_mid1_transplant(::Type{Float64}) = (1.4012162915627544, -2.401216291562754)
+@inline logbesseli0x_mid2_coefs(::Type{Float64}) = (-0.43702710599956285, 0.07786739972887159, -0.014495828275497476, 0.002460697007573363, -0.00032789433716279265, 1.795530460077842e-5, 7.104561708708271e-6, -3.172618163848316e-6, 7.758128274682523e-7, -1.256981784280769e-7, 8.415711530138176e-9, 2.819995831513679e-9, -1.3763063676487773e-9, 3.5864320608290456e-10, -6.155471302065167e-11, 1.2666722360704097e-12, 2.1595297700656985e-12)
+@inline logbesseli0x_mid2_transplant(::Type{Float64}) = (1.0303484058351626, -3.500997030232801)
+@inline logbesseli0x_mid3_coefs(::Type{Float64}) = (-0.29562474551688944, 0.059085218329401945, -0.013025193402085546, 0.0029345192192710553, -0.0006553570128493334, 0.0001412852524305638, -2.836580652872031e-5, 4.960058377886241e-6, -6.20290283257456e-7, -1.0894670349200352e-8, 4.259980984442922e-8, -1.8902339757216067e-8, 6.057649433517548e-9, -1.628234397068111e-9, 3.791867796750589e-10, -6.748341056153555e-11, 5.675981263485359e-12)
+@inline logbesseli0x_mid3_transplant(::Type{Float64}) = (0.5820163580361878, -3.542493281138623)
+@inline logbesseli0x_mid4_coefs(::Type{Float64}) = (-0.19886140852329215, 0.038026354208407886, -0.00802623574986359, 0.0017533187066348472, -0.0003890453861945658, 8.691902817038615e-5, -1.944322911623319e-5, 4.3343353371717545e-6, -9.58120274121212e-7, 2.0871660587257014e-7, -4.441203642100071e-8, 9.096637063856574e-9, -1.753361935382705e-9, 3.140720929793921e-10, -4.5848625092234583e-11, -2.8668536796293043e-12, 3.425379518957655e-12)
+@inline logbesseli0x_mid4_transplant(::Type{Float64}) = (0.37657641689360727, -3.9390855084318934)
+@inline logbesseli0x_tail_coefs(::Type{Float64}) = (0.12500000000000006, 0.06249999999967958, 0.06510416704462363, 0.10156232389156852, 0.20961334668207743, 0.5301120787106338, 2.250696664936657, -34.902839834523085, 1945.3838946369242, -65509.539033617555, 1.6320871386107295e6, -2.9438009334150616e7, 3.795109032267882e8, -3.3816374005861516e9, 1.9602149973462765e10, -6.555322646176011e10, 9.411821247781784e10)
 
 """
     besseli2(x::T) where {T <: Union{Float32, Float64}}
@@ -123,10 +123,10 @@ Modified Bessel function of the first kind of order two, ``I_2(x)``.
     x = abs(x)
     if x < 7.75
         a = x * x / 4
-        return a * evalpoly(a, besseli2_small_coefs(T))
+        return a * estrin(a, besseli2_small_coefs(T))
     else
         a = exp(x / 2)
-        s = a * evalpoly(inv(x), besseli2_med_coefs(T)) / sqrt(x)
+        s = a * estrin(inv(x), besseli2_med_coefs(T)) / sqrt(x)
         return a * s
     end
 end
@@ -142,19 +142,20 @@ Scaled modified Bessel function of the first kind of order two, ``I_2(x) e^{-|x|
     x = abs(x)
     if x < 7.75
         a = x * x / 4
-        return a * evalpoly(a, besseli2_small_coefs(T)) * exp(-x)
+        return a * estrin(a, besseli2_small_coefs(T)) * exp(-x)
     elseif x < branch
-        return evalpoly(inv(x), besseli2_med_coefs(T)) / sqrt(x)
+        return estrin(inv(x), besseli2_med_coefs(T)) / sqrt(x)
     else
-        return evalpoly(inv(x), besseli2_large_coefs(T)) / sqrt(x)
+        return estrin(inv(x), besseli2_large_coefs(T)) / sqrt(x)
     end
 end
 
 @inline besseli2_small_coefs(::Type{Float32}) = (0.50000006f0, 0.16666625f0, 0.020834042f0, 0.0013884112f0, 5.803109f-5, 1.623226f-6, 3.775087f-8, 3.4031894f-10, 1.3439159f-11)
-@inline besseli2_small_coefs(::Type{Float64}) = (0.49999999999999983, 0.16666666666667154, 0.020833333333312287, 0.0013888888889246186, 5.787037033873442e-5, 1.6534391702073172e-6, 3.444664327750705e-8, 5.467735445704131e-10, 6.834436191839501e-12, 6.906148607507894e-14, 5.733547826165566e-16, 4.1288365068666296e-18, 2.0258796870216445e-20, 1.958474603154919e-22)
 @inline besseli2_med_coefs(::Type{Float32}) = (0.39894232f0, -0.7480355f0, 0.32830036f0, 0.10303897f0, 0.26398978f0)
-@inline besseli2_med_coefs(::Type{Float64}) = (0.3989422804014328, -0.7480167757536108, 0.32725734026661746, 0.12272117712518572, 0.12661924336742728, 0.19850024575867328, 0.9652668510022121, -22.51505904563947, 650.0016469705932, -5111.50427436369, -366285.04225287505, 1.8663446822444886e7, -4.8709904200655675e8, 8.501718935762221e9, -1.0580797337688026e11, 9.548560528330254e11, -6.211912811203479e12, 2.8410346605629977e13, -8.670581882322736e13, 1.5860621218255747e14, -1.3160619165647222e14)
 @inline besseli2_large_coefs(::Type{Float32}) = (0.39894232f0, -0.7480454f0, 0.33103424f0)
+
+@inline besseli2_small_coefs(::Type{Float64}) = (0.49999999999999983, 0.16666666666667154, 0.020833333333312287, 0.0013888888889246186, 5.787037033873442e-5, 1.6534391702073172e-6, 3.444664327750705e-8, 5.467735445704131e-10, 6.834436191839501e-12, 6.906148607507894e-14, 5.733547826165566e-16, 4.1288365068666296e-18, 2.0258796870216445e-20, 1.958474603154919e-22)
+@inline besseli2_med_coefs(::Type{Float64}) = (0.3989422804014328, -0.7480167757536108, 0.32725734026661746, 0.12272117712518572, 0.12661924336742728, 0.19850024575867328, 0.9652668510022131, -22.515059045639532, 650.001646970596, -5111.504274363786, -366285.0422528725, 1.8663446822444834e7, -4.870990420065559e8, 8.501718935762211e9, -1.0580797337688016e11, 9.548560528330247e11, -6.211912811203474e12, 2.841034660562996e13, -8.670581882322731e13, 1.5860621218255738e14, -1.3160619165647214e14)
 @inline besseli2_large_coefs(::Type{Float64}) = (0.3989422804014327, -0.7480167757530116, 0.3272573406917582, 0.12271968486936348, 0.12759241505245666)
 
 #### Derived special functions
@@ -191,21 +192,38 @@ Log of scaled modified Bessel function of the first kind of order two, ``\\log(I
 
 @inline function laguerre½²c(t::Real)
     # laguerre½²c(t) = L^2 - t^2 - 1 where L = √(π/2) * laguerre½(-t^2/2)
-    T = checkedfloattype(t)
-    branch = T == Float32 ? 3.4f0 : 4.3e0
-    if t < branch
-        y = t^2
-        return evalpoly(y, laguerre½²c_small_coefs(T))
+    return _laguerre½²c(t, checkedfloattype(t))
+end
+
+@inline function _laguerre½²c(t::Real, ::Type{T}) where {T}
+    y = t * t
+    if y < T(4)
+        return estrin(y / T(4), laguerre½²c_small1_coefs(T))
+    elseif y < T(12)
+        return estrin(muladd(y, laguerre½²c_small2_transplant(T)...), laguerre½²c_small2_coefs(T))
+    elseif y < T(36)
+        return estrin(muladd(y, laguerre½²c_small3_transplant(T)...), laguerre½²c_small3_coefs(T))
     else
-        y = inv(t)^2
-        return y * evalpoly(y, laguerre½²c_large_coefs(T))
+        y⁻¹ = inv(t)^2
+        return y⁻¹ * estrin(muladd(y⁻¹, laguerre½²c_large_transplant(T)...), laguerre½²c_large_coefs(T))
     end
 end
 
-@inline laguerre½²c_small_coefs(::Type{Float32}) = (0.5707962f0, -0.21459818f0, 0.049073838f0, -0.0081615625f0, 0.0010717527f0, -0.0001148001f0, 9.935807f-6, -6.625331f-7, 3.134115f-8, -9.190797f-10, 1.2392542f-11)
-@inline laguerre½²c_small_coefs(::Type{Float64}) = (0.5707963267944944, -0.21460183658265033, 0.049087385048506654, -0.008181230332361096, 0.0010865687931868046, -0.00012143915271414923, 1.1850357912302052e-5, -1.0363714628793908e-6, 8.272717280746797e-8, -6.095692789362868e-9, 4.1612417953794933e-10, -2.617973804424017e-11, 1.4957198539034854e-12, -7.583260826274592e-14, 3.3138533832359202e-15, -1.2069999116679684e-16, 3.524893658912788e-18, -7.863203684119532e-20, 1.2499337199986914e-21, -1.254956407795466e-23, 5.96116567823201e-26)
-@inline laguerre½²c_large_coefs(::Type{Float32}) = (0.5000001f0, 0.49966717f0, 1.5056641f0, -12.993781f0, 1426.22f0, -51440.547f0, 991048.25f0, -7.3582105f6, -2.198495f7, 5.8008864f8, -2.2002685f9)
-@inline laguerre½²c_large_coefs(::Type{Float64}) = (0.5000000000007456, 0.49999998836832427, 1.375030137769133, 6.344086335703835, 58.50578586624112, -5115.534157744382, 1.1866205173287583e6, -1.779111923731936e8, 1.9293241453016853e10, -1.5425475363829568e12, 9.230350664567888e13, -4.16652806576365e15, 1.4220659445965458e17, -3.658456330858182e18, 7.027759437240608e19, -9.895548988767412e20, 9.874128025778949e21, -6.5532901003608015e22, 2.5238431384199616e23, -3.597153866972595e23, -4.337934371146472e23)
+@inline laguerre½²c_small1_coefs(::Type{Float32}) = (0.5707963f0, -0.8584068f0, 0.7853828f0, -0.52343524f0, 0.2772832f0, -0.12166526f0, 0.043580707f0, -0.011369183f0, 0.0015599251f0)
+@inline laguerre½²c_small2_coefs(::Type{Float32}) = (0.07509229f0, -0.04485518f0, 0.024552079f0, -0.011766576f0, 0.0048901024f0, -0.0017767233f0, 0.0005716923f0, -0.00016371648f0, 4.3126685f-5, -1.2159225f-5, 2.791931f-6)
+@inline laguerre½²c_small2_transplant(::Type{Float32}) = (0.25f0, -2.0f0)
+@inline laguerre½²c_small3_coefs(::Type{Float32}) = (0.021829125f0, -0.011498634f0, 0.006102043f0, -0.0032706815f0, 0.0017730005f0, -0.0009646032f0, 0.0005276015f0, -0.00030712632f0, 0.00016790304f0, -5.49553f-5, 2.5261792f-5, -3.8417656f-5, 1.837507f-5)
+@inline laguerre½²c_small3_transplant(::Type{Float32}) = (0.083333336f0, -2.0f0)
+@inline laguerre½²c_large_coefs(::Type{Float32}) = (0.50722855f0, 0.007533506f0, 0.00032818364f0, 2.5914162f-5, 3.1417717f-6, 5.391343f-7, 1.4190516f-7, 6.10655f-8, 1.523176f-8, -2.2704474f-9)
+@inline laguerre½²c_large_transplant(::Type{Float32}) = (72.0f0, -1.0f0)
+
+@inline laguerre½²c_small1_coefs(::Type{Float64}) = (0.5707963267948967, -0.8584073464102066, 0.7853981633974321, -0.5235987755976764, 0.278161849523994, -0.12435470904965956, 0.04854196856341194, -0.016985786503682567, 0.005430384746837412, -0.0016078871741822703, 0.00044501651519756414, -0.00011568705864588991, 2.8157619704925723e-5, -6.27245130459232e-6, 1.1988133148520703e-6, -1.7060604809840622e-7, 1.3038066466819481e-8)
+@inline laguerre½²c_small2_coefs(::Type{Float64}) = (0.0750922939077032, -0.044855175550378656, 0.02455207206532838, -0.011766701500643757, 0.004890175170994685, -0.0017760270733748061, 0.0005714184721117123, -0.00016528947258048134, 4.359761938122429e-5, -1.0622713584690922e-5, 2.4187399906158563e-6, -5.198566828225391e-7, 1.0635744262248545e-7, -2.0857540914158283e-8, 3.937573527891655e-9, -7.118544089915365e-10, 1.255707237845092e-10, -2.4611454675903543e-11, 4.101243460992632e-12)
+@inline laguerre½²c_small2_transplant(::Type{Float64}) = (0.25, -2.0)
+@inline laguerre½²c_small3_coefs(::Type{Float64}) = (0.021829123227749478, -0.011498656624258922, 0.006102109294456777, -0.0032700434324974947, 0.0017720825242225386, -0.0009695987238590336, 0.0005324406798493483, -0.0002905439625996708, 0.0001557402734793816, -8.114063699385476e-5, 4.0759459211195254e-5, -1.964098868871727e-5, 9.056935949377753e-6, -3.994781626215287e-6, 1.6875742027698553e-6, -6.850068517395359e-7, 2.675006593737042e-7, -9.986721055142827e-8, 3.643165300348487e-8, -1.3966998410461667e-8, 4.9187263485043116e-9, -1.0492390879382305e-9, 3.2779939123533993e-10, -3.3654383743781266e-10, 1.1361941228163363e-10)
+@inline laguerre½²c_small3_transplant(::Type{Float64}) = (0.08333333333333333, -2.0)
+@inline laguerre½²c_large_coefs(::Type{Float64}) = (0.5072285353870277, 0.007533505907967427, 0.0003281831578511096, 2.591272457517579e-5, 3.1455208701366716e-6, 5.464308372395623e-7, 1.3253491762073007e-7, 4.535156161604887e-8, 2.2068828349851417e-8, 1.3167567843892215e-8, 4.442567019688479e-9, -5.624736376140391e-9, -8.01704904322673e-9, -7.911299629805929e-10, 3.6710262514452458e-9, 9.588970809096078e-10, -9.756504977745483e-10, -2.0974516065267094e-10, 1.2540677182453326e-10)
+@inline laguerre½²c_large_transplant(::Type{Float64}) = (72.0, -1.0)
 
 """
     besseli1i0(x::T) where {T <: Union{Float32, Float64}}
@@ -234,21 +252,21 @@ Ratio of modified Bessel functions minus one, ``I_1(x) / I_0(x) - 1``.
     if x < tail
         x² = x^2
         if x < low
-            rx = evalpoly(x², besseli1i0_low_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) = 1/2 + 𝒪(x^2)
+            rx = estrin(x², besseli1i0_low_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) = 1/2 + 𝒪(x^2)
         elseif x < mid1
-            rx = evalpoly(x², besseli1i0_mid1_num_coefs(T)) / evalpoly(x², besseli1i0_mid1_den_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) / Q(x^2) = 1/2 + 𝒪(x^2)
+            rx = estrin(x², besseli1i0_mid1_num_coefs(T)) / estrin(x², besseli1i0_mid1_den_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) / Q(x^2) = 1/2 + 𝒪(x^2)
         elseif x < mid2
-            rx = evalpoly(x², besseli1i0_mid2_num_coefs(T)) / evalpoly(x², besseli1i0_mid2_den_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) / Q(x^2) = 1/2 + 𝒪(x^2)
+            rx = estrin(x², besseli1i0_mid2_num_coefs(T)) / estrin(x², besseli1i0_mid2_den_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) / Q(x^2) = 1/2 + 𝒪(x^2)
         elseif x < mid3
-            rx = evalpoly(x², besseli1i0_mid3_num_coefs(T)) / evalpoly(x², besseli1i0_mid3_den_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) / Q(x^2) = 1/2 + 𝒪(x^2)
+            rx = estrin(x², besseli1i0_mid3_num_coefs(T)) / estrin(x², besseli1i0_mid3_den_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) / Q(x^2) = 1/2 + 𝒪(x^2)
         else # x < tail
-            rx = evalpoly(x², besseli1i0_mid4_num_coefs(T)) / evalpoly(x², besseli1i0_mid4_den_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) / Q(x^2) = 1/2 + 𝒪(x^2)
+            rx = estrin(x², besseli1i0_mid4_num_coefs(T)) / estrin(x², besseli1i0_mid4_den_coefs(T)) # I₁(x) / I₀(x) / x = P(x^2) / Q(x^2) = 1/2 + 𝒪(x^2)
         end
         r = x * rx # I₁(x) / I₀(x) = x * R(x^2) = x/2 - x^3/16 + 𝒪(x^5) where R(x^2) = P(x^2) or P(x^2) / Q(x^2)
         rm1 = r - one(T) # I₁(x) / I₀(x) - 1 = -1 + x/2 - x^3/16 + 𝒪(x^5)
     else # x >= tail
         x⁻¹ = inv(x)
-        rm1x²m½x = evalpoly(x⁻¹, besseli1i0c_tail_coefs(T)) # P(1/x) = x^2 * (1 - I₁(x) / I₀(x)) - x/2 = 1/8 + 1/8x + 25/128x^2 + 𝒪(1/x^3)
+        rm1x²m½x = estrin(x⁻¹, besseli1i0c_tail_coefs(T)) # P(1/x) = x^2 * (1 - I₁(x) / I₀(x)) - x/2 = 1/8 + 1/8x + 25/128x^2 + 𝒪(1/x^3)
         rm1 = x⁻¹ * (T(-0.5) - x⁻¹ * rm1x²m½x) # I₁(x) / I₀(x) - 1 = -1/2x - P(1/x) / x^2 = -1/2x - 1/8x^2 - 1/8x^3 + 𝒪(1/x^4)
         r = rm1 + one(T) # I₁(x) / I₀(x) = 1 - 1/2x - 1/8x^2 - 1/8x^3 + 𝒪(1/x^4)
         rx = x⁻¹ * r
@@ -256,36 +274,37 @@ Ratio of modified Bessel functions minus one, ``I_1(x) / I_0(x) - 1``.
     return r, rx, rm1
 end
 
-@inline besseli1i0_branches(::Type{Float32}) = (0.5f0, 5.197075f0, 9.929153f0, 18.494247f0, 36.094307f0)
+@inline besseli1i0_branches(::Type{Float32}) = (0.5f0, 5.2539897f0, 10.244816f0, 19.181583f0, 38.592796f0)
 @inline besseli1i0_low_coefs(::Type{Float32}) = (0.5f0, -0.0624989f0, 0.010394423f0, -0.0016448505f0)
-@inline besseli1i0_mid1_num_coefs(::Type{Float32}) = (0.49999997f0, 0.043556698f0, 0.00066640606f0, 1.1037953f-6)
-@inline besseli1i0_mid1_den_coefs(::Type{Float32}) = (1.0f0, 0.21211326f0, 0.007013781f0, 4.0564966f-5)
-@inline besseli1i0_mid2_num_coefs(::Type{Float32}) = (0.49386856f0, 0.034112554f0, 0.0003199398f0, 2.4867086f-7)
-@inline besseli1i0_mid2_den_coefs(::Type{Float32}) = (1.0f0, 0.18871176f0, 0.004393305f0, 1.3712045f-5)
-@inline besseli1i0_mid3_num_coefs(::Type{Float32}) = (0.38958442f0, 0.010547966f0, 3.396568f-5, 8.475613f-9)
-@inline besseli1i0_mid3_den_coefs(::Type{Float32}) = (1.0f0, 0.09150172f0, 0.00079196814f0, 8.2656f-7)
-@inline besseli1i0_mid4_num_coefs(::Type{Float32}) = (0.24115495f0, 0.0018708268f0, 1.6862418f-6, 1.1641679f-10)
-@inline besseli1i0_mid4_den_coefs(::Type{Float32}) = (1.0f0, 0.029562477f0, 7.367802f-5, 2.155656f-8)
-@inline besseli1i0c_tail_coefs(::Type{Float32}) = (0.12499999f0, 0.12500682f0, 0.19411263f0, 0.47243553f0)
+@inline besseli1i0_mid1_num_coefs(::Type{Float32}) = (0.49999997f0, 0.04353572f0, 0.000664983f0, 1.0970086f-6)
+@inline besseli1i0_mid1_den_coefs(::Type{Float32}) = (1.0f0, 0.2120713f0, 0.007005701f0, 4.0410923f-5)
+@inline besseli1i0_mid2_num_coefs(::Type{Float32}) = (0.49287614f0, 0.03344882f0, 0.00030526333f0, 2.2926868f-7)
+@inline besseli1i0_mid2_den_coefs(::Type{Float32}) = (1.0f0, 0.18673065f0, 0.004251321f0, 1.2868143f-5)
+@inline besseli1i0_mid3_num_coefs(::Type{Float32}) = (0.3814032f0, 0.0096941255f0, 2.9229745f-5, 6.8207853f-9)
+@inline besseli1i0_mid3_den_coefs(::Type{Float32}) = (1.0f0, 0.08665983f0, 0.00070395553f0, 6.8782975f-7)
+@inline besseli1i0_mid4_num_coefs(::Type{Float32}) = (0.23153244f0, 0.0016276878f0, 1.3243184f-6, 8.2235885f-11)
+@inline besseli1i0_mid4_den_coefs(::Type{Float32}) = (1.0f0, 0.026988983f0, 6.0895945f-5, 1.6060818f-8)
+@inline besseli1i0c_tail_coefs(::Type{Float32}) = (0.12499999f0, 0.12500551f0, 0.19427566f0, 0.46759263f0)
 
-@inline besseli1i0_branches(::Type{Float64}) = (0.5, 7.52740354489351, 13.090559031850686, 20.80952798408195, 33.4745971087716)
+@inline besseli1i0_branches(::Type{Float64}) = (0.5, 7.515971274223541, 12.995005502686293, 20.456767637632435, 32.23120437631026)
 @inline besseli1i0_low_coefs(::Type{Float64}) = (0.5, -0.06249999999999999, 0.0104166666666654, -0.0017903645832681267, 0.00030924478996177326, -5.346225011561096e-5, 9.243845992068521e-6, -1.597088340378288e-6, 2.7173295526886746e-7, -3.86430832554434e-8)
-@inline besseli1i0_mid1_num_coefs(::Type{Float64}) = (0.5, 0.05051232213180785, 0.001261150320831201, 9.788283800870312e-6, 1.5775685868303345e-8, -1.6909410781453963e-11, 3.91429085414582e-14, -1.1124286855644106e-16, 3.2387399247670293e-19, -8.478147054904883e-22, 1.6964956996840654e-24, -1.8748316429974648e-27)
-@inline besseli1i0_mid1_den_coefs(::Type{Float64}) = (1.0, 0.22602464426361568, 0.009942047841281054, 0.0001342149589365221, 5.258773123126486e-7)
-@inline besseli1i0_mid2_num_coefs(::Type{Float64}) = (0.49999554772921173, 0.04971418890122518, 0.0011885222737792341, 8.455342928370799e-6, 1.1711502412689139e-8, -9.932208927352689e-12, 1.638151591206671e-14, -2.938614891171288e-17, 4.739302412725169e-20, -6.029444407699415e-23, 5.192050899871583e-26, -2.223157457100178e-29)
-@inline besseli1i0_mid2_den_coefs(::Type{Float64}) = (1.0, 0.22442480753717464, 0.00959765754083271, 0.00012166703966703814, 4.2465187089283047e-7)
-@inline besseli1i0_mid3_num_coefs(::Type{Float64}) = (0.48821543235627424, 0.038831575688716057, 0.0006509361968343166, 2.8932601080870305e-6, 2.2628763609937953e-9, -1.0033474895681845e-12, 8.0901283743250495e-16, -6.728383536147867e-19, 4.828050185413794e-22, -2.647792728844039e-25, 9.593633715211663e-29, -1.6967481567167612e-32)
-@inline besseli1i0_mid3_den_coefs(::Type{Float64}) = (1.0, 0.19587834025191733, 0.006294445466707653, 5.294738466311112e-5, 1.1011346235778047e-7)
-@inline besseli1i0_mid4_num_coefs(::Type{Float64}) = (0.3953099776294151, 0.0143303499269297, 0.00010250856948462276, 1.885851249584892e-7, 5.991135040216946e-11, -1.0735229148812402e-14, 3.470381388869812e-18, -1.1506814269246478e-21, 3.278190375527831e-25, -7.115086603209037e-29, 1.0176985081949667e-32, -7.090984812661566e-37)
-@inline besseli1i0_mid4_den_coefs(::Type{Float64}) = (1.0, 0.10403308063121751, 0.0014947027941623618, 5.324010820694674e-6, 4.567138270589379e-9)
-@inline besseli1i0c_tail_coefs(::Type{Float64}) = (0.125, 0.12500000000000067, 0.19531249999896427, 0.40625000063246103, 1.047851363431197, 3.218786836985941, 11.46216325763734, 46.805884323072455, 194.8624724456196, 1595.7616954693328, -4511.937268947673, 139379.87983903964)
+@inline besseli1i0_mid1_num_coefs(::Type{Float64}) = (0.5, 0.05051257275549395, 0.0012611738462395938, 9.788747912878983e-6, 1.5777297769408054e-8, -1.6912776880190478e-11, 3.9157264469423244e-14, -1.1131493430228754e-16, 3.2423010302481025e-19, -8.493282510185491e-22, 1.7011724320890625e-24, -1.8824009065016947e-27)
+@inline besseli1i0_mid1_den_coefs(::Type{Float64}) = (1.0, 0.2260251455109879, 0.009942157548019366, 0.0001342191578492413, 5.259146742416428e-7)
+@inline besseli1i0_mid2_num_coefs(::Type{Float64}) = (0.4999959419330061, 0.049730915009281514, 0.001189978099945009, 8.479918876568225e-6, 1.1776977719687032e-8, -1.0024897612610195e-11, 1.6613677903552577e-14, -2.9975348671507035e-17, 4.8666415934125773e-20, -6.237589566817162e-23, 5.414840689481311e-26, -2.3386499201170585e-29)
+@inline besseli1i0_mid2_den_coefs(::Type{Float64}) = (1.0, 0.22445856510880843, 0.00960471825036602, 0.00012190896402176206, 4.2640656363050543e-7)
+@inline besseli1i0_mid3_num_coefs(::Type{Float64}) = (0.4893835515722947, 0.03947303528081722, 0.000673447634678756, 3.0531643081541053e-6, 2.4394093737493614e-9, -1.1059389659786812e-12, 9.125651909755847e-16, -7.772328741930979e-19, 5.714793200998154e-22, -3.213101634787341e-25, 1.1940832849865227e-28, -2.1670094850761264e-32)
+@inline besseli1i0_mid3_den_coefs(::Type{Float64}) = (1.0, 0.19780038684494777, 0.006456332433511402, 5.5327495093660825e-5, 1.1743775976109534e-7)
+@inline besseli1i0_mid4_num_coefs(::Type{Float64}) = (0.4018154544324209, 0.015319062735257509, 0.00011549534088144715, 2.2421905564927978e-7, 7.524438683982764e-11, -1.424969873544215e-14, 4.872327888929994e-18, -1.7099878558448984e-21, 5.160003375939312e-25, -1.1870317989011305e-28, 1.8007236155905433e-32, -1.331531532197771e-36)
+@inline besseli1i0_mid4_den_coefs(::Type{Float64}) = (1.0, 0.1086273760146177, 0.0016417116904751817, 6.164327133597336e-6, 5.5812466487748526e-9)
+@inline besseli1i0c_tail_coefs(::Type{Float64}) = (0.125, 0.1249999999999999, 0.19531250000016376, 0.4062499998866536, 1.047851603178, 3.218741339509917, 11.467639207339296, 46.371873585506364, 217.8164210629866, 793.715143893347, 13264.204676401096, -86990.15182730988, 1.2614025408069761e6)
 
-@inline function _neglogpdf_rician_parts(z::Real, degree::Val)
+@inline function _neglogpdf_rician_parts(z::Real, degree::Val, scaled::Val = Val(false))
     T = checkedfloattype(z)
     if z < neglogpdf_rician_parts_taylor_branch(T)
         return _neglogpdf_rician_parts_taylor(z, degree)
     else
-        return _neglogpdf_rician_parts_asymptotic(z, degree)
+        # If scaled=true, return z²r′, z³r′′ and z³(2r′ + zr′′)
+        return _neglogpdf_rician_parts_asymptotic(z, degree, scaled)
     end
 end
 
@@ -293,7 +312,7 @@ end
     T = checkedfloattype(z)
     r_tail = r′ = r′′ = one_minus_r_minus_z_r′ = two_r′_plus_z_r′′ = T(NaN)
     z² = z^2
-    a1 = evalpoly(z², a1_taylor_coefs(T))
+    a1 = estrin(z², a1_taylor_coefs(T))
     a0 = T(0.5) + z² * a1
     r = z * a0
     r² = r * r
@@ -305,80 +324,100 @@ end
         r′′ = T(2) * (z * a1 + r * ((T(1.5) * a0 - one(T)) + r²))
         two_r′_plus_z_r′′ = 2 * r′ + z * r′′
     end
-    r_tail = T(NaN)
-    return r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′
+    u = r_tail = T(NaN)
+    return (; u, r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′)
 end
 
-@inline function _neglogpdf_rician_parts_asymptotic(z::Real, ::Val{degree}) where {degree}
+@inline function _neglogpdf_rician_parts_asymptotic(z::Real, ::Val{degree}, ::Val{scaled} = Val(false)) where {degree, scaled}
     T = checkedfloattype(z)
-    low, mid1, mid2, mid3, mid4, high, tail = neglogpdf_rician_parts_branches(T)
     r_tail = r′ = r′′ = one_minus_r_minus_z_r′ = two_r′_plus_z_r′′ = T(NaN)
     u = inv(z)
-    if z < mid1
-        b3 = evalpoly(muladd(u, b3_mid1_transplant(T)...), b3_mid1_coefs(T))
-    elseif z < mid2
-        b3 = evalpoly(muladd(u, b3_mid2_transplant(T)...), b3_mid2_coefs(T))
-    elseif z < mid3
-        b3 = evalpoly(muladd(u, b3_mid3_transplant(T)...), b3_mid3_coefs(T))
-    elseif z < mid4
-        b3 = evalpoly(muladd(u, b3_mid4_transplant(T)...), b3_mid4_coefs(T))
-    elseif z < high
-        b3 = evalpoly(muladd(u, b3_mid5_transplant(T)...), b3_mid5_coefs(T))
-    elseif z < tail
-        b3 = evalpoly(u, b3_high_coefs(T))
-    else # z >= tail
-        b3 = evalpoly(u, b3_tail_coefs(T))
-    end
+    b3 = b3_asymptotic(u, z)
     b2 = one(T) + u * b3
     b1 = T(0.25) * (one(T) + u * b2)
     b0 = T(0.5) * (one(T) + u * b1)
     b0², b1² = b0 * b0, b1 * b1
     u² = u^2
     halfu² = T(0.5) * u²
-    halfu³ = halfu² * u
     r = one(T) - u * b0
     r_tail = b0
     if degree >= 1
-        r′ = u² * (b1 + b0 * (one(T) - b0))
+        r′ = b1 + b0 * (one(T) - b0)
+        if !scaled
+            r′ *= u²
+        end
         one_minus_r_minus_z_r′ = halfu² * (b1 * (T(0.5) + b0) + T(-0.5) * b2)
     end
     if degree >= 2
-        r′′ = T(-4) * halfu³ * ((b0² * (T(0.5) + b0) + T(0.25) * b2) - u * b1 * (T(0.75) * b1 + b0))
-        two_r′_plus_z_r′′ = halfu³ * (b1² - b3 + (b2 - u * b1²) * (T(0.5) + b0))
+        r′′ = T(-2) * ((b0² * (T(0.5) + b0) + T(0.25) * b2) - u * b1 * (T(0.75) * b1 + b0))
+        two_r′_plus_z_r′′ = T(0.5) * (b1² - b3 + (b2 - u * b1²) * (T(0.5) + b0))
+        if !scaled
+            u³ = u² * u
+            r′′ *= u³
+            two_r′_plus_z_r′′ *= u³
+        end
     end
-    return r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′
+    return (; u, r, r_tail, r′, r′′, one_minus_r_minus_z_r′, two_r′_plus_z_r′′)
 end
 
-@inline neglogpdf_rician_parts_taylor_branch(::Type{Float32}) = 2.0f0
-@inline neglogpdf_rician_parts_branches(::Type{Float32}) = (2.0f0, 2.6060996f0, 3.5124323f0, 4.822016f0, 6.7038217f0, 11.265795f0, 30.0f0)
-@inline a1_taylor_coefs(::Type{Float32}) = (-0.062499993f0, 0.010416392f0, -0.001788809f0, 0.00030583347f0, -4.968289f-5, 6.8428612f-6, -6.5504764f-7, 3.043636f-8)
-@inline b3_mid1_transplant(::Type{Float32}) = (17.19915f0, -7.599575f0)
-@inline b3_mid1_coefs(::Type{Float32}) = (1.530969f0, -0.9001749f0, 0.03678463f0, 0.02181827f0, -0.005012985f0, 0.00044332922f0, 3.3053548f-5, -1.6691927f-5)
-@inline b3_mid2_transplant(::Type{Float32}) = (20.199532f0, -6.750867f0)
-@inline b3_mid2_coefs(::Type{Float32}) = (3.1194985f0, -0.5696182f0, -0.14454196f0, 0.036770962f0, -0.00054329867f0, -0.0010684185f0, 0.00022074053f0, -1.45563345f-5)
-@inline b3_mid3_transplant(::Type{Float32}) = (25.86625f0, -6.364198f0)
-@inline b3_mid3_coefs(::Type{Float32}) = (3.4891043f0, 0.17810252f0, -0.15597716f0, -0.008672251f0, 0.0066092443f0, -0.0004907746f0, -0.00015136568f0, 3.9740677f-5)
-@inline b3_mid4_transplant(::Type{Float32}) = (34.35629f0, -6.124881f0)
-@inline b3_mid4_coefs(::Type{Float32}) = (2.8084152f0, 0.37852308f0, 0.0013338927f0, -0.01738603f0, -0.0009319629f0, 0.0006840263f0, -1.1296704f-5, -2.1204842f-5)
-@inline b3_mid5_transplant(::Type{Float32}) = (33.110184f0, -3.9390013f0)
-@inline b3_mid5_coefs(::Type{Float32}) = (2.1523418f0, 0.24606755f0, 0.04518204f0, 0.0061474717f0, -0.0018303139f0, -0.0010039372f0, 2.945304f-5, 7.2044975f-5)
-@inline b3_high_coefs(::Type{Float32}) = (1.5627546f0, 3.2188735f0, 9.927305f0, -13.473833f0, 605.299f0, -2241.9482f0, -7155.295f0, 125444.33f0)
-@inline b3_tail_coefs(::Type{Float32}) = (1.5625f0, 3.249928f0, 8.399429f0, 24.425596f0, 133.03055f0)
+@inline function b3_asymptotic(u::Real, z::Real)
+    T = checkedfloattype(u, z)
+    _, mid1, mid2, mid3, mid4, mid5, high, tail = neglogpdf_rician_parts_branches(T)
+    if z < mid1
+        return estrin(muladd(u, b3_mid1_transplant(T)...), b3_mid1_coefs(T))
+    elseif z < mid2
+        return estrin(muladd(u, b3_mid2_transplant(T)...), b3_mid2_coefs(T))
+    elseif z < mid3
+        return estrin(muladd(u, b3_mid3_transplant(T)...), b3_mid3_coefs(T))
+    elseif z < mid4
+        return estrin(muladd(u, b3_mid4_transplant(T)...), b3_mid4_coefs(T))
+    elseif z < mid5
+        return estrin(muladd(u, b3_mid5_transplant(T)...), b3_mid5_coefs(T))
+    elseif z < high
+        return estrin(muladd(u, b3_mid6_transplant(T)...), b3_mid6_coefs(T))
+    elseif z < tail
+        return estrin(u, b3_high_coefs(T))
+    elseif z < inv(sqrt(eps(T)))
+        return estrin(u, b3_tail_coefs(T))
+    else
+        return evalpoly(u, (T(25 / 16), T(13 / 4), T(1073 / 128)))
+    end
+end
 
-@inline neglogpdf_rician_parts_taylor_branch(::Type{Float64}) = 2.0
-@inline neglogpdf_rician_parts_branches(::Type{Float64}) = (2.0, 2.8979744235465836, 4.234741944354931, 6.327475220473357, 9.919317887108292, 18.211327630457376, 100.0)
-@inline a1_taylor_coefs(::Type{Float64}) = (-0.062499999999999986, 0.010416666666664732, -0.0017903645832794987, 0.00030924479107213686, -5.3462272282636315e-5, 9.244068846364443e-6, -1.5984001634629747e-6, 2.763434489361867e-7, -4.773315324974686e-8, 8.210027641665284e-9, -1.3912968740700294e-9, 2.2667154318714788e-10, -3.4025047639873384e-11, 4.437131733996034e-12, -4.678903548144084e-13, 3.647065518389165e-14, -1.834972296113143e-15, 4.41929493021651e-17)
-@inline b3_mid1_transplant(::Type{Float64}) = (12.908939709444839, -5.4544698547224195)
-@inline b3_mid1_coefs(::Type{Float64}) = (1.8333360040083098, -1.2212709889386149, 0.020510617991516336, 0.06844415625792045, -0.017888162803863922, 0.0014485117897190813, 0.00041528099374805105, -0.0001858459125429576, 3.844488376327164e-5, -4.187095878501653e-6, -2.3283181717326088e-7, 2.3861642291181434e-7, -6.762260636756003e-8, 1.2854412352025094e-8, -1.6976836196566827e-9, 7.542829684248659e-11, 5.841267039262836e-11, -1.966763264811085e-11)
-@inline b3_mid2_transplant(::Type{Float64}) = (18.360969508953218, -5.3357941877495225)
-@inline b3_mid2_coefs(::Type{Float64}) = (3.484297761731685, -0.2551239552705028, -0.2841510027244296, 0.036077789515001, 0.010254236421247872, -0.0037773315469154943, 0.0003463906417024306, 8.790311526127583e-5, -3.795269375972866e-5, 6.5360544436602935e-6, -2.4971354359329043e-7, -1.9753682490797067e-7, 6.906638565772811e-8, -1.3049277620198214e-8, 1.3075927915089948e-9, 1.1638022225391452e-10, -1.0770075458981494e-10, 2.58345263280944e-11)
-@inline b3_mid3_transplant(::Type{Float64}) = (25.607873706394546, -5.047091899078007)
-@inline b3_mid3_coefs(::Type{Float64}) = (3.048884170715356, 0.4803342605034443, -0.05931511455925457, -0.041372476688612984, 0.0032741033010172077, 0.0020801890676649362, -0.000436402376647983, -3.3754132696338e-5, 2.8059514297502548e-5, -4.455951332402749e-6, -2.788864525183741e-7, 2.769622218574406e-7, -5.980178088896275e-8, 3.7102032017337925e-9, 1.6848368087526515e-9, -6.563011224814751e-10, 1.0019399635152765e-10, -3.766928087267196e-13)
-@inline b3_mid4_transplant(::Type{Float64}) = (34.94821124416195, -4.523247429098187)
-@inline b3_mid4_coefs(::Type{Float64}) = (2.24321296529402, 0.2645195596758001, 0.04474278255429483, 0.0020948850552014175, -0.0027457029006763543, -0.0005664881461932309, 0.0001507352873371674, 3.334535364978677e-5, -1.1615020008392194e-5, -7.055236530656481e-7, 7.86396708242516e-7, -9.421585939386579e-8, -2.6715808346143148e-8, 1.1044202650587625e-8, -1.005934317101632e-9, -3.7821484487969754e-10, 1.3350407521240528e-10, -1.101989445181674e-11)
-@inline b3_mid5_transplant(::Type{Float64}) = (43.57060676579103, -3.3925002970635565)
-@inline b3_mid5_coefs(::Type{Float64}) = (1.883620498051352, 0.12217944258749859, 0.011488018148597796, 0.0016096333444384071, 0.0003229472101132312, 6.105982115392979e-5, -2.8582669278089307e-6, -8.055139505280398e-6, -1.9693735695706413e-6, 4.934597607685526e-7, 2.599424828254112e-7, -3.9073833193483745e-8, -2.6152438333666685e-8, 5.238821841928625e-9, 2.1445222150944797e-9, -7.269521903622733e-10, -1.0783621213766402e-10, 6.184459128914791e-11)
-@inline b3_high_coefs(::Type{Float64}) = (1.5624999998704658, 3.2500000935922175, 8.382781524169124, 25.756232733875247, 90.8784242279162, 456.08742528181034, -4516.344124943379, 356179.8462126364, -1.4902980724255608e7, 4.944164164364221e8, -1.2459762406128843e10, 2.3540773520365906e11, -3.20861235933442e12, 2.9158438167785508e13, -1.4011294640981217e14, -1.047514827982532e14, 5.077726267776111e15, -1.9157859689259064e16)
+@inline neglogpdf_rician_parts_branches(::Type{Float32}) = (1.25f0, 1.7736309f0, 2.4552262f0, 3.368769f0, 4.736905f0, 6.865108f0, 11.346635f0, 30.0f0)
+@inline neglogpdf_rician_parts_taylor_branch(::Type{Float32}) = first(neglogpdf_rician_parts_branches(Float32))
+@inline a1_taylor_coefs(::Type{Float32}) = (-0.0625f0, 0.010416648f0, -0.001790165f0, 0.00030844187f0, -5.189695f-5, 7.617877f-6, -6.7984206f-7)
+@inline b3_mid1_coefs(::Type{Float32}) = (-0.9786126f0, -0.628833f0, 0.23862931f0, -0.039429966f0, 0.0010880656f0, 0.001399136f0, -0.0005035984f0, 0.000111060166f0, -1.5574844f-5)
+@inline b3_mid1_transplant(::Type{Float32}) = (8.467945f0, -5.774356f0)
+@inline b3_mid2_coefs(::Type{Float32}) = (0.8829879f0, -1.0979296f0, 0.12853086f0, 0.022795105f0, -0.010818173f0, 0.0019171516f0, -0.00012398159f0, -3.2030835f-5, 1.3861369f-5, -2.6926102f-6)
+@inline b3_mid2_transplant(::Type{Float32}) = (12.777861f0, -6.2043514f0)
+@inline b3_mid3_coefs(::Type{Float32}) = (2.896896f0, -0.73595107f0, -0.13142815f0, 0.04830029f0, -0.0031885663f0, -0.0010850336f0, 0.00034242112f0, -4.383489f-5, -9.420497f-7, 1.4751752f-6)
+@inline b3_mid3_transplant(::Type{Float32}) = (18.107723f0, -6.3751755f0)
+@inline b3_mid4_coefs(::Type{Float32}) = (3.5190217f0, 0.1255342f0, -0.19634402f0, -0.0047439034f0, 0.009102384f0, -0.001065171f0, -0.00016898877f0, 7.0777445f-5, -8.131132f-6)
+@inline b3_mid4_transplant(::Type{Float32}) = (23.327414f0, -5.9246106f0)
+@inline b3_mid5_coefs(::Type{Float32}) = (2.8098564f0, 0.42554978f0, 0.0014337796f0, -0.024722438f0, -0.0014616672f0, 0.0012273814f0, -3.6492107f-5, -4.775254f-5, 7.9661195f-6)
+@inline b3_mid5_transplant(::Type{Float32}) = (30.560398f0, -5.451554f0)
+@inline b3_mid6_coefs(::Type{Float32}) = (2.1356993f0, 0.22855726f0, 0.039798003f0, 0.005707509f0, -0.0012225008f0, -0.00080096425f0, -3.433441f-6, 6.214366f-5, -2.2442087f-7, -3.887005f-6)
+@inline b3_mid6_transplant(::Type{Float32}) = (34.763096f0, -4.063736f0)
+@inline b3_high_coefs(::Type{Float32}) = (1.5630388f0, 3.1534708f0, 15.986863f0, -319.89398f0, 10080.004f0, -189825.39f0, 2.3859912f6, -1.89319f7, 8.625075f7, -1.6949213f8)
+@inline b3_tail_coefs(::Type{Float32}) = (1.5625f0, 3.2500045f0, 8.381256f0, 25.940771f0, 81.37432f0, 617.13983f0)
+
+@inline neglogpdf_rician_parts_branches(::Type{Float64}) = (1.25, 1.8591389603935717, 2.74690836511996, 4.14578464932015, 6.2763334877759585, 10.033473692870817, 18.13555275269315, 100.0)
+@inline neglogpdf_rician_parts_taylor_branch(::Type{Float64}) = first(neglogpdf_rician_parts_branches(Float64))
+@inline a1_taylor_coefs(::Type{Float64}) = (-0.0625, 0.010416666666666652, -0.0017903645833326689, 0.00030924479165391074, -5.346227562391155e-5, 9.244080424735487e-6, -1.5984263283747596e-6, 2.763836785633796e-7, -4.777587188953313e-8, 8.24080691209807e-9, -1.4050898275433108e-9, 2.2912333392066555e-10, -3.291104278817345e-11, 3.5409731367567005e-12, -2.0285970507152215e-13)
+@inline b3_mid1_coefs(::Type{Float64}) = (-0.9066413097635835, -0.7576166768987637, 0.3099752233041559, -0.05429950799927307, 0.0003377171930970658, 0.0029644190876579298, -0.001106126822657037, 0.0002558871579646217, -3.988749239329138e-5, 2.470752511931632e-6, 9.599678752277343e-7, -4.7257379710467814e-7, 1.3323835889587424e-7, -2.880940733416941e-8, 4.956490794786943e-9, -6.398775838228047e-10, 2.6043808329355625e-11, 3.014949433628068e-11, -1.0624538418735766e-11)
+@inline b3_mid1_transplant(::Type{Float64}) = (7.630192293037538, -5.104153834430031)
+@inline b3_mid2_coefs(::Type{Float64}) = (1.390956666335002, -1.3261856780715606, 0.1035081495610392, 0.06277677233954594, -0.023247239418819742, 0.003439358223932491, 0.00013000771801100055, -0.00020941167052518795, 6.190030052072196e-5, -1.0890878614540761e-5, 8.937006850991466e-7, 1.7147135870814256e-7, -9.690206109012347e-8, 2.6201786000440738e-8, -5.083126254923448e-9, 7.22055998135966e-10, -4.4019035579894205e-11, -2.479387676836325e-11, 9.181282086005465e-12)
+@inline b3_mid2_transplant(::Type{Float64}) = (11.50497941252994, -5.188337535616157)
+@inline b3_mid3_coefs(::Type{Float64}) = (3.4145482574172124, -0.4227721531138229, -0.3276628400826416, 0.0622001208463868, 0.01029482222421844, -0.005926467561233111, 0.0008970678024529246, 7.397868180176319e-5, -6.746192988764895e-5, 1.6511729219022485e-5, -1.8099459239964246e-6, -2.2097591087340852e-7, 1.5887283071487396e-7, -4.253054437842285e-8, 6.977568068658435e-9, -4.4886761292700706e-10, -1.767380549512039e-10, 9.969010891883516e-11, -2.2581765036901864e-11)
+@inline b3_mid3_transplant(::Type{Float64}) = (16.281769391372023, -4.927307076609009)
+@inline b3_mid4_coefs(::Type{Float64}) = (3.0875520554759373, 0.49260384416832537, -0.07613928136229342, -0.046292528807978225, 0.0049246550911270625, 0.002359863485903642, -0.0005983474246044642, -2.3060304387410408e-5, 3.610106592013356e-5, -7.0212987531816784e-6, -9.058549482842997e-8, 3.713155981398159e-7, -9.703792866133195e-8, 9.573925526822241e-9, 1.8996970008309483e-9, -1.036284938942767e-9, 2.0196754718939483e-10, -1.088604629000335e-11)
+@inline b3_mid4_transplant(::Type{Float64}) = (24.425938103812463, -4.89175274885973)
+@inline b3_mid5_coefs(::Type{Float64}) = (2.243863900499485, 0.2760032053911868, 0.04864767722460813, 0.0023431551414816983, -0.0032518621851148886, -0.0006949504496972516, 0.00019428110870631094, 4.433139897135638e-5, -1.6231383985795364e-5, -9.984193290415918e-7, 1.1889505982856505e-6, -1.5023399528174868e-7, -4.340344904513636e-8, 1.8924462506820824e-8, -1.893520873907179e-9, -6.975658533746278e-10, 2.974572754191339e-10, -2.217255760245679e-11, -9.262190816287589e-12)
+@inline b3_mid5_transplant(::Type{Float64}) = (33.521999978541814, -4.3410163822286725)
+@inline b3_mid6_coefs(::Type{Float64}) = (1.8811827581502512, 0.11807211467479745, 0.01071928532567251, 0.0014457869330265793, 0.00028050300529725903, 5.26750373422372e-5, -1.4607343764699284e-6, -6.249048440457558e-6, -1.6095447378919227e-6, 3.35068396617675e-7, 1.9753540621921212e-7, -2.3357185643437115e-8, -1.9038363482639613e-8, 3.1061572212835498e-9, 1.5395444954325444e-9, -4.3869037019394584e-10, -7.930629319060699e-11, 3.738869437164717e-11)
+@inline b3_mid6_transplant(::Type{Float64}) = (44.9175057676635, -3.47676519046232)
+@inline b3_high_coefs(::Type{Float64}) = (1.562499999848177, 3.2500001099174156, 8.382776029784255, 25.75736138498818, 90.71989653431152, 472.250342375048, -5755.586780614253, 429203.2029954704, -1.8253063358811587e7, 6.14837763229502e8, -1.5853769529729286e10, 3.100397939020194e11, -4.474257254144003e12, 4.53759864819417e13, -2.918569899908291e14, 8.72925274832046e14, 1.2022856782957382e15, -1.203682272130206e16)
 @inline b3_tail_coefs(::Type{Float64}) = (1.5625, 3.249999999999951, 8.382812500129667, 25.749999868034124, 91.73175661609746, 371.80898186259145, 1693.3965569777363, 8211.619321835962, 62507.00709166558)
 
 #### ChainRules and ForwardDiff
@@ -386,6 +425,13 @@ end
 @inline ∂x_laguerre½(x::Real) = (x < zero(x) ? one(x) : exp(x)) * (besseli1x(x / 2) - besseli0x(x / 2)) / 2
 @scalar_rule laguerre½(x) ∂x_laguerre½(x)
 @dual_rule_from_frule laguerre½(x)
+
+@scalar_rule besseli0(x) besseli1(x)
+@dual_rule_from_frule besseli0(x)
+
+@inline ∂x_besseli1(x::Real) = (besseli0(x) + besseli2(x)) / 2
+@scalar_rule besseli1(x) ∂x_besseli1(x)
+@dual_rule_from_frule besseli1(x)
 
 @inline ∂x_besseli0x(Ω::Real, x::Real) = besseli1x(x) - sign(x) * Ω
 @inline f_∂x_besseli0x(x::Real) = (Ω = besseli0x(x); return (Ω, ∂x_besseli0x(Ω, x)))
