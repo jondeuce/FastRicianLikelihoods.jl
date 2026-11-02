@@ -156,7 +156,7 @@ function logbesseli0x_manual_constants(; verbose::Bool = false)
     # Float32 approximants
     println("@inline logbesseli0x_branches(::Type{Float32}) = $(Float32.((branches32...,)))")
     logbesseli0_taylor_constants(3, branches32[1]; verbose, T = Float32)
-    for i in 1:length(branches32)-1
+    for i in 1:(length(branches32)-1)
         logbesseli0x_middle_constants(5, 0, branches32[i], branches32[i+1]; branchnum = i, verbose, T = Float32)
     end
     logbesseli0x_asymptotic_constants(5, branches32[end]; verbose, T = Float32)
@@ -164,7 +164,7 @@ function logbesseli0x_manual_constants(; verbose::Bool = false)
     # Float64 approximants
     println("@inline logbesseli0x_branches(::Type{Float64}) = $(Float64.((branches64...,)))")
     logbesseli0_taylor_constants(9, branches64[1]; verbose, T = Float64)
-    for i in 1:length(branches64)-1
+    for i in 1:(length(branches64)-1)
         logbesseli0x_middle_constants(6, 6, branches64[i], branches64[i+1]; branchnum = i, verbose, T = Float64)
     end
     logbesseli0x_asymptotic_constants(18, branches64[end]; verbose, T = Float64)
@@ -188,7 +188,7 @@ function logbesseli0x_autotune_constants(; verbose::Bool = false)
         verbose && display.(res.approximants)
         println("@inline logbesseli0x_branches(::Type{$T}) = $(T.((res.branches...,)))")
         cf_print_result(res.approximants[1]; name = "logbesseli0_taylor", T, transplant = true)
-        for i in 2:length(res.approximants)-1
+        for i in 2:(length(res.approximants)-1)
             cf_print_result(res.approximants[i]; name = "logbesseli0x_mid$(i-1)", T, transplant = true)
         end
         cf_print_result(res.approximants[end]; name = "logbesseli0x_tail", T, transplant = true)
@@ -446,7 +446,7 @@ function besseli1i0_autotune_constants(; verbose::Bool = false)
         verbose && display.(res.approximants)
         println("@inline besseli1i0_branches(::Type{$T}) = $(T.((res.branches...,)))")
         cf_print_result(res.approximants[1]; name = "besseli1i0_low", T, transplant = true)
-        for i in 2:length(res.approximants)-1
+        for i in 2:(length(res.approximants)-1)
             cf_print_result(res.approximants[i]; name = "besseli1i0_mid$(i-1)", T, transplant = true)# i == 2)
         end
         cf_print_result(res.approximants[end]; name = "besseli1i0c_tail", T, transplant = true)
@@ -531,7 +531,7 @@ function neglogpdf_rician_manual_constants(; verbose::Bool = false)
     # Float32 approximants
     verbose && println("@inline neglogpdf_rician_parts_branches(::Type{Float32}) = $(Float32.((branches32...,)))")
     besseli1i0_a1_taylor_constants(7, branches32[1]; verbose, T = Float32)
-    for i in 1:length(branches32)-2
+    for i in 1:(length(branches32)-2)
         besseli1i0_b3_middle_constants(8, 0, branches32[i], branches32[i+1]; branchnum = i, verbose, T = Float32)
     end
     besseli1i0_b3_asymptotic_constants(6, branches32[end-1], branches32[end]; branchnum = 1, verbose, T = Float32)
@@ -540,7 +540,7 @@ function neglogpdf_rician_manual_constants(; verbose::Bool = false)
     # Float64 approximants
     verbose && println("@inline neglogpdf_rician_parts_branches(::Type{Float64}) = $(Float64.((branches64...,)))")
     besseli1i0_a1_taylor_constants(20, branches64[1]; verbose, T = Float64)
-    for i in 1:length(branches64)-2
+    for i in 1:(length(branches64)-2)
         besseli1i0_b3_middle_constants(20, 0, branches64[i], branches64[i+1]; branchnum = i, verbose, T = Float64)
     end
     besseli1i0_b3_asymptotic_constants(16, branches64[end-1], branches64[end]; branchnum = 1, verbose, T = Float64)
@@ -569,7 +569,7 @@ function neglogpdf_rician_autotune_constants(; verbose::Bool = false)
         verbose && display.(res.approximants)
         println("@inline neglogpdf_rician_parts_branches(::Type{$T}) = $(T.((res.branches...,)))")
         cf_print_result(res.approximants[1]; name = "besseli1i0_a1_taylor", T, transplant = true)
-        for i in 2:length(res.approximants)-2
+        for i in 2:(length(res.approximants)-2)
             cf_print_result(res.approximants[i]; name = "besseli1i0_b3_mid$(i-1)", T, transplant = false)
         end
         cf_print_result(res.approximants[end-1]; name = "besseli1i0_b3_high", T, transplant = true)
@@ -592,7 +592,7 @@ function neglogpdf_rician_autotune_constants(; verbose::Bool = false)
     res64 = autotune_minimax_spline(
         build_ratapprox;
         initial_order = max(14, res32.order),
-        initial_branches = Double64.([res32.branches[1:end-1]; 100.0f0]),
+        initial_branches = Double64.([res32.branches[1:(end-1)]; 100.0f0]),
         strategy = :increase_order,
         max_order = 20,
         fixed_left_branch = true,

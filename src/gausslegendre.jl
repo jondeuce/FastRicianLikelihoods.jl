@@ -49,7 +49,7 @@ using FastGaussQuadrature: besselZeroRoots, besselJ1
 using LinearAlgebra: rmul!
 
 @doc raw"""
-    gausslegendre(n::Integer) -> x, w  # nodes, weights
+    gausslegendre(n::Integer, ::Type{T} = Float64; refine = true) -> x, w
 
 Return nodes `x` and weights `w` of [Gauss-Legendre quadrature](https://en.wikipedia.org/wiki/Gauss%E2%80%93Legendre_quadrature).
 
@@ -259,12 +259,12 @@ function rec!(n, x::AbstractVector{T}, w::AbstractVector{T}; tol::T) where {T}
     # THREE-TERM RECURENCE IS USED FOR EVALUATION. COMPLEXITY O(n^2).
 
     # Newton iteration to find zeros of Legendre polynomials:
-    xhalf = @view x[1:n÷2+1]
-    whalf = @view w[1:n÷2+1]
+    xhalf = @view x[1:(n÷2+1)]
+    whalf = @view w[1:(n÷2+1)]
     leg_newton_rec!(n, xhalf, whalf; tol)
 
     # Use symmetry to get the other Legendre nodes and weights:
-    @inbounds for i in 1:n÷2
+    @inbounds for i in 1:(n÷2)
         x[n+1-i] = -x[i]
         w[n+1-i] = w[i]
     end

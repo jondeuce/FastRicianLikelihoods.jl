@@ -678,7 +678,7 @@ function save_nll_accuracy_table(
     num_methods_float64 = length(methods_float64)
 
     # Create three-level header with requested layout
-    headers_top = Any["", [MultiColumn(num_methods_float32 + num_methods_float64, metric_labels[m], :c) for m in metrics]...]
+    headers_top = Any["", [MultiColumn(num_methods_float32+num_methods_float64, metric_labels[m], :c) for m in metrics]...]
     headers_mid = Any["Quantity", repeat([MultiColumn(num_methods_float32, "Float32", :c), MultiColumn(num_methods_float64, "Float64", :c)], length(metrics))...]
     headers_low = Any[""; repeat(vcat([method_labels[m] for m in methods_float32], [method_labels[m] for m in methods_float64]), length(metrics))...]
     column_labels = [headers_top, headers_mid, headers_low]

@@ -1628,7 +1628,7 @@ end
     offset = 0
     for Sᵢ in T.parameters
         Lᵢ = length(Sᵢ)
-        args = [:(y[$(offset + j)]) for j in 1:Lᵢ]
+        args = [:(y[$(offset+j)]) for j in 1:Lᵢ]
         push!(exprs, :($StaticArrays.SArray{$(Sᵢ.parameters...)}($(args...))))
         offset += Lᵢ
     end

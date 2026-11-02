@@ -59,7 +59,7 @@ function clenshaw(x::T1, c::AbstractVector{T2}) where {T1, T2}
     @inbounds begin
         bₖ₊₂ = c[n]
         bₖ₊₁ = muladd(x2, bₖ₊₂, c[n-1])
-        for k in n-2:-2:3
+        for k in (n-2):-2:3
             bₖ₊₂ = muladd(x2, bₖ₊₁, c[k] - bₖ₊₂)
             bₖ₊₁ = muladd(x2, bₖ₊₂, c[k-1] - bₖ₊₁)
         end
@@ -76,14 +76,15 @@ end
     n == 1 && return :(convert($(promote_type(T1, T2)), c[1]))
     n == 2 && return :(muladd(x, c[2], c[1]))
     return quote
+        $(Expr(:meta, :inline))
         x2 = 2x
         bₖ₊₂ = c[$(n)]
-        bₖ₊₁ = muladd(x2, bₖ₊₂, c[$(n - 1)])
+        bₖ₊₁ = muladd(x2, bₖ₊₂, c[$(n-1)])
         $(
-            map(n-2:-2:3) do k
+            map((n-2):-2:3) do k
                 quote
                     bₖ₊₂ = muladd(x2, bₖ₊₁, c[$(k)] - bₖ₊₂)
-                    bₖ₊₁ = muladd(x2, bₖ₊₂, c[$(k - 1)] - bₖ₊₁)
+                    bₖ₊₁ = muladd(x2, bₖ₊₂, c[$(k-1)] - bₖ₊₁)
                 end
             end...
         )

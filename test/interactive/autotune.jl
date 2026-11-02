@@ -109,7 +109,7 @@ function balance_branches!(build, options, order, branches::AbstractVector{T}, e
         # Gradient descent step to equalize errors across intervals
         log_widths = log.([branches[1]; diff(branches)])
         log_errors = log.(max.(errors, eps(T)))
-        unfixed_view(options, log_widths) .-= step_size .* (unfixed_view(options, log_errors)[begin:end-1] .- mean(unfixed_view(options, log_errors)))
+        unfixed_view(options, log_widths) .-= step_size .* (unfixed_view(options, log_errors)[begin:(end-1)] .- mean(unfixed_view(options, log_errors)))
         unfixed_view(options, branches) .= unfixed_view(options, cumsum(exp.(log_widths)))
 
         # Update approximants and errors
@@ -212,7 +212,7 @@ function optimize_fixed_branches!(build, options, final_order::Int, branches::Ab
 end
 
 function unfixed_view(options, x::AbstractVector)
-    return @view x[begin+options.fixed_left_branch:end-options.fixed_right_branch]
+    return @view x[(begin+options.fixed_left_branch):(end-options.fixed_right_branch)]
 end
 
 function error_balance_stats(options, errors::AbstractVector{T}) where {T <: AbstractFloat}

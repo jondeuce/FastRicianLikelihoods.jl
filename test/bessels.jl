@@ -8,7 +8,7 @@ using FastRicianLikelihoods: FastRicianLikelihoods,
     laguerre½, mean_rician, std_rician, besseli1i0, besseli1i0x, besseli1i0m1, ∂x_laguerre½, ∂x_besseli0x, ∂x_besseli1x
 
 function pos_range_iterator(::Type{T}; scale = 10, step = 0.05) where {T <: Union{Float32, Float64}}
-    return exp10.(-T(scale):T(step):T(scale))
+    return exp10.((-T(scale)):T(step):T(scale))
 end
 
 for T in (Float32, Float64)

@@ -131,7 +131,7 @@ function F!(F, g, γ)
     N = length(g) - 1
     @assert length(F) == N - 2
 
-    for i in 1:N-2
+    for i in 1:(N-2)
         n = i + 1
         gₙ₋₁, gₙ, gₙ₊₁ = g[n], g[n+1], g[n+2] # note: g[n] = gₙ₋₁
         F[i] = Fₙ(n, γ, gₙ₋₁, gₙ, gₙ₊₁)
@@ -145,7 +145,7 @@ function J!(Jdiags, g, γ)
     @assert length.(Jdiags) == (N - 3, N - 2, N - 3)
 
     J₋, J₀, J₊ = Jdiags
-    for i in 1:N-2
+    for i in 1:(N-2)
         n = i + 1
         gₙ₋₁, gₙ, gₙ₊₁ = g[n], g[n+1], g[n+2] # note: g[n] = gₙ₋₁
         ∂gₙ₋₁, ∂gₙ, ∂gₙ₊₁ = ∇Fₙ(n, γ, gₙ₋₁, gₙ, gₙ₊₁)
@@ -164,7 +164,7 @@ function g_init!(g, γ; asymptotic)
     N >= 0 && (g[1] = gₙ₋₁)
     N >= 1 && (g[2] = gₙ)
 
-    for i in 3:N+1
+    for i in 3:(N+1)
         n = i - 2
 
         if n < asymptotic
@@ -199,9 +199,9 @@ function g_newton!(Jdiags, F, g, γ; maxiter = 20, verbose = false)
         F = F!(F, g, γ) # Recurrence equation Fᵢ where `i ∈ 2:N-1`
         J = J!(Jdiags, g, γ) # Tridiagonal Jacobian ∂Fᵢ/∂gⱼ where `i,j ∈ 2:N-1`
         Δg = J \ F #TODO: in-place Tridiagonal solve?
-        @views g[3:end-1] .-= Δg # Update estimates for {g₂, g₃, ..., g_{N-1}}
+        @views g[3:(end-1)] .-= Δg # Update estimates for {g₂, g₃, ..., g_{N-1}}
 
-        g_max = @views maximum(abs, g[3:end-1])
+        g_max = @views maximum(abs, g[3:(end-1)])
         Δg_max = maximum(abs, Δg)
         Δg_norm = norm(Δg)
 
@@ -237,7 +237,7 @@ function g_heuristic(N, γ)
     # For large γ, it seems that computing another ~10 terms is necessary, but this has not been investigated thoroughly.
     Nnewt = N + (γ < 2.5 ? 10 : 20)
     g = g_newton(Nnewt, γ; asymptotic = 9)
-    g = g[1:N+1] # note: g[n] = gₙ₋₁
+    g = g[1:(N+1)] # note: g[n] = gₙ₋₁
 
     return g
 end
@@ -263,7 +263,7 @@ function gausshalfhermite_rec_coeffs(N, γ)
     α[1], β[1] = alpha₀(γ), beta₀(γ)
     gₙ, gₙ₊₁ = g[1], g[2]
 
-    for n in 1:N-1
+    for n in 1:(N-1)
         gₙ, gₙ₊₁ = gₙ₊₁, g[n+2]
         α[n+1] = √alphaₙ²(n, γ, gₙ, gₙ₊₁) # note: α[n+1] = αₙ
         β[n+1] = betaₙ(n, γ, gₙ) # note: β[n+1] = βₙ

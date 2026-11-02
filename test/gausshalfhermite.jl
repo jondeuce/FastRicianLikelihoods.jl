@@ -26,7 +26,7 @@ weight_norm(t, γ) = t^γ * exp(-t^2 / 2) / √(2 * oftype(t, π))
         x, w = gausshalfhermite_gw(N, γ)
         atol = rtol = γ < -0.5 ? 1e-13 : 1e-14
 
-        for deg in 1:2N-1
+        for deg in 1:(2N-1)
             c = randn(deg + 1) # coefficients for degree `deg` polynomial in Chebyshev basis
             ctup, cbig = (c...,), big.(c)
 

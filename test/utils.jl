@@ -7,10 +7,13 @@ using FiniteDifferences: FiniteDifferences
 using QuadGK: quadgk
 using Zygote: Zygote
 
-using FastRicianLikelihoods: FastRicianLikelihoods, ForwardDiff, SpecialFunctions, StaticArrays
+using FastRicianLikelihoods: FastRicianLikelihoods
 using FastRicianLikelihoods: neglogpdf_rician, ∇neglogpdf_rician, ∇²neglogpdf_rician, ∇²neglogpdf_rician_with_gradient, ∇³neglogpdf_rician_with_gradient_and_hessian
 using FastRicianLikelihoods: neglogpdf_qrician, ∇neglogpdf_qrician, ∇²neglogpdf_qrician, ∇²neglogpdf_qrician_with_gradient, ∇²neglogpdf_qrician_with_primal_and_gradient, ∇³neglogpdf_qrician_jacobian_with_primal_gradient_and_hessian
-using .StaticArrays: SVector, SMatrix
+
+using ForwardDiff: ForwardDiff
+using SpecialFunctions: SpecialFunctions
+using StaticArrays: StaticArrays, SVector, SMatrix
 
 Base.setprecision(BigFloat, 500; base = 2)
 ArbNumerics.setworkingprecision(ArbReal; bits = 500)
@@ -98,7 +101,7 @@ function FastRicianLikelihoods.neglogpdf_rician(x::ArbReal, ν::ArbReal)
 end
 
 function FastRicianLikelihoods.∇neglogpdf_rician(x::ArbReal, ν::ArbReal)
-    x <= 0 && return (ArbReal(Inf), ν) # limit as x -> 0⁺
+    x <= 0 && return (ArbReal(-Inf), ν) # limit as x -> 0⁺
     I0, I1 = ArbNumerics.besseli(0, x * ν), ArbNumerics.besseli(1, x * ν)
     r = I1 / I0
     ∂x = x - ν * r - 1 / x
@@ -412,7 +415,7 @@ function binary_search_root_find(f, a::T, b::T; tol = eps(T), verbose = false) w
 
         fmid = f(mid)
         if fmid == 0
-            return mid
+            return mid, iter
         elseif fa * fmid < 0
             b, fb = mid, fmid
         else

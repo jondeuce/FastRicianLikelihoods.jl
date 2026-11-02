@@ -1,33 +1,27 @@
 using FastRicianLikelihoods
 using Test
 using Aqua
+using Random
 
 include("utils.jl")
 
+# Test files to run, in order. With no arguments the whole suite runs, otherwise names are matched as substrings of the file name:
+#   julia --project=test test/runtests.jl
+#   julia --project=test test/runtests.jl bessels
+#   julia --project=test test/runtests.jl gauss rician
+#   julia -e 'using Pkg; Pkg.test("FastRicianLikelihoods"; test_args = ["bessels"])'
+
+const TEST_FILES = ["gausslegendre", "gausshalfhermite", "forwarddiff", "bessels", "rician", "aqua"]
+for arg in ARGS
+    any(name -> occursin(arg, name), TEST_FILES) || error("No test files match $arg. Available test files: $(join(TEST_FILES, ", "))")
+end
+const SELECTED_TEST_FILES = isempty(ARGS) ? TEST_FILES : filter(name -> any(arg -> occursin(arg, name), ARGS), TEST_FILES)
+
 @testset "FastRicianLikelihoods.jl" begin
-    @testset "gauss legendre quadrature" verbose = true begin
-        include("gausslegendre.jl")
-    end
-
-    @testset "gaussian half-hermite quadrature" verbose = true begin
-        include("gausshalfhermite.jl")
-    end
-
-    @testset "dual rules" verbose = true begin
-        include("forwarddiff.jl")
-    end
-
-    @testset "bessels" verbose = true begin
-        include("bessels.jl")
-    end
-
-    @testset "rician" verbose = true begin
-        include("rician.jl")
-    end
-
-    @testset "Code quality (Aqua.jl)" begin
-        # Typically causes a lot of false positives with ambiguities and/or unbound args checks;
-        # unfortunately have to periodically check this manually
-        Aqua.test_all(FastRicianLikelihoods; ambiguities = false, unbound_args = false)
+    for name in SELECTED_TEST_FILES
+        Random.seed!(32)
+        @testset "$name.jl" verbose = true begin
+            include("$name.jl")
+        end
     end
 end

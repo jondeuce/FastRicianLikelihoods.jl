@@ -2,10 +2,12 @@ module GaussLegendreTests
 
 using Test
 
-using FastRicianLikelihoods: FastRicianLikelihoods, Distributions, FastGaussQuadrature, GaussLegendre
+using FastRicianLikelihoods: FastRicianLikelihoods, GaussLegendre
 using FastRicianLikelihoods: f_quadrature, neglogf_quadrature
-using .Distributions: Normal, logpdf, cdf
 using .GaussLegendre: eval_legpoly
+
+using Distributions: Distributions, Normal, logpdf, cdf
+using FastGaussQuadrature: FastGaussQuadrature
 
 @testset "nodes and weights" begin
     for n in 1:100

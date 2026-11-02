@@ -2,11 +2,14 @@ module ForwardDiffTests
 
 using Test
 
-using FastRicianLikelihoods: FastRicianLikelihoods, ChainRulesCore, ForwardDiff, StaticArrays
+using FastRicianLikelihoods: FastRicianLikelihoods
 using FastRicianLikelihoods: @define_unary_dual_scalar_rule, @define_binary_dual_scalar_rule, @define_ternary_dual_scalar_rule
 using FastRicianLikelihoods: @uniform_dual_rule_from_frule, @dual_rule_from_frule
+
+using ChainRulesCore: ChainRulesCore
 using FiniteDifferences: FiniteDifferences
-using .StaticArrays: SVector
+using ForwardDiff: ForwardDiff
+using StaticArrays: StaticArrays, SVector
 
 #### ForwardDiff gradient and Jacobian utilities
 

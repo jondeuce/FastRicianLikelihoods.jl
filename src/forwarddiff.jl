@@ -265,7 +265,7 @@ function dual_rule_from_frule(ex)
             push!(primals, :($(x)::$(Tx)))
             push!(tangents, :($(CRC).NoTangent()))
         else
-            error("Call arguments must be symbols optionally prepended with `!`; e.g. `f(x, y, !z)`")
+            error("Call arguments must be symbols or typed nondifferentiable arguments; e.g. `f(x, y, !(z::T))`")
         end
     end
 

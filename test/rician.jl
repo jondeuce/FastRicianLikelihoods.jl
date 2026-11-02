@@ -3,21 +3,24 @@ module RicianTests
 using Test
 using ..Utils: Utils, arbify, ∇FD_central, ∇FD_forward, ∇Fwd, ∇Zyg
 
-using FastRicianLikelihoods: FastRicianLikelihoods, Distributions, StaticArrays, mean_rician, std_rician,
+using FastRicianLikelihoods: FastRicianLikelihoods,
     neglogpdf_rician, ∇neglogpdf_rician, ∇²neglogpdf_rician, ∇²neglogpdf_rician_with_gradient, ∇³neglogpdf_rician_with_gradient_and_hessian,
-    neglogpdf_qrician, ∇neglogpdf_qrician, ∇²neglogpdf_qrician, ∇²neglogpdf_qrician_with_gradient, ∇²neglogpdf_qrician_with_primal_and_gradient
-using .StaticArrays: StaticArrays, SVector, SMatrix, @SVector, @SMatrix
+    neglogpdf_qrician, ∇neglogpdf_qrician, ∇²neglogpdf_qrician, ∇²neglogpdf_qrician_with_gradient, ∇²neglogpdf_qrician_with_primal_and_gradient,
+    mean_rician, std_rician
+
+using ArbNumerics: ArbReal
+using Distributions: Distributions
+using StaticArrays: StaticArrays, SVector, SMatrix, @SVector, @SMatrix
 using QuadGK: QuadGK, quadgk
 
-DEBUG = Ref(true)
-
+const F = FastRicianLikelihoods
 const HIGH_ORDER = Val(16)
 
 function xν_iterator(z::T) where {T <: Union{Float32, Float64}}
     rmax = T == Float32 ? 6 : 12
     return Iterators.flatten((
         [(√z, √z)],
-        Iterators.map(Iterators.product(-rmax:rmax, (false, true))) do (r, flip)
+        Iterators.map(Iterators.product((-rmax):rmax, (false, true))) do (r, flip)
             δ = exp10(T(r))
             s = flip ? inv(1 + δ) : 1 + δ
             x = √z * s
@@ -44,6 +47,7 @@ end
         end
         @testset "scaling ($T)" begin
             for ν in νs, logσ in logσs
+                ν, logσ = T(ν), T(logσ)
                 σ = exp(logσ)
                 for x in (ν, √(ν^2 + σ^2), √((ν - σ)^2 + σ^2))
                     @test neglogpdf_rician(x, ν, logσ) ≈ logσ + neglogpdf_rician(x / σ, ν / σ)
@@ -436,8 +440,8 @@ end
     @testset "inner jacobian and vjp vs. AD (jet) ($T)" for T in (Float32, Float64)
         for (x, ν, δ) in xνδ_iterator()
             Tad = Float64
-            rtol = T === Float32 ? 1f-2 : 1e-10
-            atol = T === Float32 ? 1f-2 : 1e-10
+            rtol = T === Float32 ? 1.0f-2 : 1e-10
+            atol = T === Float32 ? 1.0f-2 : 1e-10
 
             # Jacobian of flattened jet of `neglogpdf_qrician` integrand
             t = rand(T)
@@ -459,8 +463,8 @@ end
     @testset "full jacobian and vjp vs. AD (jet) ($T)" for T in (Float32, Float64)
         for (x, ν, δ) in xνδ_iterator(), order in (Val(2), Val(3), Val(4))
             Tad = Float64
-            rtol = T === Float32 ? 1f-2 : 1e-10
-            atol = T === Float32 ? 1f-2 : 1e-10
+            rtol = T === Float32 ? 1.0f-2 : 1e-10
+            atol = T === Float32 ? 1.0f-2 : 1e-10
 
             # Jacobian of flattened jet of `neglogpdf_qrician`
             Φ1, JΦ1 = FastRicianLikelihoods._∇³neglogpdf_qrician_jacobian_with_jet_ad(Tad.((T(x), T(ν), T(δ)))..., order)
