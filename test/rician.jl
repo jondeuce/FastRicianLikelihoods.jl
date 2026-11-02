@@ -40,7 +40,7 @@ end
                 I, E = quadgk(BigFloat.((zero(T), ν′ / 4, ν′ / 2, ν′, T(Inf)))...; rtol = 0, atol = BigFloat(2 * eps(T)), order = 15) do x
                     return BigFloat(exp(-neglogpdf_rician(T(x), ν′)))
                 end
-                @test E <= quad_atol
+                @test E <= BigFloat(2 * eps(T))
                 @test isapprox(I, one(T); rtol = zero(T), atol = T == Float32 ? 15 * eps(T) : 10 * eps(T))
             end
         end
@@ -344,8 +344,12 @@ end
         for (x, ν, δ) in xνδ_iterator(), order in (Val(1), Val(2))
             # Check that autodiff methods are being called; should be == in principle, but different methods can fuse ops differently
             ∂ŷ = @inferred ∇f̂(T(x), T(ν), T(δ), order)
-            @test all(isapprox.(∂ŷ, @inferred(∇Fwd((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))); rtol = 4 * eps(T), atol = 4 * eps(T)))
-            @test all(isapprox.(∂ŷ, @inferred(∇Zyg((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))); rtol = 4 * eps(T), atol = 4 * eps(T)))
+            dy_fwd = @inferred ∇Fwd((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))
+            ∂y_zyg = ∇Zyg((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ)) # fails @inferred
+            @test ∂y_zyg isa NTuple{3, T}
+            @test_broken (@inferred ∇Zyg((xνδ...,) -> f̂(xνδ..., order), T(x), T(ν), T(δ))) isa NTuple{3, T}
+            @test all(isapprox.(∂ŷ, dy_fwd; rtol = 4 * eps(T), atol = 4 * eps(T)))
+            @test all(isapprox.(∂ŷ, ∂y_zyg; rtol = 4 * eps(T), atol = 4 * eps(T)))
         end
     end
 

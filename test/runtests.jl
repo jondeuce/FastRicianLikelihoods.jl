@@ -11,7 +11,7 @@ include("test_utils.jl")
 #   julia --project=test test/runtests.jl gauss rician
 #   julia -e 'using Pkg; Pkg.test("FastRicianLikelihoods"; test_args = ["bessels"])'
 
-const TEST_FILES = ["utils", "gausslegendre", "gausshalfhermite", "forwarddiff", "bessels", "distributions", "rician", "aqua"]
+const TEST_FILES = ["utils", "coefficients", "gausslegendre", "gausshalfhermite", "forwarddiff", "bessels", "distributions", "rician", "aqua"]
 for arg in ARGS
     any(name -> occursin(arg, name), TEST_FILES) || error("No test files match $arg. Available test files: $(join(TEST_FILES, ", "))")
 end

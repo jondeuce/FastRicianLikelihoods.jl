@@ -25,6 +25,7 @@ using .GaussLegendre: GaussLegendre
 
 include(to_muladd, "utils.jl")
 include(to_muladd, "forwarddiff.jl")
+include(to_muladd, "coefficients.jl")
 include(to_muladd, "bessels.jl")
 include(to_muladd, "rician.jl")
 include(to_muladd, "distributions.jl")
